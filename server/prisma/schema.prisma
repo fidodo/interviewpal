@@ -1,0 +1,85 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String             @id @default(cuid())
+  email        String             @unique
+  passwordHash String?
+  googleId     String?            @unique
+  createdAt    DateTime           @default(now())
+  sessions     InterviewSession[]
+}
+
+model Topic {
+  id        String             @id @default(cuid())
+  name      String
+  track     String
+  isCustom  Boolean            @default(false)
+  createdAt DateTime           @default(now())
+  sessions  InterviewSession[]
+
+  @@unique([name, track])
+}
+
+model InterviewSession {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
+  topicId    String
+  topic      Topic           @relation(fields: [topicId], references: [id])
+  track      String
+  difficulty String
+  status     String          @default("ACTIVE")
+  startedAt  DateTime        @default(now())
+  endedAt    DateTime?
+  questions  Question[]
+  summary    SessionSummary?
+}
+
+model Question {
+  id          String           @id @default(cuid())
+  sessionId   String
+  session     InterviewSession @relation(fields: [sessionId], references: [id])
+  text        String
+  type        String           @default("VERBAL")
+  order       Int
+  generatedAt DateTime         @default(now())
+  answer      Answer?
+}
+
+model Answer {
+  id          String   @id @default(cuid())
+  questionId  String   @unique
+  question    Question @relation(fields: [questionId], references: [id])
+  transcript  String
+  submittedAt DateTime @default(now())
+  feedback    Feedback?
+}
+
+model Feedback {
+  id          String @id @default(cuid())
+  answerId    String @unique
+  answer      Answer @relation(fields: [answerId], references: [id])
+  score       Int
+  strengths   String
+  weaknesses  String
+  suggestions String
+  createdAt   DateTime @default(now())
+}
+
+model SessionSummary {
+  id           String           @id @default(cuid())
+  sessionId    String           @unique
+  session      InterviewSession @relation(fields: [sessionId], references: [id])
+  overallScore Int
+  assessment   String
+  strengths    String
+  improvements String
+  generatedAt  DateTime         @default(now())
+}
