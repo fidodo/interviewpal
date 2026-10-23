@@ -8,20 +8,22 @@ InterviewPal: a mock technical-interview practice app. A user picks a topic/trac
 
 This is two independent packages — `client/` (Vite + React) and `server/` (Express) — with no root `package.json` or workspace tooling tying them together. Run commands from inside each directory.
 
-## Current state — runnable
+## Current state — runnable, mid-deploy-prep
 
-Both `client/` and `server/` have dependencies installed, `.env` files populated, and the Prisma migration + seed applied. The app runs with `npm run dev` in each directory (see Commands below). No git commits yet.
+Both `client/` and `server/` have dependencies installed, `.env` files populated, and the database migrated and seeded. The app runs with `npm run dev` in each directory (see Commands below). Two commits exist on `master`; no remote yet.
+
+**For the deploy checklist (what's done, what's still blocking a real deploy), read the `interviewpal-playbook` skill** (`.claude/skills/interviewpal-playbook/`) — specifically `references/deploy-runbook.md`. Don't trust this paragraph's status claims blindly by the time you read this; check the runbook and the repo's actual state, since both drift as work continues. As of 2026-10-24: Postgres migration, Vercel serverless wrapper, rate limiting, sanitized error handler, health check route, and Prisma build-time generation are **done and verified**. Still outstanding: production `CLIENT_URL`/Google-origin env vars (blocked on having a real deployed domain) and pushing to a GitHub remote (no remote configured yet — ask the user for one, or confirm before creating one).
 
 Known quirk on Windows: `tsx watch` spawns a detached child process that killing the npm/shell wrapper does **not** reliably terminate — repeated restarts leave zombie `node.exe` processes bound to the old port, silently serving stale code/env to new requests. If behavior doesn't match the current source/`.env` after a restart, check for and kill stray `node` processes first (`Get-Process node | Stop-Process -Force` in PowerShell) before debugging further.
 
-`.env` changes and `schema.prisma`/Prisma-client changes are **not** picked up by `tsx watch` — always fully restart the server process after editing `.env` or running a migration.
+`.env` changes and `schema.prisma`/Prisma-client changes are **not** picked up by `tsx watch` — always fully restart the server process after editing `.env` or running a migration. On Windows, a migration can fail with an `EPERM` on the Prisma query-engine DLL if a server process is still holding it open — kill node processes first.
 
 ## Commands
 
 Server (`server/`):
 - `npm run dev` — run with `tsx watch` (hot reload)
 - `npm run build` / `npm start` — compile with `tsc` then run compiled output
-- `npm run prisma:migrate` — apply Prisma migrations (creates the SQLite db from `schema.prisma`)
+- `npm run prisma:migrate` — apply Prisma migrations (Postgres, via `DATABASE_URL` in `.env` — a pooled Neon connection string)
 - `npm run prisma:seed` — seed starter topics and the two users defined by `SEED_USER_1_EMAIL`/`SEED_USER_1_PASSWORD` and `SEED_USER_2_EMAIL`/`SEED_USER_2_PASSWORD` in `.env`
 - `npm run prisma:studio` — open Prisma Studio
 
@@ -42,14 +44,14 @@ Currently active: Groq (`openai/gpt-oss-120b`), set via `AI_PROVIDER` in `server
 Prompts are history-aware: `session.service.ts`'s `loadPriorQA` reassembles the full prior Q&A (+ per-answer score) for a session and passes it into every prompt, capped at the last 20 exchanges (`MAX_PRIOR_QA` in `prompts.ts`). This is how question generation adapts to the candidate's running performance and avoids repeating questions.
 
 ### Data/request flow for a session
-`InterviewSession` → many `Question` → one `Answer` each → one `Feedback` each; plus one `SessionSummary` per session (see `server/prisma/schema.prisma`). The flow, driven from `InterviewSessionPage.tsx`:
+`InterviewSession` → many `Question` (each has a `type`: `VERBAL` or `CODING`, chosen by the AI per-question) → one `Answer` each → one `Feedback` each; plus one `SessionSummary` per session (see `server/prisma/schema.prisma`). The flow, driven from `InterviewSessionPage.tsx`:
 1. `POST /sessions` creates a session for a topic/track/difficulty.
 2. `POST /sessions/:id/questions` asks the AI provider for the next question (using prior Q&A) and stores it.
-3. `POST /questions/:id/answer` stores the transcript, then immediately grades it via the AI provider and stores the `Feedback`.
+3. `POST /questions/:id/answer` stores the transcript (plus filler-word stats for `VERBAL` answers, computed locally — see `transcriptAnalysis.ts`), then immediately grades it via the AI provider (overall `score` + a `correctness`/`clarity`/`depth` breakdown) and stores the `Feedback`.
 4. Repeat 2–3.
 5. `POST /sessions/:id/end` marks the session `COMPLETED` and generates a `SessionSummary` from the full history (or a placeholder "no questions answered" summary if none were answered).
 
-`strengths`/`weaknesses`/`suggestions`/`improvements` are stored as JSON-stringified arrays in SQLite columns and parsed back out in `sessions.controller.ts`'s `serializeFeedback`/`serializeSummary` — Prisma/SQLite has no native array/JSON column type here.
+`strengths`/`weaknesses`/`suggestions`/`improvements` are stored as JSON-stringified arrays in plain `String` columns (not Postgres's native array/JSON types) and parsed back out in `sessions.controller.ts`'s `serializeFeedback`/`serializeSummary` — this predates the Postgres migration (was a SQLite limitation) and was deliberately left as-is rather than reworked, since it works fine either way and touching it wasn't worth the risk this close to deploy.
 
 ### Auth
 Cookie-based JWT, not bearer tokens, for both login paths. `auth.service.ts`'s shared `issueToken` signs a JWT with `JWT_SECRET`; both controllers set it as an `httpOnly` cookie the same way. `auth.middleware.requireAuth` reads `req.cookies.token`. The client's `api` wrapper (`client/src/api/client.ts`) always sends `credentials: "include"` so the cookie round-trips through the Vite proxy.

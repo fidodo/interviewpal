@@ -33,4 +33,15 @@ export const QuestionType = { VERBAL: "VERBAL", CODING: "CODING" } as const;
 export type QuestionType = (typeof QuestionType)[keyof typeof QuestionType];
 ```
 
-This also means any Prisma query result typed field (e.g. `question.type`) comes back as plain `string`, not the narrowed union — expect to need an `as QuestionType`-style assertion at the point where a raw Prisma field crosses into code that expects the narrowed type (see `session.service.ts` for examples). If this app ever migrates to Postgres (see the deploy runbook), real Prisma enums become available — not required, but worth considering since the hand-rolled pattern exists only to work around SQLite's limitation.
+This also means any Prisma query result typed field (e.g. `question.type`) comes back as plain `string`, not the narrowed union — expect to need an `as QuestionType`-style assertion at the point where a raw Prisma field crosses into code that expects the narrowed type (see `session.service.ts` for examples).
+
+**Update:** the app has since migrated to Postgres (see the deploy runbook), where real Prisma enums are available. The hand-rolled `String` + const-object pattern was deliberately **not** reverted back to native enums after the migration — it works fine either way, and touching every file that imports `Difficulty`/`SessionStatus`/`QuestionType` for a purely cosmetic improvement wasn't worth the risk this close to deploy. Fine to revisit post-launch if it bothers whoever's maintaining this, but it's not a problem that needs solving.
+
+## Additive feedback enrichment: breakdown scores and filler-word stats
+
+Two small enhancements layered onto the existing grading flow, both designed to be purely additive so nothing already depending on `Feedback.score` or the answer shape could break:
+
+- **Score breakdown.** `gradingPrompt` now also asks for `correctness`/`clarity`/`depth` (1–10 each) alongside the existing overall `score`. Stored as three new nullable `Int` columns on `Feedback` (`correctnessScore`, `clarityScore`, `depthScore`), serialized into a `breakdown` object only when all three are present (`sessions.controller.ts`'s `serializeFeedback`) — so any old feedback row without them (there shouldn't be any, but defensively) just renders without a breakdown section instead of crashing. The overall `score` field and everything that reads only it (badges, history list, session summary) is completely untouched.
+- **Filler-word detection.** `server/src/services/transcriptAnalysis.ts`'s `analyzeFillers` is pure string analysis (regex word-boundary matching against a fixed filler-phrase list) run locally in `session.service.submitAnswer` — no AI call, free, instant. Only runs for `VERBAL` answers (typed `CODING` answers get `fillerStats: null` — filler words don't apply to code). Stored as a JSON-stringified string on `Answer.fillerStats`, same serialize-on-read pattern as everything else in this codebase.
+
+Both shipped together as a response to "what would make this app genuinely better, not just working" — worth remembering that kind of question is worth asking of any practice/coaching-style app: the cheapest, highest-signal additions are often pure-local analysis on data you're already capturing (the transcript was already there; filler-word counting just reads it differently), not new AI calls.
