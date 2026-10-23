@@ -2,6 +2,7 @@ import { Difficulty, QuestionType, Track } from "../types";
 import { prisma } from "../db/prisma";
 import { aiProvider } from "../ai/provider.factory";
 import { PriorQA } from "../ai/provider.interface";
+import { analyzeFillers } from "./transcriptAnalysis";
 
 async function loadPriorQA(sessionId: string): Promise<PriorQA[]> {
   const questions = await prisma.question.findMany({
@@ -61,21 +62,27 @@ export async function submitAnswer(questionId: string, userId: string, transcrip
   });
   if (!question || question.session.userId !== userId) throw new Error("Question not found");
 
+  const questionType = question.type as QuestionType;
+  const fillerStats = questionType === "VERBAL" ? analyzeFillers(transcript) : null;
+
   const answer = await prisma.answer.create({
-    data: { questionId, transcript },
+    data: { questionId, transcript, fillerStats: fillerStats ? JSON.stringify(fillerStats) : null },
   });
 
   const grading = await aiProvider.gradeAnswer({
     question: question.text,
     transcript,
     difficulty: question.session.difficulty as Difficulty,
-    questionType: question.type as QuestionType,
+    questionType,
   });
 
   const feedback = await prisma.feedback.create({
     data: {
       answerId: answer.id,
       score: grading.score,
+      correctnessScore: grading.breakdown.correctness,
+      clarityScore: grading.breakdown.clarity,
+      depthScore: grading.breakdown.depth,
       strengths: JSON.stringify(grading.strengths),
       weaknesses: JSON.stringify(grading.weaknesses),
       suggestions: JSON.stringify(grading.suggestions),

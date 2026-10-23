@@ -47,7 +47,8 @@ export function gradingPrompt(params: { question: string; transcript: string; di
     `Question: ${question}`,
     `Candidate's answer: ${transcript}`,
     ``,
-    `Respond ONLY with JSON of the shape: { "score": number (1-10), "strengths": string[], "weaknesses": string[], "suggestions": string[] }`,
+    `In addition to the overall score, rate three specific dimensions 1-10 each: "correctness" (how accurate/complete the answer is), "clarity" (how well-structured and easy to follow it is), and "depth" (how much nuance, edge-case awareness, or going-beyond-the-obvious it shows).`,
+    `Respond ONLY with JSON of the shape: { "score": number (1-10), "breakdown": { "correctness": number (1-10), "clarity": number (1-10), "depth": number (1-10) }, "strengths": string[], "weaknesses": string[], "suggestions": string[] }`,
   ].join("\n");
 }
 

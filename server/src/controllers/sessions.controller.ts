@@ -13,14 +13,37 @@ function parseJsonArray(value: string): string[] {
   }
 }
 
-function serializeFeedback(feedback: { score: number; strengths: string; weaknesses: string; suggestions: string } | null | undefined) {
+interface FeedbackRow {
+  score: number;
+  correctnessScore: number | null;
+  clarityScore: number | null;
+  depthScore: number | null;
+  strengths: string;
+  weaknesses: string;
+  suggestions: string;
+}
+
+function serializeFeedback(feedback: FeedbackRow | null | undefined) {
   if (!feedback) return null;
+  const hasBreakdown = feedback.correctnessScore != null && feedback.clarityScore != null && feedback.depthScore != null;
   return {
     score: feedback.score,
+    breakdown: hasBreakdown
+      ? { correctness: feedback.correctnessScore, clarity: feedback.clarityScore, depth: feedback.depthScore }
+      : null,
     strengths: parseJsonArray(feedback.strengths),
     weaknesses: parseJsonArray(feedback.weaknesses),
     suggestions: parseJsonArray(feedback.suggestions),
   };
+}
+
+function serializeFillerStats(fillerStats: string | null | undefined) {
+  if (!fillerStats) return null;
+  try {
+    return JSON.parse(fillerStats);
+  } catch {
+    return null;
+  }
 }
 
 function serializeSummary(summary: { overallScore: number; assessment: string; strengths: string; improvements: string } | null | undefined) {
@@ -67,7 +90,12 @@ export async function submitAnswer(req: AuthedRequest, res: Response) {
   }
   const { answer, feedback } = await sessionService.submitAnswer(req.params.id, req.userId!, parsed.data.transcript);
   res.status(201).json({
-    answer: { id: answer.id, transcript: answer.transcript, submittedAt: answer.submittedAt },
+    answer: {
+      id: answer.id,
+      transcript: answer.transcript,
+      submittedAt: answer.submittedAt,
+      fillerStats: serializeFillerStats(answer.fillerStats),
+    },
     feedback: serializeFeedback(feedback),
   });
 }
@@ -126,6 +154,7 @@ export async function getSessionDetail(req: AuthedRequest, res: Response) {
           ? {
               id: q.answer.id,
               transcript: q.answer.transcript,
+              fillerStats: serializeFillerStats(q.answer.fillerStats),
               feedback: serializeFeedback(q.answer.feedback),
             }
           : null,

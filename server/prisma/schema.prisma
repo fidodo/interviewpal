@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -58,19 +58,23 @@ model Answer {
   questionId  String   @unique
   question    Question @relation(fields: [questionId], references: [id])
   transcript  String
+  fillerStats String?
   submittedAt DateTime @default(now())
   feedback    Feedback?
 }
 
 model Feedback {
-  id          String @id @default(cuid())
-  answerId    String @unique
-  answer      Answer @relation(fields: [answerId], references: [id])
-  score       Int
-  strengths   String
-  weaknesses  String
-  suggestions String
-  createdAt   DateTime @default(now())
+  id               String @id @default(cuid())
+  answerId         String @unique
+  answer           Answer @relation(fields: [answerId], references: [id])
+  score            Int
+  correctnessScore Int?
+  clarityScore     Int?
+  depthScore       Int?
+  strengths        String
+  weaknesses       String
+  suggestions      String
+  createdAt        DateTime @default(now())
 }
 
 model SessionSummary {

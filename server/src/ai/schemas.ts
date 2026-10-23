@@ -7,6 +7,11 @@ export const generatedQuestionSchema = z.object({
 
 export const gradingResultSchema = z.object({
   score: z.number().min(1).max(10),
+  breakdown: z.object({
+    correctness: z.number().min(1).max(10),
+    clarity: z.number().min(1).max(10),
+    depth: z.number().min(1).max(10),
+  }),
   strengths: z.array(z.string()),
   weaknesses: z.array(z.string()),
   suggestions: z.array(z.string()),

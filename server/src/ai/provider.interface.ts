@@ -12,8 +12,15 @@ export interface GeneratedQuestion {
   type: QuestionType;
 }
 
+export interface GradingBreakdown {
+  correctness: number;
+  clarity: number;
+  depth: number;
+}
+
 export interface GradingResult {
   score: number;
+  breakdown: GradingBreakdown;
   strengths: string[];
   weaknesses: string[];
   suggestions: string[];

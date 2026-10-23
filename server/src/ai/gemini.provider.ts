@@ -14,11 +14,20 @@ const GRADING_SCHEMA = {
   type: "OBJECT",
   properties: {
     score: { type: "NUMBER" },
+    breakdown: {
+      type: "OBJECT",
+      properties: {
+        correctness: { type: "NUMBER" },
+        clarity: { type: "NUMBER" },
+        depth: { type: "NUMBER" },
+      },
+      required: ["correctness", "clarity", "depth"],
+    },
     strengths: { type: "ARRAY", items: { type: "STRING" } },
     weaknesses: { type: "ARRAY", items: { type: "STRING" } },
     suggestions: { type: "ARRAY", items: { type: "STRING" } },
   },
-  required: ["score", "strengths", "weaknesses", "suggestions"],
+  required: ["score", "breakdown", "strengths", "weaknesses", "suggestions"],
 };
 
 const SUMMARY_SCHEMA = {

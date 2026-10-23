@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
-import { SessionDetail, Feedback, Question } from "../types";
+import { SessionDetail, Feedback, FillerStats, Question } from "../types";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { MicButton } from "../components/MicButton";
 import { TranscriptBox } from "../components/TranscriptBox";
@@ -17,6 +17,7 @@ export function InterviewSessionPage() {
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [codeAnswer, setCodeAnswer] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [fillerStats, setFillerStats] = useState<FillerStats | null>(null);
   const [busy, setBusy] = useState<"loading" | "generating" | "submitting" | "ending" | null>("loading");
   const [error, setError] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState(0);
@@ -32,6 +33,7 @@ export function InterviewSessionPage() {
         speech.resetTranscript();
         setCodeAnswer("");
         setFeedback(null);
+        setFillerStats(null);
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Couldn't generate a question. Try again.");
       } finally {
@@ -71,10 +73,12 @@ export function InterviewSessionPage() {
     setBusy("submitting");
     setError(null);
     try {
-      const res = await api.post<{ feedback: Feedback }>(`/questions/${currentQuestion.id}/answer`, {
-        transcript: answerText,
-      });
+      const res = await api.post<{ answer: { fillerStats: FillerStats | null }; feedback: Feedback }>(
+        `/questions/${currentQuestion.id}/answer`,
+        { transcript: answerText }
+      );
       setFeedback(res.feedback);
+      setFillerStats(res.answer.fillerStats);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't grade your answer. Try again.");
     } finally {
@@ -161,7 +165,7 @@ export function InterviewSessionPage() {
 
       {feedback && (
         <>
-          <FeedbackCard feedback={feedback} />
+          <FeedbackCard feedback={feedback} fillerStats={fillerStats} />
           <button className="btn btn-primary btn-block" onClick={() => id && loadNextQuestion(id)} disabled={busy !== null}>
             Next Question
           </button>
