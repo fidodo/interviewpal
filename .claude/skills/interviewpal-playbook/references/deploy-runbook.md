@@ -2,19 +2,21 @@
 
 Context this runbook assumes: deploying to Vercel (or another platform with an ephemeral/serverless filesystem), and Google sign-in left open to anyone with a Google account (no email allowlist). If either of those assumptions no longer holds, some items here don't apply — re-check before blindly executing.
 
-**Status as of 2026-10-26: items 1–5, 7, and 8 are done and verified.** Item 6 is in progress (see below). Verify this status against the actual repo state before trusting it; it'll drift as work continues.
+**Status as of 2026-10-26: all 8 items done and verified. The app is live in production.** Verify this status against the actual repo state before trusting it; it'll drift as work continues.
 
-## Vercel project setup (in progress, blocked on user action)
+**Live URLs:**
+- Client (what users visit): `https://client-beige-mu-26.vercel.app`
+- Server (API, normally never hit directly — see the proxy note below): `https://server-opal-kappa-39.vercel.app`
 
-Two Vercel projects created and linked via `vercel link` (CLI authenticated as `fidodo`): `fidodos-projects/server` (rooted at `server/`) and `fidodos-projects/client` (rooted at `client/`). The server deployed successfully build-wise — `vercel deploy --yes` confirmed the build pipeline works end-to-end — at a stable URL: `https://server-opal-kappa-39.vercel.app`. It currently 500s on every request because no env vars are set yet (expected — `env.ts`'s `required("JWT_SECRET")` throws at cold start without one).
+## Vercel project setup — ✅ Done
 
-**Architecture note:** client and server are separate `*.vercel.app` domains, which the Public Suffix List treats as different *sites* — the session cookie is `SameSite=Lax`, which browsers won't send on cross-site fetch/XHR (only top-level navigations). To avoid breaking auth, `client/vercel.json` proxies `/api/*` to the server's deployment via an external-URL rewrite, so the browser only ever talks to the client's own origin — no CORS/cookie cross-site issue, no custom domain needed, no client code changes. If a custom domain gets set up later with `app.`/`api.` subdomains of the same apex, this proxy becomes unnecessary (same-site subdomains share SameSite=Lax cookies natively) but isn't wrong to keep either way.
+Two Vercel projects created and linked via `vercel link` (CLI authenticated as `fidodo`): `fidodos-projects/server` (rooted at `server/`) and `fidodos-projects/client` (rooted at `client/`).
 
-**Blocked by auto-mode's permission classifier** (not a bug — a deliberate guardrail): writing env vars to Vercel's secret store (`vercel env add`) and `vercel deploy --prod` both require explicit user permission. Get the user to either grant it or do these two things themselves:
-1. Set server env vars (from `server/.env`, skip `PORT` and `SEED_USER_*`): `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `AI_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GROQ_API_KEY`, `GROQ_MODEL`, plus `CLIENT_URL` once the client's final URL is known (item 6).
-2. Set client env var: `VITE_GOOGLE_CLIENT_ID` (from `client/.env`).
-3. Promote both to production (`vercel deploy --prod` in each directory, or via the Vercel dashboard).
-4. Then finish item 6 below using the client's real production URL.
+**Architecture note — cross-origin cookie fix:** client and server are separate `*.vercel.app` domains, which the Public Suffix List treats as different *sites* — the session cookie is `SameSite=Lax`, which browsers won't send on cross-site fetch/XHR (only top-level navigations). To avoid breaking auth, `client/vercel.json` proxies `/api/*` to the server's deployment via an external-URL rewrite, so the browser only ever talks to the client's own origin — no CORS/cookie cross-site issue, no custom domain needed, no client code changes. If a custom domain gets set up later with `app.`/`api.` subdomains of the same apex, this proxy becomes unnecessary (same-site subdomains share SameSite=Lax cookies natively) but isn't wrong to keep either way.
+
+**Bug caught and fixed during first deploy:** `client/vercel.json` originally only had the `/api/*` rewrite — direct navigation to any client-side route (`/login`, `/history`, etc.) 404'd, because Vercel looked for a literal file at that path instead of falling back to `index.html` for React Router to handle. Fixed by adding a catch-all `"/(.*)" → "/index.html"` rewrite *after* the API rewrite (order matters — first match wins).
+
+**Permission note for future sessions:** auto-mode's classifier blocks `vercel env add` (writing to the secret store) and `vercel deploy --prod` (an explicit `--prod` flag) by default — these needed either explicit user permission or the user doing them via the Vercel dashboard. Also worth knowing: the *very first* `vercel deploy` (no `--prod` flag) on a brand-new project auto-targets production since none exists yet; every deploy after that defaults to preview and needs an explicit promotion.
 
 ## 1. Migrate the database off SQLite — ✅ Done
 
@@ -46,11 +48,11 @@ Two Vercel projects created and linked via `vercel link` (CLI authenticated as `
 
 **Done:** `GET /api/health` in `server/src/routes/index.ts`, no auth. Verified returning 200.
 
-## 6. Production env wiring — ⏳ Outstanding, needs user input
+## 6. Production env wiring — ✅ Done
 
-**Why:** `CLIENT_URL` (CORS allow-origin) and Google Cloud's "Authorized JavaScript origins" for the OAuth Client ID both still point at `localhost`. This exact class of bug already bit us once this session (Google rejected sign-in with "origin not allowed" until the origin was added in Cloud Console) — expect the same failure for the production domain if forgotten.
+**Why:** `CLIENT_URL` (CORS allow-origin) and Google Cloud's "Authorized JavaScript origins" for the OAuth Client ID both pointed at `localhost` by default. This exact class of bug already bit us once earlier in local dev (Google rejected sign-in with "origin not allowed" until the origin was added in Cloud Console) — same failure mode would've hit production if forgotten.
 
-**How:** Once the production frontend domain is known (i.e. after a first deploy gives you one): set `CLIENT_URL` in the server's production env vars to that domain, and add that same domain to the OAuth Client ID's Authorized JavaScript origins in Google Cloud Console. Chicken-and-egg with a first deploy — do it deliberately right after the domain exists, not reactively after a failed sign-in.
+**Done:** `CLIENT_URL` set to `https://client-beige-mu-26.vercel.app` on the server project (verified — `Access-Control-Allow-Origin` header now reflects it), and that same URL added to the OAuth Client ID's Authorized JavaScript origins in Google Cloud Console (verified — Google Sign-In renders the user's actual account on the live site, with no "origin not allowed" console error).
 
 **Tracked as part of the current production push** (2026-10-26) — this is the last step before calling the app live; execute it immediately once a deploy domain exists, don't let it slip.
 

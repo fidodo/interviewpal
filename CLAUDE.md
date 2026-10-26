@@ -8,11 +8,15 @@ InterviewPal: a mock technical-interview practice app. A user picks a topic/trac
 
 This is two independent packages — `client/` (Vite + React) and `server/` (Express) — with no root `package.json` or workspace tooling tying them together. Run commands from inside each directory.
 
-## Current state — runnable, mid-deploy-prep
+## Current state — live in production
 
-Both `client/` and `server/` have dependencies installed, `.env` files populated, and the database migrated and seeded. The app runs with `npm run dev` in each directory (see Commands below). Four commits on `main`, pushed to `https://github.com/fidodo/interviewpal.git` (`origin`).
+Both `client/` and `server/` have dependencies installed, `.env` files populated for local dev, and the database migrated and seeded. The app runs locally with `npm run dev` in each directory (see Commands below). Commits on `main`, pushed to `https://github.com/fidodo/interviewpal.git` (`origin`).
 
-**For the deploy checklist (what's done, what's still blocking a real deploy), read the `interviewpal-playbook` skill** (`.claude/skills/interviewpal-playbook/`) — specifically `references/deploy-runbook.md`. Don't trust this paragraph's status claims blindly by the time you read this; check the runbook and the repo's actual state, since both drift as work continues. As of 2026-10-26: everything is done except production `CLIENT_URL`/Google-origin env vars, which is blocked on having a real deployed domain — that's genuinely the only thing left before this can go live. Next step is connecting the pushed repo to Vercel (two projects, one rooted at `client/` and one at `server/` — see the runbook).
+**Deployed and verified working:**
+- Client: `https://client-beige-mu-26.vercel.app` (Vercel project `fidodos-projects/client`)
+- Server: `https://server-opal-kappa-39.vercel.app` (Vercel project `fidodos-projects/server`) — not normally hit directly; the client proxies `/api/*` to it (see the playbook skill for why)
+
+**For deploy history/architecture notes (the cross-origin cookie fix, the SPA-routing bug that was caught and fixed, Vercel CLI permission quirks), read the `interviewpal-playbook` skill** (`.claude/skills/interviewpal-playbook/references/deploy-runbook.md`) — don't trust this paragraph blindly by the time you read it, verify against actual repo/deployment state.
 
 Known quirk on Windows: `tsx watch` spawns a detached child process that killing the npm/shell wrapper does **not** reliably terminate — repeated restarts leave zombie `node.exe` processes bound to the old port, silently serving stale code/env to new requests. If behavior doesn't match the current source/`.env` after a restart, check for and kill stray `node` processes first (`Get-Process node | Stop-Process -Force` in PowerShell) before debugging further.
 

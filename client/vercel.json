@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://server-opal-kappa-39.vercel.app/api/$1" }
+    { "source": "/api/(.*)", "destination": "https://server-opal-kappa-39.vercel.app/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
