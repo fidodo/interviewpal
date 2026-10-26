@@ -4,6 +4,7 @@ import { api, ApiError } from "../api/client";
 import { SessionDetail, Feedback, FillerStats, Question } from "../types";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { MicButton } from "../components/MicButton";
+import { MicTestButton } from "../components/MicTestButton";
 import { TranscriptBox } from "../components/TranscriptBox";
 import { CodeAnswerBox } from "../components/CodeAnswerBox";
 import { FeedbackCard } from "../components/FeedbackCard";
@@ -150,6 +151,7 @@ export function InterviewSessionPage() {
                 onStop={speech.stop}
               />
               {speech.error && <p className="error-text">{speech.error}</p>}
+              <MicTestButton />
               <TranscriptBox value={speech.transcript} onChange={speech.setTranscript} disabled={busy === "submitting"} />
             </>
           )}
