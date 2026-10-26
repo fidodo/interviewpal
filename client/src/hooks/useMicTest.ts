@@ -68,6 +68,8 @@ export function useMicTest() {
         if (pct > LEVEL_THRESHOLD) {
           heardRef.current = true;
           setStatus("working");
+          release();
+          return;
         }
         rafRef.current = requestAnimationFrame(tick);
       };

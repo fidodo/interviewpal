@@ -48,7 +48,12 @@ export function useSpeechRecognition() {
     return () => {
       shouldListenRef.current = false;
       clearSilenceTimeout();
-      recognitionRef.current?.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.stop();
+      }
     };
   }, [clearSilenceTimeout]);
 
@@ -122,7 +127,12 @@ export function useSpeechRecognition() {
   const stop = useCallback(() => {
     shouldListenRef.current = false;
     clearSilenceTimeout();
-    recognitionRef.current?.stop();
+    if (recognitionRef.current) {
+      recognitionRef.current.onresult = null;
+      recognitionRef.current.onerror = null;
+      recognitionRef.current.onend = null;
+      recognitionRef.current.stop();
+    }
     setIsListening(false);
   }, [clearSilenceTimeout]);
 

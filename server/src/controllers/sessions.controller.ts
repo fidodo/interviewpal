@@ -79,13 +79,13 @@ export async function generateNextQuestion(req: AuthedRequest, res: Response) {
 }
 
 const submitAnswerSchema = z.object({
-  transcript: z.string().min(1).max(8000),
+  transcript: z.string().min(1).max(20000),
 });
 
 export async function submitAnswer(req: AuthedRequest, res: Response) {
   const parsed = submitAnswerSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Answer is required and must be under 8000 characters" });
+    res.status(400).json({ error: "Answer is required and must be under 20,000 characters" });
     return;
   }
   const { answer, feedback } = await sessionService.submitAnswer(req.params.id, req.userId!, parsed.data.transcript);
