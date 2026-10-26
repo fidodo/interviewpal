@@ -44,27 +44,50 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
+  const [googleUnavailable, setGoogleUnavailable] = useState(false);
 
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
     if (!clientId || !googleButtonRef.current) return;
-    const google = (window as unknown as { google?: GoogleIdentityServices }).google;
-    if (!google) return;
+    setGoogleUnavailable(false);
 
-    google.accounts.id.initialize({
-      client_id: clientId,
-      callback: async (response) => {
-        setError(null);
-        try {
-          await loginWithGoogle(response.credential);
-          navigate("/");
-        } catch (err) {
-          setError(err instanceof ApiError ? err.message : "Google sign-in failed. Try again.");
+    let cancelled = false;
+    let attempts = 0;
+
+    const tryRender = () => {
+      if (cancelled) return;
+      const google = (window as unknown as { google?: GoogleIdentityServices }).google;
+      if (!google) {
+        attempts += 1;
+        if (attempts >= 20) {
+          setGoogleUnavailable(true);
+          return;
         }
-      },
-    });
-    google.accounts.id.renderButton(googleButtonRef.current, { theme: "outline", size: "large", width: 320 });
+        setTimeout(tryRender, 250);
+        return;
+      }
+      if (!googleButtonRef.current) return;
+
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response) => {
+          setError(null);
+          try {
+            await loginWithGoogle(response.credential);
+            navigate("/");
+          } catch (err) {
+            setError(err instanceof ApiError ? err.message : "Google sign-in failed. Try again.");
+          }
+        },
+      });
+      google.accounts.id.renderButton(googleButtonRef.current, { theme: "outline", size: "large", width: 320 });
+    };
+
+    tryRender();
+    return () => {
+      cancelled = true;
+    };
   }, [clientId, loginWithGoogle, navigate]);
 
   async function handleSubmit(e: FormEvent) {
@@ -124,12 +147,16 @@ export function LoginPage() {
 
       <div className="narrow-box">
         <div className="card">
-          {clientId ? (
-            <div ref={googleButtonRef} style={{ display: "flex", justifyContent: "center" }} />
-          ) : (
+          {!clientId ? (
             <p className="helper-text">
               Set VITE_GOOGLE_CLIENT_ID in client/.env to enable Google sign-in.
             </p>
+          ) : googleUnavailable ? (
+            <p className="helper-text" style={{ textAlign: "center" }}>
+              Google sign-in didn't load. Use email and password below instead.
+            </p>
+          ) : (
+            <div ref={googleButtonRef} style={{ display: "flex", justifyContent: "center" }} />
           )}
         </div>
         <div className="helper-text" style={{ textAlign: "center", margin: "4px 0" }}>
