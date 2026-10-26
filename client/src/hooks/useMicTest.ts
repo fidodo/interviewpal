@@ -46,6 +46,9 @@ export function useMicTest() {
       streamRef.current = stream;
       const audioCtx = new AudioContext();
       audioCtxRef.current = audioCtx;
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
+      }
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 512;
