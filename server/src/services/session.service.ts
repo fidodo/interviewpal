@@ -100,4 +100,10 @@ export async function listSessions(userId: string) {
   });
 }
 
+export async function deleteSession(sessionId: string, userId: string) {
+  const session = await prisma.interviewSession.findFirst({ where: { id: sessionId, userId } });
+  if (!session) throw new Error("Session not found");
+  await prisma.interviewSession.delete({ where: { id: sessionId } });
+}
+
 export { loadPriorQA };

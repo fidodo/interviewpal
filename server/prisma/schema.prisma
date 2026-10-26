@@ -45,7 +45,7 @@ model InterviewSession {
 model Question {
   id          String           @id @default(cuid())
   sessionId   String
-  session     InterviewSession @relation(fields: [sessionId], references: [id])
+  session     InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   text        String
   type        String           @default("VERBAL")
   order       Int
@@ -56,7 +56,7 @@ model Question {
 model Answer {
   id          String   @id @default(cuid())
   questionId  String   @unique
-  question    Question @relation(fields: [questionId], references: [id])
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   transcript  String
   fillerStats String?
   submittedAt DateTime @default(now())
@@ -66,7 +66,7 @@ model Answer {
 model Feedback {
   id               String @id @default(cuid())
   answerId         String @unique
-  answer           Answer @relation(fields: [answerId], references: [id])
+  answer           Answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
   score            Int
   correctnessScore Int?
   clarityScore     Int?
@@ -80,7 +80,7 @@ model Feedback {
 model SessionSummary {
   id           String           @id @default(cuid())
   sessionId    String           @unique
-  session      InterviewSession @relation(fields: [sessionId], references: [id])
+  session      InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   overallScore Int
   assessment   String
   strengths    String

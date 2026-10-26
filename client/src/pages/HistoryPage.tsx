@@ -17,6 +17,10 @@ export function HistoryPage() {
 
   const dayGroups = groupSessionsByDay(sessions);
 
+  function handleDelete(id: string) {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+  }
+
   return (
     <div className="page">
       <h1 className="page-title">History</h1>
@@ -33,7 +37,7 @@ export function HistoryPage() {
         dayGroups.map((group) => (
           <div className="card" key={group.dayKey}>
             <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>{group.label}</h2>
-            <HistoryList sessions={group.sessions} />
+            <HistoryList sessions={group.sessions} onDelete={handleDelete} />
           </div>
         ))
       )}

@@ -134,7 +134,10 @@ export function DashboardPage() {
               View all
             </button>
           </div>
-          <HistoryList sessions={recentSessions} />
+          <HistoryList
+            sessions={recentSessions}
+            onDelete={(id) => setRecentSessions((prev) => prev.filter((s) => s.id !== id))}
+          />
         </div>
       )}
     </div>

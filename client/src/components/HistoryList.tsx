@@ -1,34 +1,72 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { api, ApiError } from "../api/client";
 import { SessionListItem } from "../types";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function HistoryList({ sessions }: { sessions: SessionListItem[] }) {
+interface HistoryListProps {
+  sessions: SessionListItem[];
+  onDelete?: (id: string) => void;
+}
+
+export function HistoryList({ sessions, onDelete }: HistoryListProps) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
   if (sessions.length === 0) {
     return <p className="empty-state">No sessions yet — start your first mock interview above.</p>;
   }
 
+  async function handleDelete(s: SessionListItem) {
+    if (!window.confirm(`Delete "${s.topic.name}" and its results? This can't be undone.`)) return;
+    setDeletingId(s.id);
+    setError(null);
+    try {
+      await api.del(`/sessions/${s.id}`);
+      onDelete?.(s.id);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't delete this session. Try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div>
+      {error && <p className="error-text">{error}</p>}
       {sessions.map((s) => (
-        <Link key={s.id} to={`/sessions/${s.id}${s.status === "COMPLETED" ? "/summary" : ""}`} className="history-row">
-          <div className="history-meta">
-            <strong>{s.topic.name}</strong>
-            <div className="history-tags">
-              <span className="badge badge-primary">{s.track}</span>
-              <span className="badge">{s.difficulty}</span>
-              <span className="badge">{formatDate(s.startedAt)}</span>
-              {s.status === "ACTIVE" && <span className="badge">In progress</span>}
+        <div key={s.id} className="history-row">
+          <Link to={`/sessions/${s.id}${s.status === "COMPLETED" ? "/summary" : ""}`} className="history-row-link">
+            <div className="history-meta">
+              <strong>{s.topic.name}</strong>
+              <div className="history-tags">
+                <span className="badge badge-primary">{s.track}</span>
+                <span className="badge">{s.difficulty}</span>
+                <span className="badge">{formatDate(s.startedAt)}</span>
+                {s.status === "ACTIVE" && <span className="badge">In progress</span>}
+              </div>
             </div>
-          </div>
-          {s.summary && (
-            <div className={`score-badge ${s.summary.overallScore >= 7 ? "score-high" : s.summary.overallScore >= 4 ? "score-mid" : "score-low"}`}>
-              {s.summary.overallScore}
-            </div>
+            {s.summary && (
+              <div className={`score-badge ${s.summary.overallScore >= 7 ? "score-high" : s.summary.overallScore >= 4 ? "score-mid" : "score-low"}`}>
+                {s.summary.overallScore}
+              </div>
+            )}
+          </Link>
+          {onDelete && (
+            <button
+              type="button"
+              className="history-delete-btn"
+              aria-label={`Delete ${s.topic.name} session`}
+              disabled={deletingId === s.id}
+              onClick={() => handleDelete(s)}
+            >
+              {deletingId === s.id ? "…" : "✕"}
+            </button>
           )}
-        </Link>
+        </div>
       ))}
     </div>
   );

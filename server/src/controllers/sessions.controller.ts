@@ -114,6 +114,11 @@ export async function getSummary(req: AuthedRequest, res: Response) {
   res.json({ session: result.session, summary: serializeSummary(result.summary) });
 }
 
+export async function deleteSession(req: AuthedRequest, res: Response) {
+  await sessionService.deleteSession(req.params.id, req.userId!);
+  res.status(204).send();
+}
+
 export async function listSessions(req: AuthedRequest, res: Response) {
   const sessions = await sessionService.listSessions(req.userId!);
   res.json({

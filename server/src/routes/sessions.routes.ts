@@ -10,6 +10,7 @@ sessionsRouter.use(requireAuth);
 sessionsRouter.post("/", asyncHandler(sessionsController.createSession));
 sessionsRouter.get("/", asyncHandler(sessionsController.listSessions));
 sessionsRouter.get("/:id", asyncHandler(sessionsController.getSessionDetail));
+sessionsRouter.delete("/:id", asyncHandler(sessionsController.deleteSession));
 sessionsRouter.post("/:id/questions", aiLimiter, asyncHandler(sessionsController.generateNextQuestion));
 sessionsRouter.post("/:id/end", asyncHandler(sessionsController.endSession));
 sessionsRouter.get("/:id/summary", asyncHandler(sessionsController.getSummary));
