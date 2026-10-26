@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://server-opal-kappa-39.vercel.app/api/$1" }
+  ]
+}

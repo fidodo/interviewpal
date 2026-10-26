@@ -2,7 +2,19 @@
 
 Context this runbook assumes: deploying to Vercel (or another platform with an ephemeral/serverless filesystem), and Google sign-in left open to anyone with a Google account (no email allowlist). If either of those assumptions no longer holds, some items here don't apply — re-check before blindly executing.
 
-**Status as of 2026-10-26: items 1–5, 7, and 8 are done and verified** (see each item's "Done" note for what was actually executed, which may differ slightly from the original "How"). Only item 6 is still outstanding, blocked on having a real deploy domain. Verify this status against the actual repo state before trusting it; it'll drift as work continues.
+**Status as of 2026-10-26: items 1–5, 7, and 8 are done and verified.** Item 6 is in progress (see below). Verify this status against the actual repo state before trusting it; it'll drift as work continues.
+
+## Vercel project setup (in progress, blocked on user action)
+
+Two Vercel projects created and linked via `vercel link` (CLI authenticated as `fidodo`): `fidodos-projects/server` (rooted at `server/`) and `fidodos-projects/client` (rooted at `client/`). The server deployed successfully build-wise — `vercel deploy --yes` confirmed the build pipeline works end-to-end — at a stable URL: `https://server-opal-kappa-39.vercel.app`. It currently 500s on every request because no env vars are set yet (expected — `env.ts`'s `required("JWT_SECRET")` throws at cold start without one).
+
+**Architecture note:** client and server are separate `*.vercel.app` domains, which the Public Suffix List treats as different *sites* — the session cookie is `SameSite=Lax`, which browsers won't send on cross-site fetch/XHR (only top-level navigations). To avoid breaking auth, `client/vercel.json` proxies `/api/*` to the server's deployment via an external-URL rewrite, so the browser only ever talks to the client's own origin — no CORS/cookie cross-site issue, no custom domain needed, no client code changes. If a custom domain gets set up later with `app.`/`api.` subdomains of the same apex, this proxy becomes unnecessary (same-site subdomains share SameSite=Lax cookies natively) but isn't wrong to keep either way.
+
+**Blocked by auto-mode's permission classifier** (not a bug — a deliberate guardrail): writing env vars to Vercel's secret store (`vercel env add`) and `vercel deploy --prod` both require explicit user permission. Get the user to either grant it or do these two things themselves:
+1. Set server env vars (from `server/.env`, skip `PORT` and `SEED_USER_*`): `DATABASE_URL`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `AI_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GROQ_API_KEY`, `GROQ_MODEL`, plus `CLIENT_URL` once the client's final URL is known (item 6).
+2. Set client env var: `VITE_GOOGLE_CLIENT_ID` (from `client/.env`).
+3. Promote both to production (`vercel deploy --prod` in each directory, or via the Vercel dashboard).
+4. Then finish item 6 below using the client's real production URL.
 
 ## 1. Migrate the database off SQLite — ✅ Done
 
