@@ -2,7 +2,7 @@
 
 Context this runbook assumes: deploying to Vercel (or another platform with an ephemeral/serverless filesystem), and Google sign-in left open to anyone with a Google account (no email allowlist). If either of those assumptions no longer holds, some items here don't apply — re-check before blindly executing.
 
-**Status as of 2026-10-24: items 1–5 and 7 are done and verified** (see each item's "Done" note for what was actually executed, which may differ slightly from the original "How"). Items 6 and 8 are still outstanding and need user input to finish — don't attempt them without it. Verify this status against the actual repo state before trusting it; it'll drift as work continues.
+**Status as of 2026-10-26: items 1–5, 7, and 8 are done and verified** (see each item's "Done" note for what was actually executed, which may differ slightly from the original "How"). Only item 6 is still outstanding, blocked on having a real deploy domain. Verify this status against the actual repo state before trusting it; it'll drift as work continues.
 
 ## 1. Migrate the database off SQLite — ✅ Done
 
@@ -46,13 +46,11 @@ Context this runbook assumes: deploying to Vercel (or another platform with an e
 
 **Done:** Added `"postinstall": "prisma generate"` to `server/package.json`.
 
-## 8. Get the repo into git — ⏳ Partially done, needs user input to finish
+## 8. Get the repo into git — ✅ Done
 
 **Why:** A git-based Vercel deploy needs a GitHub repo to connect to.
 
-**Done:** Local repo initialized, two commits made on `master` (initial app + deploy-readiness hardening, then Postgres migration + feedback-breakdown/filler-stats features). Both commits were reviewed for secrets/unwanted files before committing — caught and excluded a SQLite db file, a `.tsbuildinfo` build artifact, and a Claude Code lock file via `.gitignore` fixes.
-
-**Still needed:** No remote configured. Needs either a GitHub repo URL from the user to push to, or explicit confirmation to create one (creating a remote repo and pushing is a visible/shared-state action — don't do it without asking first, per standing policy on actions like this).
+**Done:** Local repo initialized, four commits made (reviewed for secrets/unwanted files before each — caught and excluded a SQLite db file, a `.tsbuildinfo` build artifact, and a Claude Code lock file via `.gitignore` fixes along the way). Branch renamed `master` → `main`. Remote `origin` set to the user-provided `https://github.com/fidodo/interviewpal.git` and pushed — `main` is live on GitHub, ready to connect to Vercel.
 
 ## Also worth knowing: a deferred vulnerability
 
