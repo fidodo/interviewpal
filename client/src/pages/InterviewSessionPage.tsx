@@ -88,6 +88,7 @@ export function InterviewSessionPage() {
 
   async function handleEnd() {
     if (!id) return;
+    if (!window.confirm("End this interview now? You won't be able to add more answers.")) return;
     setBusy("ending");
     try {
       await api.post(`/sessions/${id}/end`);

@@ -40,6 +40,8 @@ Context this runbook assumes: deploying to Vercel (or another platform with an e
 
 **How:** Once the production frontend domain is known (i.e. after a first deploy gives you one): set `CLIENT_URL` in the server's production env vars to that domain, and add that same domain to the OAuth Client ID's Authorized JavaScript origins in Google Cloud Console. Chicken-and-egg with a first deploy — do it deliberately right after the domain exists, not reactively after a failed sign-in.
 
+**Tracked as part of the current production push** (2026-10-26) — this is the last step before calling the app live; execute it immediately once a deploy domain exists, don't let it slip.
+
 ## 7. Generate the Prisma client at build time — ✅ Done
 
 **Done:** Added `"postinstall": "prisma generate"` to `server/package.json`.

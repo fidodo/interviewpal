@@ -4,6 +4,7 @@ import { api, ApiError } from "../api/client";
 import { TopicPicker } from "../components/TopicPicker";
 import { Difficulty, PRESET_TRACKS, SessionListItem, Topic } from "../types";
 import { HistoryList } from "../components/HistoryList";
+import { groupSessionsByDay } from "../utils/groupSessionsByDay";
 
 const DIFFICULTIES: Difficulty[] = ["JUNIOR", "INTERMEDIATE", "SENIOR"];
 
@@ -23,7 +24,7 @@ export function DashboardPage() {
   useEffect(() => {
     api
       .get<{ sessions: SessionListItem[] }>("/sessions")
-      .then((res) => setRecentSessions(res.sessions.slice(0, 3)))
+      .then((res) => setRecentSessions(groupSessionsByDay(res.sessions)[0]?.sessions ?? []))
       .catch(() => setRecentSessions([]));
   }, []);
 

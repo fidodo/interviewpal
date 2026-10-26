@@ -560,6 +560,40 @@ textarea.code-input {
   margin: 0 0 28px;
 }
 
+.how-it-works {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+  max-width: 760px;
+  margin: 0 auto 36px;
+  padding: 0 16px;
+}
+
+.how-it-works-step {
+  flex: 1 1 200px;
+  max-width: 240px;
+  text-align: center;
+}
+
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.narrow-box {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
 .spinner {
   width: 18px;
   height: 18px;

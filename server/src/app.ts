@@ -1,12 +1,14 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import { env } from "./config/env";
 import { apiRouter } from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 export const app = express();
 
+app.use(helmet());
 app.use(cors({ origin: env.clientUrl, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
