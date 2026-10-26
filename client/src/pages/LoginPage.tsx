@@ -36,8 +36,9 @@ interface GoogleIdentityServices {
 }
 
 export function LoginPage() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -71,13 +72,22 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await login(email, password);
+      if (mode === "register") {
+        await register(email, password);
+      } else {
+        await login(email, password);
+      }
       navigate("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong. Try again.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function toggleMode() {
+    setMode((m) => (m === "login" ? "register" : "login"));
+    setError(null);
   }
 
   return (
@@ -146,12 +156,21 @@ export function LoginPage() {
               className="input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              minLength={mode === "register" ? 8 : undefined}
               required
             />
+            {mode === "register" && (
+              <p className="helper-text" style={{ marginTop: 4 }}>
+                At least 8 characters.
+              </p>
+            )}
           </div>
           {error && <p className="error-text">{error}</p>}
           <button className="btn btn-primary btn-block" type="submit" disabled={submitting}>
-            {submitting ? <span className="spinner" /> : "Log in"}
+            {submitting ? <span className="spinner" /> : mode === "register" ? "Create account" : "Log in"}
+          </button>
+          <button type="button" className="btn-link" onClick={toggleMode}>
+            {mode === "register" ? "Already have an account? Log in" : "Don't have an account? Sign up"}
           </button>
         </form>
       </div>

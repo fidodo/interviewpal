@@ -4,6 +4,31 @@ import * as authService from "../services/auth.service";
 import { env } from "../config/env";
 import { AuthedRequest } from "../middleware/auth.middleware";
 
+const registerSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(200),
+});
+
+export async function register(req: AuthedRequest, res: Response) {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Enter a valid email and a password of at least 8 characters" });
+    return;
+  }
+  const result = await authService.register(parsed.data.email, parsed.data.password);
+  if ("error" in result) {
+    res.status(409).json({ error: "An account with this email already exists. Try logging in instead." });
+    return;
+  }
+  res.cookie("token", result.token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.isProd,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+  res.json({ user: result.user });
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),

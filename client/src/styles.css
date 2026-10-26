@@ -285,6 +285,22 @@ textarea.code-input {
   border: 1px solid rgba(220, 38, 38, 0.3);
 }
 
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px;
+  width: 100%;
+  text-align: center;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
 .btn-block {
   width: 100%;
 }

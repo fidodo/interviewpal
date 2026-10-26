@@ -10,6 +10,15 @@ function issueToken(user: { id: string; email: string }) {
   return jwt.sign({ userId: user.id, email: user.email }, env.jwtSecret, { expiresIn: "7d" });
 }
 
+export async function register(email: string, password: string) {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return { error: "exists" as const };
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({ data: { email, passwordHash } });
+  return { token: issueToken(user), user: { id: user.id, email: user.email } };
+}
+
 export async function login(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.passwordHash) return null;

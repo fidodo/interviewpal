@@ -20,6 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }, []);
 
+  const register = useCallback(async (email: string, password: string) => {
+    const res = await api.post<{ user: User }>("/auth/register", { email, password });
+    setUser(res.user);
+  }, []);
+
   const loginWithGoogle = useCallback(async (credential: string) => {
     const res = await api.post<{ user: User }>("/auth/google", { credential });
     setUser(res.user);
@@ -35,6 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
