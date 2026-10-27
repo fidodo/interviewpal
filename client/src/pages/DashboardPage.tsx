@@ -62,51 +62,78 @@ export function DashboardPage() {
       <h1 className="page-title">Start a mock interview</h1>
       <p className="page-subtitle">Pick a track, a topic, and how hard you want it to be.</p>
 
-      <div className="card">
+      <section className="card" aria-labelledby="setup-title">
+        <h2 id="setup-title" className="visually-hidden">
+          Interview setup
+        </h2>
         <div className="field">
-          <label>Track</label>
-          <div className="segmented">
+          <span className="field-label" id="track-label">
+            Track
+          </span>
+          <div className="segmented" role="group" aria-labelledby="track-label">
             {PRESET_TRACKS.map((t) => (
               <button
                 key={t}
                 type="button"
                 className={`segmented-option ${!usingOther && track === t ? "active" : ""}`}
+                aria-pressed={!usingOther && track === t}
                 onClick={() => selectTrack(t)}
               >
                 {t}
               </button>
             ))}
-            <button type="button" className={`segmented-option ${usingOther ? "active" : ""}`} onClick={selectOther}>
+            <button
+              type="button"
+              className={`segmented-option ${usingOther ? "active" : ""}`}
+              aria-pressed={usingOther}
+              onClick={selectOther}
+            >
               Other
             </button>
           </div>
           {usingOther && (
-            <input
-              className="input"
-              style={{ marginTop: 10 }}
-              placeholder="e.g. DevOps, Mobile Engineering, Data Engineering…"
-              value={customTrack}
-              onChange={(e) => setCustomTrack(e.target.value)}
-              autoFocus
-            />
+            <>
+              <label htmlFor="custom-track" className="visually-hidden">
+                Custom track name
+              </label>
+              <input
+                id="custom-track"
+                className="input"
+                style={{ marginTop: 10 }}
+                placeholder="e.g. DevOps, Mobile Engineering, Data Engineering…"
+                value={customTrack}
+                onChange={(e) => setCustomTrack(e.target.value)}
+                autoFocus
+              />
+            </>
           )}
         </div>
 
         {effectiveTrack && (
           <div className="field">
-            <label>Topic</label>
-            <TopicPicker track={effectiveTrack} selectedTopicId={topic?.id ?? null} onSelect={setTopic} />
+            <span className="field-label" id="topic-label">
+              Topic
+            </span>
+            <TopicPicker
+              track={effectiveTrack}
+              selectedTopicId={topic?.id ?? null}
+              onSelect={setTopic}
+              labelledBy="topic-label"
+            />
           </div>
         )}
 
         <div className="field">
-          <label>Difficulty</label>
-          <div className="segmented">
+          <span className="field-label" id="difficulty-label">
+            Difficulty
+          </span>
+          <div className="segmented" role="group" aria-labelledby="difficulty-label">
             {DIFFICULTIES.map((d) => (
               <button
                 key={d}
                 type="button"
                 className={`segmented-option ${difficulty === d ? "active" : ""}`}
+                aria-pressed={difficulty === d}
                 onClick={() => setDifficulty(d)}
               >
                 {d.charAt(0) + d.slice(1).toLowerCase()}
@@ -115,21 +142,34 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {error && <p className="error-text">{error}</p>}
+        {error && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
 
         <button
           className="btn btn-primary btn-block"
           disabled={!topic || !effectiveTrack || starting}
           onClick={handleStart}
         >
-          {starting ? <span className="spinner" /> : "Start Interview"}
+          {starting ? (
+            <>
+              <span className="spinner" aria-hidden="true" />
+              <span className="visually-hidden">Starting interview…</span>
+            </>
+          ) : (
+            "Start Interview"
+          )}
         </button>
-      </div>
+      </section>
 
       {recentSessions.length > 0 && (
-        <div className="card">
+        <section className="card" aria-labelledby="recent-title">
           <div className="session-header">
-            <h2 style={{ margin: 0, fontSize: 16 }}>Recent sessions</h2>
+            <h2 id="recent-title" className="card-title" style={{ margin: 0 }}>
+              Recent sessions
+            </h2>
             <button className="btn btn-secondary" onClick={() => navigate("/history")}>
               View all
             </button>
@@ -138,7 +178,7 @@ export function DashboardPage() {
             sessions={recentSessions}
             onDelete={(id) => setRecentSessions((prev) => prev.filter((s) => s.id !== id))}
           />
-        </div>
+        </section>
       )}
     </div>
   );

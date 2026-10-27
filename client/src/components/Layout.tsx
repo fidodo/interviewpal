@@ -12,12 +12,26 @@ export function Layout({ children }: { children: ReactNode }) {
     navigate("/login");
   }
 
+  function navLink(to: string, label: string) {
+    const active = location.pathname === to;
+    return (
+      <Link to={to} className={`subnav-link ${active ? "active" : ""}`} aria-current={active ? "page" : undefined}>
+        {label}
+      </Link>
+    );
+  }
+
   return (
     <div className="app-shell">
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
       <header className="app-header">
         <div className="topbar">
           <Link to="/" className="brand">
-            <span className="brand-mark">IP</span>
+            <span className="brand-mark" aria-hidden="true">
+              IP
+            </span>
             InterviewPal
           </Link>
           {user && (
@@ -30,17 +44,15 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
         </div>
         {user && (
-          <nav className="subnav">
-            <Link to="/" className={`subnav-link ${location.pathname === "/" ? "active" : ""}`}>
-              Dashboard
-            </Link>
-            <Link to="/history" className={`subnav-link ${location.pathname === "/history" ? "active" : ""}`}>
-              History
-            </Link>
+          <nav className="subnav" aria-label="Main">
+            {navLink("/", "Dashboard")}
+            {navLink("/history", "History")}
           </nav>
         )}
       </header>
-      {children}
+      <main id="main" tabIndex={-1} className="app-main">
+        {children}
+      </main>
     </div>
   );
 }

@@ -6,9 +6,10 @@ interface TopicPickerProps {
   track: string;
   selectedTopicId: string | null;
   onSelect: (topic: Topic) => void;
+  labelledBy?: string;
 }
 
-export function TopicPicker({ track, selectedTopicId, onSelect }: TopicPickerProps) {
+export function TopicPicker({ track, selectedTopicId, onSelect, labelledBy }: TopicPickerProps) {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -50,14 +51,17 @@ export function TopicPicker({ track, selectedTopicId, onSelect }: TopicPickerPro
   return (
     <div>
       {loading ? (
-        <p className="helper-text">Loading topics…</p>
+        <p className="helper-text" role="status">
+          Loading topics…
+        </p>
       ) : topics.length > 0 ? (
-        <div className="topic-grid">
+        <div className="topic-grid" role="group" aria-labelledby={labelledBy}>
           {topics.map((topic) => (
             <button
               key={topic.id}
               type="button"
               className={`topic-card ${selectedTopicId === topic.id ? "active" : ""}`}
+              aria-pressed={selectedTopicId === topic.id}
               onClick={() => onSelect(topic)}
             >
               {topic.name}
@@ -70,7 +74,11 @@ export function TopicPicker({ track, selectedTopicId, onSelect }: TopicPickerPro
       )}
 
       <form onSubmit={handleAddCustom} style={{ display: "flex", gap: 8, marginTop: 14 }}>
+        <label htmlFor="custom-topic" className="visually-hidden">
+          Custom topic
+        </label>
         <input
+          id="custom-topic"
           className="input"
           placeholder="Or type your own topic…"
           value={customName}
@@ -80,7 +88,11 @@ export function TopicPicker({ track, selectedTopicId, onSelect }: TopicPickerPro
           Add
         </button>
       </form>
-      {error && <p className="error-text">{error}</p>}
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

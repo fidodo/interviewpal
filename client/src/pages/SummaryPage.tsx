@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { SessionDetail, Summary } from "../types";
+import { ScoreBadge } from "../components/ScoreBadge";
 
 export function SummaryPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,7 +28,9 @@ export function SummaryPage() {
   if (loading) {
     return (
       <div className="page">
-        <p className="helper-text">Loading summary…</p>
+        <p className="helper-text" role="status">
+          Loading summary…
+        </p>
       </div>
     );
   }
@@ -35,15 +38,15 @@ export function SummaryPage() {
   if (error || !session || !summary) {
     return (
       <div className="page">
-        <p className="error-text">{error ?? "Summary not available."}</p>
+        <p className="error-text" role="alert">
+          {error ?? "Summary not available."}
+        </p>
         <Link className="btn btn-secondary" to="/">
           Back to dashboard
         </Link>
       </div>
     );
   }
-
-  const scoreClass = summary.overallScore >= 7 ? "score-high" : summary.overallScore >= 4 ? "score-mid" : "score-low";
 
   return (
     <div className="page">
@@ -58,9 +61,9 @@ export function SummaryPage() {
 
       <div className="card">
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div className={`score-badge ${scoreClass}`}>{summary.overallScore}</div>
+          <ScoreBadge score={summary.overallScore} />
           <div>
-            <div style={{ fontWeight: 700 }}>Overall score</div>
+            <h2 className="feedback-title">Overall score</h2>
             <div className="helper-text">Out of 10 for this session</div>
           </div>
         </div>
@@ -68,7 +71,7 @@ export function SummaryPage() {
 
         {summary.strengths.length > 0 && (
           <>
-            <div className="feedback-list-title">Strengths</div>
+            <h3 className="feedback-list-title">Strengths</h3>
             <ul className="feedback-list">
               {summary.strengths.map((s, i) => (
                 <li key={i}>{s}</li>
@@ -79,7 +82,7 @@ export function SummaryPage() {
 
         {summary.improvements.length > 0 && (
           <>
-            <div className="feedback-list-title">Areas to improve</div>
+            <h3 className="feedback-list-title">Areas to improve</h3>
             <ul className="feedback-list">
               {summary.improvements.map((s, i) => (
                 <li key={i}>{s}</li>
@@ -89,7 +92,7 @@ export function SummaryPage() {
         )}
       </div>
 
-      <div style={{ display: "flex", gap: 10 }}>
+      <div className="btn-full-row" style={{ marginTop: 16 }}>
         <Link className="btn btn-primary" to="/">
           Start another interview
         </Link>

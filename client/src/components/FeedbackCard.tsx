@@ -1,10 +1,5 @@
 import { Feedback, FillerStats } from "../types";
-
-function scoreClass(score: number): string {
-  if (score >= 7) return "score-high";
-  if (score >= 4) return "score-mid";
-  return "score-low";
-}
+import { ScoreBadge, scoreClass } from "./ScoreBadge";
 
 const BREAKDOWN_LABELS: Record<string, string> = {
   correctness: "Correctness",
@@ -28,65 +23,64 @@ function FillerSummary({ stats }: { stats: FillerStats }) {
   );
 }
 
-export function FeedbackCard({ feedback, fillerStats }: { feedback: Feedback; fillerStats?: FillerStats | null }) {
+function FeedbackList({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
   return (
-    <div className="card">
+    <>
+      <h3 className="feedback-list-title">{title}</h3>
+      <ul className="feedback-list">
+        {items.map((s, i) => (
+          <li key={i}>{s}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+export function FeedbackCard({
+  feedback,
+  fillerStats,
+  animate,
+}: {
+  feedback: Feedback;
+  fillerStats?: FillerStats | null;
+  animate?: boolean;
+}) {
+  return (
+    <div className={`card ${animate ? "feedback-animate" : ""}`}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div className={`score-badge ${scoreClass(feedback.score)}`}>{feedback.score}</div>
+        <ScoreBadge score={feedback.score} animate={animate} />
         <div>
-          <div style={{ fontWeight: 700 }}>Feedback on your answer</div>
+          <h2 className="feedback-title">Feedback on your answer</h2>
           <div className="helper-text">Score out of 10 for this answer</div>
         </div>
       </div>
 
       {feedback.breakdown && (
-        <div className="breakdown">
-          {(Object.entries(feedback.breakdown) as [string, number][]).map(([key, value]) => (
+        <dl className="breakdown">
+          {(Object.entries(feedback.breakdown) as [string, number][]).map(([key, value], i) => (
             <div className="breakdown-row" key={key}>
-              <span className="breakdown-label">{BREAKDOWN_LABELS[key] ?? key}</span>
-              <div className="breakdown-bar">
-                <div className={`breakdown-bar-fill ${scoreClass(value)}`} style={{ width: `${value * 10}%` }} />
-              </div>
-              <span className="breakdown-value">{value}</span>
+              <dt className="breakdown-label">{BREAKDOWN_LABELS[key] ?? key}</dt>
+              <dd className="breakdown-bar" aria-hidden="true">
+                <div
+                  className={`breakdown-bar-fill ${scoreClass(value)}`}
+                  style={{ width: `${value * 10}%`, animationDelay: `${0.5 + i * 0.15}s` }}
+                />
+              </dd>
+              <dd className="breakdown-value">
+                {value}
+                <span className="visually-hidden"> out of 10</span>
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       )}
 
       {fillerStats && <FillerSummary stats={fillerStats} />}
 
-      {feedback.strengths.length > 0 && (
-        <>
-          <div className="feedback-list-title">Strengths</div>
-          <ul className="feedback-list">
-            {feedback.strengths.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {feedback.weaknesses.length > 0 && (
-        <>
-          <div className="feedback-list-title">Weaknesses</div>
-          <ul className="feedback-list">
-            {feedback.weaknesses.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {feedback.suggestions.length > 0 && (
-        <>
-          <div className="feedback-list-title">Suggestions</div>
-          <ul className="feedback-list">
-            {feedback.suggestions.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </>
-      )}
+      <FeedbackList title="Strengths" items={feedback.strengths} />
+      <FeedbackList title="Weaknesses" items={feedback.weaknesses} />
+      <FeedbackList title="Suggestions" items={feedback.suggestions} />
     </div>
   );
 }

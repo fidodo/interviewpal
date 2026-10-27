@@ -8,6 +8,7 @@ import { MicTestButton } from "../components/MicTestButton";
 import { TranscriptBox } from "../components/TranscriptBox";
 import { CodeAnswerBox } from "../components/CodeAnswerBox";
 import { FeedbackCard } from "../components/FeedbackCard";
+import { AnswerGuideModal } from "../components/AnswerGuideModal";
 
 export function InterviewSessionPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,24 @@ export function InterviewSessionPage() {
   const [busy, setBusy] = useState<"loading" | "generating" | "submitting" | "ending" | null>("loading");
   const [error, setError] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState(0);
+  // Shown at the start of every session, but not again when reloading or resuming the same one.
+  const guideSeenKey = `guide-seen:${id}`;
+  const [guideOpen, setGuideOpen] = useState(() => {
+    try {
+      return sessionStorage.getItem(guideSeenKey) === null;
+    } catch {
+      return true;
+    }
+  });
+
+  function closeGuide() {
+    setGuideOpen(false);
+    try {
+      sessionStorage.setItem(guideSeenKey, "1");
+    } catch {
+      // storage unavailable (private mode) — the guide just shows again next load
+    }
+  }
 
   const loadNextQuestion = useCallback(
     async (sessionId: string) => {
@@ -103,7 +122,15 @@ export function InterviewSessionPage() {
   if (!session) {
     return (
       <div className="page">
-        {error ? <p className="error-text">{error}</p> : <p className="helper-text">Loading session…</p>}
+        {error ? (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        ) : (
+          <p className="helper-text" role="status">
+            Loading session…
+          </p>
+        )}
       </div>
     );
   }
@@ -126,17 +153,28 @@ export function InterviewSessionPage() {
         </button>
       </div>
 
+      <AnswerGuideModal open={guideOpen} onClose={closeGuide} fallbackFocusSelector=".mic-btn, #code-answer, #transcript" />
+
       {currentQuestion && (
         <div className="card question-card">
-          <div className="question-label">
-            Question {currentQuestion.order}
-            {currentQuestion.type === "CODING" && <span className="badge" style={{ marginLeft: 8 }}>Coding</span>}
+          <div className="question-card-top">
+            <h2 className="question-label">
+              Question {currentQuestion.order}
+              {currentQuestion.type === "CODING" && <span className="badge" style={{ marginLeft: 8 }}>Coding</span>}
+            </h2>
+            <button type="button" className="btn-link btn-link-inline" onClick={() => setGuideOpen(true)}>
+              How you're graded
+            </button>
           </div>
-          <p style={{ fontSize: 17, margin: 0 }}>{currentQuestion.text}</p>
+          <p className="question-text">{currentQuestion.text}</p>
         </div>
       )}
 
-      {busy === "generating" && <p className="helper-text">Thinking of your next question…</p>}
+      {busy === "generating" && (
+        <p className="helper-text" role="status">
+          Thinking of your next question…
+        </p>
+      )}
 
       {!feedback && currentQuestion && busy !== "generating" && (
         <div className="card">
@@ -149,19 +187,35 @@ export function InterviewSessionPage() {
                 isSupported={speech.isSupported}
                 onStart={speech.start}
                 onStop={speech.stop}
+                disabled={busy === "submitting"}
               />
-              {speech.error && <p className="error-text">{speech.error}</p>}
+              {speech.error && (
+                <p className="error-text" role="alert">
+                  {speech.error}
+                </p>
+              )}
               <MicTestButton />
               <TranscriptBox value={speech.transcript} onChange={speech.setTranscript} disabled={busy === "submitting"} />
             </>
           )}
-          {error && <p className="error-text">{error}</p>}
+          {error && (
+            <p className="error-text" role="alert">
+              {error}
+            </p>
+          )}
           <button
             className="btn btn-primary btn-block"
             onClick={handleSubmitAnswer}
             disabled={!(currentQuestion.type === "CODING" ? codeAnswer : speech.transcript).trim() || busy === "submitting"}
           >
-            {busy === "submitting" ? <span className="spinner" /> : "Submit Answer"}
+            {busy === "submitting" ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                <span className="visually-hidden">Grading your answer…</span>
+              </>
+            ) : (
+              "Submit Answer"
+            )}
           </button>
         </div>
       )}

@@ -27,7 +27,9 @@ export function HistoryPage() {
       <p className="page-subtitle">Every mock interview you've run, grouped by day, most recent first.</p>
       {loading ? (
         <div className="card">
-          <p className="helper-text">Loading…</p>
+          <p className="helper-text" role="status">
+            Loading…
+          </p>
         </div>
       ) : dayGroups.length === 0 ? (
         <div className="card">
@@ -36,7 +38,7 @@ export function HistoryPage() {
       ) : (
         dayGroups.map((group) => (
           <div className="card" key={group.dayKey}>
-            <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>{group.label}</h2>
+            <h2 className="card-title">{group.label}</h2>
             <HistoryList sessions={group.sessions} onDelete={handleDelete} />
           </div>
         ))

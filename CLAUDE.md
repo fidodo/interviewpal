@@ -66,5 +66,17 @@ Two login paths:
 
 Both `GOOGLE_CLIENT_ID` (server) and `VITE_GOOGLE_CLIENT_ID` (client) must be set to the same OAuth Client ID from Google Cloud Console for Google sign-in to work; without it, the button area on the login page just shows a hint instead of rendering.
 
+### Voice input
+`client/src/hooks/useSpeechRecognition.ts` wraps the browser Web Speech API. Things that look odd but are deliberate:
+- **Mobile mode.** On mobile (UA sniff), recognition runs with `continuous = false` and is restarted from `onend`. Mobile Chrome in continuous mode returns cumulative results ("I think", "I think the", …), which used to duplicate words.
+- **Transcript rebuilding.** The transcript is rebuilt from the full `event.results` list on every event, never appended. On mobile, a result that extends the previous one on a word boundary replaces it.
+- **Stopping.** Handlers are detached before `.stop()`, because browsers fire trailing events that would leak into the next question.
+- **Auto-stop.** Recognition stops itself after any non-`no-speech` error and after 3 silent restarts in a row, so it never loops.
+
+`MicButton` adds a 5-second countdown before recording. `AnswerGuideModal` (a native `<dialog>`) explains grading and STAR. It opens once per session, tracked in `sessionStorage`.
+
+### Reviews
+Two project skills: `interviewpal-code-review` (built-in `/code-review` plus a project-specific checklist) and `interviewpal-ui-review` (axe-core WCAG 2.2 AA audit across pages, light/dark, 360/1280px, with a bundled `scripts/audit.mjs`). Run them after non-trivial changes.
+
 ### Topics
 Seeded as non-custom (`isCustom: false`) per track in `prisma/seed.ts` (Frontend, Backend, Full-stack, AI Engineering — see `PRESET_TRACKS` in both `client/src/types/index.ts` and `server/src/types.ts`, kept in sync manually, not shared). `POST /topics` upserts a user-defined topic with `isCustom: true` on the same `(name, track)` unique constraint.

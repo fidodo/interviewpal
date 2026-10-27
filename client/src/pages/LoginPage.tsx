@@ -114,38 +114,50 @@ export function LoginPage() {
   }
 
   return (
-    <div className="page">
+    <div className="page landing">
+      <div className="hero-backdrop" aria-hidden="true">
+        <span className="hero-blob hero-blob-a" />
+        <span className="hero-blob hero-blob-b" />
+      </div>
+
       <div className="hero">
-        <span className="brand-mark" style={{ width: 44, height: 44, fontSize: 18 }}>
+        <span className="brand-mark brand-mark-lg reveal" style={{ ["--d" as string]: "0s" }} aria-hidden="true">
           IP
         </span>
-        <h1 className="hero-title">InterviewPal</h1>
-        <p className="hero-subtitle">
+        <h1 className="hero-title reveal" style={{ ["--d" as string]: "0.08s" }}>
+          Interview<span className="hero-accent">Pal</span>
+        </h1>
+        <p className="hero-subtitle reveal" style={{ ["--d" as string]: "0.16s" }}>
           Practice real interview questions out loud or in code, get graded on the spot, and walk away knowing
           exactly what to work on.
         </p>
       </div>
 
-      <div className="how-it-works">
-        {HOW_IT_WORKS.map((s) => (
-          <div className="how-it-works-step" key={s.step}>
-            <span className="step-number">{s.step}</span>
-            <div style={{ fontWeight: 700, marginTop: 8 }}>{s.title}</div>
+      <section className="how-it-works" aria-labelledby="how-title">
+        <h2 id="how-title" className="visually-hidden">
+          How it works
+        </h2>
+        {HOW_IT_WORKS.map((s, i) => (
+          <div className="how-it-works-step reveal" key={s.step} style={{ ["--d" as string]: `${0.24 + i * 0.1}s` }}>
+            <span className="step-number" aria-hidden="true">
+              {s.step}
+            </span>
+            <h3 className="step-title">{s.title}</h3>
             <p className="helper-text" style={{ marginTop: 4 }}>
               {s.detail}
             </p>
           </div>
         ))}
-      </div>
+      </section>
 
-      <div className="narrow-box" style={{ marginBottom: 16 }}>
+      <section className="narrow-box reveal" style={{ marginBottom: 16, ["--d" as string]: "0.55s" }} aria-label="Sample feedback">
         <p className="helper-text" style={{ textAlign: "center", marginBottom: 8 }}>
           Real feedback, every answer
         </p>
-        <FeedbackCard feedback={SAMPLE_FEEDBACK} />
-      </div>
+        <FeedbackCard feedback={SAMPLE_FEEDBACK} animate />
+      </section>
 
-      <div className="narrow-box">
+      <section className="narrow-box reveal" style={{ ["--d" as string]: "0.65s" }} aria-label="Sign in">
         <div className="card">
           {!clientId ? (
             <p className="helper-text">
@@ -172,7 +184,6 @@ export function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoFocus
             />
           </div>
           <div className="field">
@@ -192,15 +203,28 @@ export function LoginPage() {
               </p>
             )}
           </div>
-          {error && <p className="error-text">{error}</p>}
+          {error && (
+            <p className="error-text" role="alert">
+              {error}
+            </p>
+          )}
           <button className="btn btn-primary btn-block" type="submit" disabled={submitting}>
-            {submitting ? <span className="spinner" /> : mode === "register" ? "Create account" : "Log in"}
+            {submitting ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                <span className="visually-hidden">Signing in…</span>
+              </>
+            ) : mode === "register" ? (
+              "Create account"
+            ) : (
+              "Log in"
+            )}
           </button>
           <button type="button" className="btn-link" onClick={toggleMode}>
             {mode === "register" ? "Already have an account? Log in" : "Don't have an account? Sign up"}
           </button>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

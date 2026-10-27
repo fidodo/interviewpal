@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { SessionListItem } from "../types";
+import { ScoreBadge } from "./ScoreBadge";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -36,7 +37,11 @@ export function HistoryList({ sessions, onDelete }: HistoryListProps) {
 
   return (
     <div>
-      {error && <p className="error-text">{error}</p>}
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
       {sessions.map((s) => (
         <div key={s.id} className="history-row">
           <Link to={`/sessions/${s.id}${s.status === "COMPLETED" ? "/summary" : ""}`} className="history-row-link">
@@ -49,11 +54,7 @@ export function HistoryList({ sessions, onDelete }: HistoryListProps) {
                 {s.status === "ACTIVE" && <span className="badge">In progress</span>}
               </div>
             </div>
-            {s.summary && (
-              <div className={`score-badge ${s.summary.overallScore >= 7 ? "score-high" : s.summary.overallScore >= 4 ? "score-mid" : "score-low"}`}>
-                {s.summary.overallScore}
-              </div>
-            )}
+            {s.summary && <ScoreBadge score={s.summary.overallScore} />}
           </Link>
           {onDelete && (
             <button
@@ -63,7 +64,14 @@ export function HistoryList({ sessions, onDelete }: HistoryListProps) {
               disabled={deletingId === s.id}
               onClick={() => handleDelete(s)}
             >
-              {deletingId === s.id ? "…" : "✕"}
+              {deletingId === s.id ? (
+                <span aria-hidden="true">…</span>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" focusable="false">
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                </svg>
+              )}
             </button>
           )}
         </div>

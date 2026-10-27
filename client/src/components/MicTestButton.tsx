@@ -10,18 +10,18 @@ export function MicTestButton() {
       </button>
 
       {status === "testing" && (
-        <>
-          <div className="mic-test-meter">
-            <div className="mic-test-meter-fill" style={{ width: `${level}%` }} />
-          </div>
-          <p className="helper-text">Say something…</p>
-        </>
+        <div className="mic-test-meter" aria-hidden="true">
+          <div className="mic-test-meter-fill" style={{ width: `${level}%` }} />
+        </div>
       )}
-      {status === "working" && <p className="mic-test-ok">✓ Mic is working — we're picking up audio.</p>}
-      {status === "silent" && (
-        <p className="error-text">No audio detected. Check your mic is unmuted, connected, and allowed for this site.</p>
-      )}
-      {status === "error" && errorMessage && <p className="error-text">{errorMessage}</p>}
+      <div aria-live="polite">
+        {status === "testing" && <p className="helper-text">Say something…</p>}
+        {status === "working" && <p className="mic-test-ok">✓ Mic is working — we're picking up audio.</p>}
+        {status === "silent" && (
+          <p className="error-text">No audio detected. Check your mic is unmuted, connected, and allowed for this site.</p>
+        )}
+        {status === "error" && errorMessage && <p className="error-text">{errorMessage}</p>}
+      </div>
     </div>
   );
 }
