@@ -1,4 +1,4 @@
-import { ReactElement } from "react";
+import { lazy, ReactElement, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { Layout } from "./components/Layout";
@@ -7,21 +7,30 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { InterviewSessionPage } from "./pages/InterviewSessionPage";
 import { SummaryPage } from "./pages/SummaryPage";
+import { getKidLock, kidHomePath } from "./kids/kidMode";
 
-function ProtectedRoute({ children }: { children: ReactElement }) {
+// The kids section is its own lazy chunk (Blockly, CodeMirror, the Python runner) with its own layout.
+const KidsApp = lazy(() => import("./kids/KidsApp"));
+
+function Loading() {
+  return (
+    <div className="page">
+      <p className="helper-text">Loading…</p>
+    </div>
+  );
+}
+
+function ProtectedRoute({ children, allowKidMode = false }: { children: ReactElement; allowKidMode?: boolean }) {
   const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="page">
-        <p className="helper-text">Loading…</p>
-      </div>
-    );
-  }
+  if (loading) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
+  // While a child is using the kids section, keep them out of the interview pages.
+  const lock = allowKidMode ? null : getKidLock(user.id);
+  if (lock) return <Navigate to={kidHomePath(lock)} replace />;
   return children;
 }
 
-export function App() {
+function InterviewRoutes() {
   return (
     <Layout>
       <Routes>
@@ -61,5 +70,23 @@ export function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
+  );
+}
+
+export function App() {
+  return (
+    <Routes>
+      <Route
+        path="/kids/*"
+        element={
+          <ProtectedRoute allowKidMode>
+            <Suspense fallback={<Loading />}>
+              <KidsApp />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<InterviewRoutes />} />
+    </Routes>
   );
 }

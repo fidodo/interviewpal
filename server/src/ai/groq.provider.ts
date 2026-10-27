@@ -11,7 +11,7 @@ export class GroqProvider implements AIProvider {
     this.client = new OpenAI({ apiKey: env.groq.apiKey, baseURL: "https://api.groq.com/openai/v1" });
   }
 
-  private async generateJson(prompt: string): Promise<unknown> {
+  async generateJson(prompt: string): Promise<unknown> {
     const response = await this.client.chat.completions.create({
       model: env.groq.model,
       response_format: { type: "json_object" },

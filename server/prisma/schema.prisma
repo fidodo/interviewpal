@@ -14,6 +14,8 @@ model User {
   googleId     String?            @unique
   createdAt    DateTime           @default(now())
   sessions     InterviewSession[]
+  kidsPinHash  String?
+  children     ChildProfile[]
 }
 
 model Topic {
@@ -86,4 +88,95 @@ model SessionSummary {
   strengths    String
   improvements String
   generatedAt  DateTime         @default(now())
+}
+
+// ---- Kids section (see server/src/kids). Profiles belong to a parent User; children have no login. ----
+
+model ChildProfile {
+  id          String       @id @default(cuid())
+  parentId    String
+  parent      User         @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  displayName String
+  age         Int
+  avatar      String
+  createdAt   DateTime     @default(now())
+  enrollments Enrollment[]
+}
+
+model Course {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  subject     String
+  description String
+  published   Boolean       @default(true)
+  levels      CourseLevel[]
+  enrollments Enrollment[]
+}
+
+model CourseLevel {
+  id               String @id @default(cuid())
+  courseId         String
+  course           Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order            Int
+  title            String
+  concepts         String
+  editor           String
+  toolbox          String @default("[]")
+  challengesToPass Int    @default(3)
+
+  @@unique([courseId, order])
+}
+
+model Enrollment {
+  id            String       @id @default(cuid())
+  childId       String
+  child         ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  courseId      String
+  course        Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  currentLevel  Int          @default(1)
+  passedAtLevel Int          @default(0)
+  createdAt     DateTime     @default(now())
+  challenges    Challenge[]
+
+  @@unique([childId, courseId])
+}
+
+model Challenge {
+  id             String        @id @default(cuid())
+  enrollmentId   String
+  enrollment     Enrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  levelOrder     Int
+  title          String
+  story          String
+  instructions   String
+  kind           String
+  starterCode    String
+  expectedOutput String?
+  status         String        @default("OPEN")
+  createdAt      DateTime      @default(now())
+  attempts       Attempt[]
+  messages       HelpMessage[]
+}
+
+model Attempt {
+  id          String    @id @default(cuid())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  code        String
+  output      String
+  passed      Boolean
+  stars       Int
+  praise      String
+  nextStep    String
+  createdAt   DateTime  @default(now())
+}
+
+model HelpMessage {
+  id          String    @id @default(cuid())
+  challengeId String
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  role        String
+  text        String
+  createdAt   DateTime  @default(now())
 }

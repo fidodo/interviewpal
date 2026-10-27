@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { COURSES } from "./curriculum";
 
 const prisma = new PrismaClient();
 
@@ -74,10 +75,44 @@ async function seedTopics() {
   console.log("Seeded starter topics.");
 }
 
+async function seedCourses() {
+  for (const def of COURSES) {
+    const fields = { title: def.title, subject: def.subject, description: def.description, published: def.published ?? true };
+    const course = await prisma.course.upsert({
+      where: { slug: def.slug },
+      update: fields,
+      create: { slug: def.slug, ...fields },
+    });
+    for (const [i, level] of def.levels.entries()) {
+      const order = i + 1;
+      const levelFields = {
+        title: level.title,
+        editor: level.editor,
+        concepts: JSON.stringify(level.concepts),
+        toolbox: JSON.stringify(level.toolbox ?? []),
+        challengesToPass: level.challengesToPass ?? 3,
+      };
+      await prisma.courseLevel.upsert({
+        where: { courseId_order: { courseId: course.id, order } },
+        update: levelFields,
+        create: { courseId: course.id, order, ...levelFields },
+      });
+    }
+    await prisma.courseLevel.deleteMany({ where: { courseId: course.id, order: { gt: def.levels.length } } });
+    // Learners on a level that no longer exists move to the new last level.
+    await prisma.enrollment.updateMany({
+      where: { courseId: course.id, currentLevel: { gt: def.levels.length } },
+      data: { currentLevel: def.levels.length, passedAtLevel: 0 },
+    });
+  }
+  console.log(`Seeded ${COURSES.length} kids course(s).`);
+}
+
 async function main() {
   await seedUser(process.env.SEED_USER_1_EMAIL, process.env.SEED_USER_1_PASSWORD, "user 1");
   await seedUser(process.env.SEED_USER_2_EMAIL, process.env.SEED_USER_2_PASSWORD, "user 2");
   await seedTopics();
+  await seedCourses();
 }
 
 main()

@@ -40,6 +40,17 @@ export async function loginWithGoogle(idToken: string) {
   return { token: issueToken(user), user: { id: user.id, email: user.email } };
 }
 
+// Verifies a Google ID token and returns its verified email (used to re-confirm a parent in the kids section).
+export async function verifyGoogleEmail(idToken: string): Promise<string | null> {
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken, audience: env.googleClientId });
+    const payload = ticket.getPayload();
+    return payload?.email && payload.email_verified ? payload.email : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getUserById(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return null;

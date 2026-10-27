@@ -19,6 +19,12 @@ Only report items that the diff actually touches. For each, read the changed cod
 - **Auth:** every new route under `server/src/routes/` that reads or writes user data goes through `requireAuth`. Every service query is scoped by `userId`, so one user can never read another user's session by guessing an id.
 - **Input bounds:** every request body is parsed with a zod schema that has `.max()` on strings and arrays. The answer cap is 20,000 chars (`submitAnswerSchema`). Unbounded input becomes unbounded AI cost.
 - **Rate limits:** any new route that calls the AI provider is behind `aiLimiter`, and new auth routes are behind `authLimiter`.
+- **Kids section (`server/src/kids`):**
+  - Every child, enrollment, challenge or message lookup is scoped through `parentId === req.userId`, either via `findChild` or the `enrollment: { child: { parentId } }` relation filter. Anything else returns 404.
+  - Kids AI routes use `kidsAiLimiter`, and PIN routes use `pinLimiter`.
+  - Every kids prompt starts with `safetyPreamble`.
+  - Progress writes (`submitAttempt`) stay conditional `updateMany`s, so a double submit can't double-count a pass.
+  - Resetting a PIN must require proof that the person owns the account (password or Google credential). "Recently logged in" is not proof, because a child can log in using the browser's autofill.
 - **Provider abstraction:** AI calls go through the `AIProvider` interface (`server/src/ai/provider.interface.ts`), never a direct SDK import in a service. Model output is validated with the zod schemas in `server/src/ai/schemas.ts`.
 - **JSON-string columns:** `strengths`/`weaknesses`/`suggestions`/`improvements` are JSON strings in the DB. Writes must `JSON.stringify`. Reads must go through `serializeFeedback`/`serializeSummary`, never be returned raw.
 - **Deletes:** `User → InterviewSession` is RESTRICT. Deleting a user requires deleting their sessions first.

@@ -48,13 +48,13 @@ export class GeminiProvider implements AIProvider {
     this.client = new GoogleGenAI({ apiKey: env.gemini.apiKey });
   }
 
-  private async generateJson(prompt: string, schema: object): Promise<unknown> {
+  async generateJson(prompt: string, schema?: object): Promise<unknown> {
     const response = await this.client.models.generateContent({
       model: env.gemini.model,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: schema,
+        ...(schema ? { responseSchema: schema } : {}),
       },
     });
     const text = response.text;

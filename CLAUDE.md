@@ -81,6 +81,26 @@ Both `GOOGLE_CLIENT_ID` (server) and `VITE_GOOGLE_CLIENT_ID` (client) must be se
 - **When it opens:** automatically only for users with zero sessions who haven't finished it. Completion is tracked in `localStorage` under `onboarding-done:<userId>`. "Show me around" replays it.
 - **While open:** `.app-shell` is made `inert` so keyboard and screen-reader focus stays in the tour.
 
+### Kids section (`/kids`)
+A learning area for a parent's children, kept separate from the interview app.
+- **Where the code lives:** `server/src/kids/` and `client/src/kids/`. It touches the interview code in only a few places:
+  - `apiRouter.use("/kids", …)`
+  - `AIProvider.generateJson` (a raw JSON call; the kids prompts and zod schemas live in `kids.prompts.ts` and `kids.schemas.ts`)
+  - the lazy `/kids/*` route in `App.tsx`
+  - the "Kids" nav link
+  - the `User.children` and `User.kidsPinHash` columns
+- **Accounts:** children are `ChildProfile` rows owned by the parent `User`, with no login. Every kids query is scoped by `parentId`.
+- **Courses:** stored as data. Each `CourseDefinition` lives in `server/prisma/curriculum/`, is listed in `curriculum/index.ts`, and is loaded by `npm run prisma:seed`.
+  - **Adding a course** (maths, video…) needs a new curriculum file and no code changes.
+  - **First course:** `coding-python`, 12 levels. Levels 1–4 are Blockly blocks, with a `toolbox` that limits which block categories are available. Levels 5–12 are typed Python in CodeMirror.
+- **AI tutor:** called "Pal". It generates each challenge, reviews attempts (an exact `expectedOutput` match overrides the model's verdict) and answers hint questions.
+- **Progress:** passing `challengesToPass` challenges levels the learner up, and the parent can also set the level. These writes are conditional `updateMany`s.
+- **Python runner:** Python runs in the browser via Pyodide, loaded from the jsdelivr CDN in a module Web Worker (`client/src/kids/runner`).
+  - `prelude.ts` installs a recording `turtle` module (keep its API in sync with `RUNTIME` in `kids.prompts.ts`) and disables `input()`.
+  - A 5-second timeout kills and restarts the worker.
+  - Blockly, CodeMirror and the runner are each separate lazy chunks.
+- **Kid mode:** a `localStorage` lock (`kids-lock:<userId>`). While it's set, interview pages and the Grown-ups area redirect to the learner's pages. Leaving kid mode needs the parent PIN. A forgotten PIN is reset with the account password or a fresh Google sign-in, never just by logging in again.
+
 ### Reviews
 Two project skills: `interviewpal-code-review` (built-in `/code-review` plus a project-specific checklist) and `interviewpal-ui-review` (axe-core WCAG 2.2 AA audit across pages, light/dark, 360/1280px, with a bundled `scripts/audit.mjs`). Run them after non-trivial changes.
 

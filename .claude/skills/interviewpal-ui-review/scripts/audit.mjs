@@ -31,6 +31,9 @@ await api.post(`${BASE}/api/questions/${q1.id}/answer`, { data: { transcript: "d
 await api.post(`${BASE}/api/sessions/${s1}/end`);
 const s2 = (await (await api.post(`${BASE}/api/sessions`, { data: { topicId, track: "Frontend", difficulty: "JUNIOR" } })).json()).session.id;
 await api.post(`${BASE}/api/sessions/${s2}/questions`);
+// Kids section: one learner and one AI-generated challenge (uses the kids AI limiter, not the interview one).
+const childId = (await (await api.post(`${BASE}/api/kids/children`, { data: { displayName: "Audit", age: 11, avatar: "owl" } })).json()).child.id;
+const kidChallenge = (await (await api.post(`${BASE}/api/kids/children/${childId}/courses/coding-python/challenges`, { data: {} })).json()).challenge.id;
 const storage = await setupCtx.storageState();
 
 for (const scheme of ["light", "dark"]) {
@@ -55,6 +58,18 @@ for (const scheme of ["light", "dark"]) {
     await audit(page, `session-guide-${tag}`);
     await page.keyboard.press("Escape");
     await audit(page, `session-${tag}`);
+    await page.goto(`${BASE}/kids/parent`);
+    await page.waitForSelector("h1");
+    await audit(page, `kids-parent-${tag}`);
+    await page.goto(`${BASE}/kids/learn/${childId}`);
+    await page.waitForSelector(".course-card");
+    await audit(page, `kids-courses-${tag}`);
+    await page.goto(`${BASE}/kids/learn/${childId}/coding-python`);
+    await page.waitForSelector(".level-node");
+    await audit(page, `kids-levels-${tag}`);
+    await page.goto(`${BASE}/kids/challenge/${kidChallenge}`);
+    await page.waitForSelector(".blocklySvg");
+    await audit(page, `kids-challenge-${tag}`);
     await ctx.close();
   }
 }

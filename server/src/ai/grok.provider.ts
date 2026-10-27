@@ -11,7 +11,7 @@ export class GrokProvider implements AIProvider {
     this.client = new OpenAI({ apiKey: env.xai.apiKey, baseURL: "https://api.x.ai/v1" });
   }
 
-  private async generateJson(prompt: string): Promise<unknown> {
+  async generateJson(prompt: string): Promise<unknown> {
     const response = await this.client.chat.completions.create({
       model: env.xai.model,
       response_format: { type: "json_object" },

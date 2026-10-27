@@ -58,4 +58,6 @@ export interface AIProvider {
   generateQuestion(params: GenerateQuestionParams): Promise<GeneratedQuestion>;
   gradeAnswer(params: GradeAnswerParams): Promise<GradingResult>;
   generateSummary(params: GenerateSummaryParams): Promise<SummaryResult>;
+  // Raw JSON completion for prompts outside the interview flow (e.g. the kids section), which validate with their own zod schemas.
+  generateJson(prompt: string): Promise<unknown>;
 }
