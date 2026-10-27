@@ -3,9 +3,10 @@ import { ChallengeKind, LevelEditor } from "./types";
 const MAX_HISTORY = 10;
 const MAX_OUTPUT_CHARS = 3000;
 
-// Must match the turtle shim in client/src/kids/runner/python.worker.ts and the blocks in client/src/kids/editors/blocks.ts.
+// Must match the turtle shim and input() in client/src/kids/runner/prelude.ts and the blocks in client/src/kids/editors/blocks.ts.
 const RUNTIME = [
-  `Code runs as Python 3 inside the browser. There is no input(), no files and no internet; programs must run on their own and finish within a few seconds.`,
+  `Code runs as Python 3 inside the browser. There are no files and no internet, and programs must finish within a few seconds.`,
+  `input() works like this: before pressing Run, the learner types answers into an "Answers" box, one per line, and each input() call takes the next line. Like a terminal, the output shows the question text immediately followed by the answer and a newline (input("Name? ") with the answer Ada prints "Name? Ada").`,
   `A simple "turtle" module is available for drawing on a 400x400 canvas with (0, 0) in the middle: forward(n), backward(n), left(deg), right(deg), penup(), pendown(), pencolor(name), pensize(n), goto(x, y), setheading(deg), circle(radius), dot(size), home(). Use "import turtle" then "turtle.forward(50)" style calls, or "t = turtle.Turtle()". Colours are simple names like "red", "blue", "green", "orange", "purple", "black".`,
 ].join("\n");
 
@@ -99,23 +100,25 @@ export function challengePrompt(params: { child: ChildContext; level: LevelConte
     `- "title": a short catchy name. "story": 1–2 playful sentences that set the scene. "instructions": clear numbered steps (use \\n between steps) saying exactly what the program should do.`,
     `- "kind": "DRAW" if the program draws with the turtle, "TEXT" if it prints.`,
     `- "expectedOutput": for a TEXT challenge whose output is always the same, the exact text it should print (lines separated by \\n). Use null for DRAW challenges or when output is random.`,
+    `- "sampleInput": only if the program should use input(): the answers to type in the Answers box, one per line (separated by \\n). "expectedOutput" must be worked out with exactly these answers, including the echoed question and answer lines. Otherwise null. Never use input() on block levels.`,
     `- ${starter}`,
     ``,
-    `Respond ONLY with JSON of the shape: { "title": string, "story": string, "instructions": string, "kind": "DRAW" | "TEXT", "starterCode": string, "expectedOutput": string | null }`,
+    `Respond ONLY with JSON of the shape: { "title": string, "story": string, "instructions": string, "kind": "DRAW" | "TEXT", "starterCode": string, "expectedOutput": string | null, "sampleInput": string | null }`,
   ].join("\n");
 }
 
 export function reviewPrompt(params: {
   child: ChildContext;
   level: LevelContext;
-  challenge: { title: string; instructions: string; kind: ChallengeKind; expectedOutput: string | null };
+  challenge: { title: string; instructions: string; kind: ChallengeKind; expectedOutput: string | null; sampleInput: string | null };
   code: string;
+  input: string;
   output: string;
   error: string | null;
   turtle: string;
   outputMatches: boolean | null;
 }): string {
-  const { child, level, challenge, code, output, error, turtle, outputMatches } = params;
+  const { child, level, challenge, code, input, output, error, turtle, outputMatches } = params;
   const verdictHint =
     error != null
       ? `The program stopped with an error, so "passed" must be false. Help them understand the error in simple words.`
@@ -123,7 +126,9 @@ export function reviewPrompt(params: {
         ? `The printed output exactly matches the expected output, so "passed" must be true.`
         : outputMatches === false
           ? `The printed output does not exactly match the expected output. Pass it only if the difference is trivial (spacing, capital letters, punctuation) and the idea is right.`
-          : `Decide from the code, its output and the drawing summary whether it does what the instructions ask. Be generous about small creative differences.`;
+          : `Decide from the code, its output and the drawing summary whether it does what the instructions ask. Be generous about small creative differences${
+            challenge.sampleInput ? " (they may have typed different answers than the example, so judge the logic, not the exact text)" : ""
+          }.`;
 
   return [
     safetyPreamble(child),
@@ -132,11 +137,13 @@ export function reviewPrompt(params: {
     ``,
     `Challenge: ${challenge.title}`,
     `Instructions:\n${challenge.instructions}`,
-    challenge.expectedOutput ? `Expected output:\n${challenge.expectedOutput}` : ``,
+    challenge.expectedOutput ? `Expected output${challenge.sampleInput ? " (with the example answers)" : ""}:\n${challenge.expectedOutput}` : ``,
+    challenge.sampleInput ? `Example answers for input():\n${challenge.sampleInput}` : ``,
     ``,
     level.editor === LevelEditor.BLOCKS ? `Their blocks, turned into Python:` : `Their Python code:`,
     truncate(code),
     ``,
+    input.trim() ? `Answers the learner typed for input():\n${truncate(input)}` : ``,
     `What it printed:\n${output ? truncate(output) : "(nothing)"}`,
     error != null ? `Error:\n${truncate(error)}` : ``,
     challenge.kind === ChallengeKind.DRAW ? `What the turtle drew:\n${turtle || "(nothing)"}` : ``,

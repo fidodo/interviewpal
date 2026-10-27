@@ -187,9 +187,23 @@ _mod.bgcolor = _screen.bgcolor
 _mod.done = _mod.mainloop = _mod.exitonclick = _mod.tracer = _mod.update = _mod.setup = _mod.title = lambda *args, **kwargs: None
 sys.modules["turtle"] = _mod
 
-def _no_input(*args, **kwargs):
-    raise RuntimeError("input() can't be used here. Put the value straight into a variable instead, like: name = 'Sam'")
-builtins.input = _no_input
+# input() reads from the "Answers" box, one line per call. Like a terminal, the question and the answer are
+# both shown in the output.
+_inputs = []
+
+def _kids_set_inputs(text):
+    _inputs.clear()
+    _inputs.extend(text.splitlines())
+
+def _kids_input(prompt=""):
+    sys.stdout.write(str(prompt))
+    if not _inputs:
+        sys.stdout.write("\\n")
+        raise RuntimeError("Your program asked a question with input(), but the Answers box has no more answers. Add another line to the Answers box.")
+    answer = _inputs.pop(0)
+    sys.stdout.write(answer + "\\n")
+    return answer
+builtins.input = _kids_input
 
 def _kids_turtle_json():
     return json.dumps({

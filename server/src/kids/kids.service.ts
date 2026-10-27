@@ -235,6 +235,7 @@ export async function nextChallenge(parentId: string, childId: string, slug: str
       kind: generated.kind,
       starterCode: levelContext.editor === LevelEditor.BLOCKS ? "" : generated.starterCode,
       expectedOutput: generated.kind === ChallengeKind.TEXT ? (generated.expectedOutput ?? null) : null,
+      sampleInput: levelContext.editor === LevelEditor.PYTHON ? generated.sampleInput?.trim() || null : null,
     },
   });
 }
@@ -263,14 +264,16 @@ export async function getChallenge(parentId: string, challengeId: string) {
 export async function submitAttempt(
   parentId: string,
   challengeId: string,
-  submission: { code: string; output: string; error: string | null; turtle: string }
+  submission: { code: string; input: string; output: string; error: string | null; turtle: string }
 ) {
   const loaded = await loadChallenge(parentId, challengeId);
   if (!loaded) return null;
   const { challenge, level, child, course, enrollment } = loaded;
 
+  // The expected output only applies when the learner used the same input() answers it was worked out with.
+  const sameAnswers = normalizeOutput(submission.input) === normalizeOutput(challenge.sampleInput ?? "");
   const outputMatches =
-    submission.error == null && challenge.expectedOutput != null
+    submission.error == null && challenge.expectedOutput != null && sameAnswers
       ? normalizeOutput(submission.output) === normalizeOutput(challenge.expectedOutput)
       : null;
 
@@ -283,8 +286,10 @@ export async function submitAttempt(
         instructions: challenge.instructions,
         kind: challenge.kind as ChallengeKind,
         expectedOutput: challenge.expectedOutput,
+        sampleInput: challenge.sampleInput,
       },
       code: submission.code,
+      input: submission.input,
       output: submission.output,
       error: submission.error,
       turtle: submission.turtle,

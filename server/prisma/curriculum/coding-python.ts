@@ -35,7 +35,7 @@ export const codingPython: CourseDefinition = {
     {
       title: "Hello, Python!",
       editor: "PYTHON",
-      concepts: ["print() with text and numbers", "strings, joining strings with +, f-strings", "variables in typed code"],
+      concepts: ["print() with text and numbers", "strings, joining strings with +, f-strings", "variables in typed code", "asking a question with input()"],
     },
     {
       title: "Loops in Python",
@@ -65,7 +65,7 @@ export const codingPython: CourseDefinition = {
     {
       title: "Build a mini game",
       editor: "PYTHON",
-      concepts: ["combining loops, decisions, functions and lists into a small text game", "keeping score", "simulating player choices without input()"],
+      concepts: ["combining loops, decisions, functions and lists into a small text game", "keeping score", "asking the player questions with input() and int()"],
     },
     {
       title: "Objects and classes",

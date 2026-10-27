@@ -28,7 +28,7 @@ export const kidsApi = {
     api.post<{ challenge: Challenge }>(`/kids/children/${childId}/courses/${slug}/challenges`, { fresh }),
 
   challenge: (id: string) => api.get<ChallengeDetail>(`/kids/challenges/${id}`),
-  submit: (id: string, body: { code: string; output: string; error: string | null; turtle: string }) =>
+  submit: (id: string, body: { code: string; output: string; error: string | null; turtle: string; input: string }) =>
     api.post<{ attempt: Attempt; leveledUp: boolean; courseComplete: boolean }>(`/kids/challenges/${id}/attempts`, body),
   help: (id: string, message: string, code: string) => api.post<{ messages: HelpMessage[] }>(`/kids/challenges/${id}/help`, { message, code }),
 };

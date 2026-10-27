@@ -11,6 +11,8 @@ export interface TurtleDrawing {
 export interface RunRequest {
   id: number;
   code: string;
+  // Text from the Answers box; each input() call reads the next line.
+  stdin: string;
 }
 
 export type WorkerMessage =

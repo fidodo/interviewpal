@@ -53,6 +53,8 @@ export interface Challenge {
   instructions: string;
   kind: ChallengeKind;
   starterCode: string;
+  // Answers for input() that the expected output was worked out with; pre-fills the Answers box.
+  sampleInput: string | null;
   hasExpectedOutput: boolean;
   status: ChallengeStatus;
 }

@@ -96,7 +96,9 @@ A learning area for a parent's children, kept separate from the interview app.
 - **AI tutor:** called "Pal". It generates each challenge, reviews attempts (an exact `expectedOutput` match overrides the model's verdict) and answers hint questions.
 - **Progress:** passing `challengesToPass` challenges levels the learner up, and the parent can also set the level. These writes are conditional `updateMany`s.
 - **Python runner:** Python runs in the browser via Pyodide, loaded from the jsdelivr CDN in a module Web Worker (`client/src/kids/runner`).
-  - `prelude.ts` installs a recording `turtle` module (keep its API in sync with `RUNTIME` in `kids.prompts.ts`) and disables `input()`.
+  - `prelude.ts` installs a recording `turtle` module (keep its API in sync with `RUNTIME` in `kids.prompts.ts`).
+  - `input()` reads from the "Answers" box on Python levels, one line per call, and echoes the question and answer like a terminal. A worker can't pause for live typing without cross-origin isolation, which would break Google sign-in pop-ups.
+  - Pal stores `Challenge.sampleInput` alongside `expectedOutput`. The exact-output check only applies when the learner's answers match those samples; otherwise Pal judges the logic.
   - A 5-second timeout kills and restarts the worker.
   - Blockly, CodeMirror and the runner are each separate lazy chunks.
 - **Kid mode:** a `localStorage` lock (`kids-lock:<userId>`). While it's set, interview pages and the Grown-ups area redirect to the learner's pages. Leaving kid mode needs the parent PIN. A forgotten PIN is reset with the account password or a fresh Google sign-in, never just by logging in again.

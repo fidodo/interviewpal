@@ -24,18 +24,19 @@ interface CheckResult {
 
 const draftKey = (id: string) => `kids-code:${id}`;
 const blocksKey = (id: string) => `kids-blocks:${id}`;
+const answersKey = (id: string) => `kids-input:${id}`;
 
-function readDraft(id: string): string | null {
+function readSaved(key: string): string | null {
   try {
-    return localStorage.getItem(draftKey(id));
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-function writeDraft(id: string, code: string) {
+function writeSaved(key: string, value: string) {
   try {
-    localStorage.setItem(draftKey(id), code);
+    localStorage.setItem(key, value);
   } catch {
     // Not remembered between visits; nothing else breaks.
   }
@@ -45,6 +46,7 @@ function clearSaved(id: string) {
   try {
     localStorage.removeItem(draftKey(id));
     localStorage.removeItem(blocksKey(id));
+    localStorage.removeItem(answersKey(id));
   } catch {
     // Nothing saved.
   }
@@ -66,6 +68,7 @@ export function ChallengePage() {
   const [moving, setMoving] = useState(false);
   const [code, setCode] = useState("");
   const codeRef = useRef("");
+  const [answers, setAnswers] = useState("");
 
   useEffect(() => {
     setDetail(null);
@@ -84,6 +87,7 @@ export function ChallengePage() {
           return;
         }
         setDetail(d);
+        setAnswers(readSaved(answersKey(id)) ?? d.challenge.sampleInput ?? "");
         const last = d.attempts[d.attempts.length - 1];
         if (last) setResult({ attempt: last, leveledUp: false, courseComplete: false });
       })
@@ -100,7 +104,7 @@ export function ChallengePage() {
     (next: string) => {
       codeRef.current = next;
       setCode(next);
-      if (detail?.level.editor === "PYTHON") writeDraft(id, next);
+      if (detail?.level.editor === "PYTHON") writeSaved(draftKey(id), next);
     },
     [id, detail?.level.editor],
   );
@@ -116,7 +120,7 @@ export function ChallengePage() {
     }
     setRunning(true);
     try {
-      const res = await runPython(codeRef.current);
+      const res = await runPython(codeRef.current, detail?.level.editor === "PYTHON" ? answers : "");
       setRun(res);
       setPythonState("ready");
       return res;
@@ -143,6 +147,7 @@ export function ChallengePage() {
         output: res.stdout,
         error: res.error,
         turtle: describeDrawing(res.drawing),
+        input: detail.level.editor === "PYTHON" ? answers : "",
       });
       setResult(checked);
       if (checked.attempt.passed) {
@@ -172,6 +177,7 @@ export function ChallengePage() {
   function startOver() {
     if (!window.confirm("Start over? Your work on this challenge will be cleared.")) return;
     clearSaved(id);
+    setAnswers(detail?.challenge.sampleInput ?? "");
     setRun(null);
     setEditorKey((k) => k + 1);
   }
@@ -244,7 +250,7 @@ export function ChallengePage() {
               ) : (
                 <PythonEditor
                   key={`${id}:${editorKey}`}
-                  initialCode={(editorKey === 0 && readDraft(id)) || challenge.starterCode}
+                  initialCode={(editorKey === 0 && readSaved(draftKey(id))) || challenge.starterCode}
                   onChange={handleCodeChange}
                   labelledBy="editor-title"
                 />
@@ -257,6 +263,29 @@ export function ChallengePage() {
                 <pre>
                   <code>{code.trim() || "# Snap some blocks together to see Python here"}</code>
                 </pre>
+              </div>
+            )}
+
+            {!isBlocks && (
+              <div className="field answers-field">
+                <label htmlFor="program-answers">Answers for input()</label>
+                <p id="program-answers-help" className="helper-text">
+                  When your program asks a question with input(), it uses these answers, one line each, from the top.
+                </p>
+                <textarea
+                  id="program-answers"
+                  className="input answers-input"
+                  aria-describedby="program-answers-help"
+                  rows={3}
+                  maxLength={2000}
+                  spellCheck={false}
+                  value={answers}
+                  placeholder={"Ada\n11"}
+                  onChange={(e) => {
+                    setAnswers(e.target.value);
+                    writeSaved(answersKey(id), e.target.value);
+                  }}
+                />
               </div>
             )}
 

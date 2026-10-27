@@ -153,6 +153,7 @@ model Challenge {
   kind           String
   starterCode    String
   expectedOutput String?
+  sampleInput    String?
   status         String        @default("OPEN")
   createdAt      DateTime      @default(now())
   attempts       Attempt[]

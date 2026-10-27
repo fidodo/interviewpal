@@ -9,6 +9,7 @@ export const generatedChallengeSchema = z.object({
   kind: z.enum(["DRAW", "TEXT"]),
   starterCode: z.string().max(3000).default(""),
   expectedOutput: z.string().max(3000).nullish(),
+  sampleInput: z.string().max(1000).nullish(),
 });
 export type GeneratedChallenge = z.infer<typeof generatedChallengeSchema>;
 

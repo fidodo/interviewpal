@@ -13,7 +13,7 @@ interface Pyodide {
   runPython(code: string, options?: { globals?: PyProxy; filename?: string }): unknown;
   setStdout(options: { write: (buffer: Uint8Array) => number }): void;
   setStderr(options: { write: (buffer: Uint8Array) => number }): void;
-  globals: { get(name: string): () => PyProxy };
+  globals: { get(name: string): (...args: unknown[]) => PyProxy };
 }
 
 // The client tsconfig uses the DOM lib, where `self` is a Window; describe the worker scope we actually use.
@@ -82,7 +82,7 @@ async function init() {
 }
 
 scope.onmessage = (event) => {
-  const { id, code } = event.data;
+  const { id, code, stdin } = event.data;
   if (!pyodide) return;
   output = "";
   let error: string | null = null;
@@ -91,6 +91,7 @@ scope.onmessage = (event) => {
   namespace.set("__name__", "__main__");
   try {
     pyodide.runPython("_kids_reset()");
+    pyodide.globals.get("_kids_set_inputs")(stdin);
     pyodide.runPython(code, { globals: namespace, filename: "my_code.py" });
   } catch (err) {
     error = friendlyError(err instanceof Error ? err.message : String(err));

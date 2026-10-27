@@ -47,7 +47,7 @@ export function preparePython(): Promise<void> {
   return boot();
 }
 
-export async function runPython(code: string): Promise<RunResult> {
+export async function runPython(code: string, stdin = ""): Promise<RunResult> {
   await boot();
   const w = worker!;
   const id = nextId++;
@@ -72,7 +72,7 @@ export async function runPython(code: string): Promise<RunResult> {
     }
 
     w.addEventListener("message", onMessage);
-    w.postMessage({ id, code });
+    w.postMessage({ id, code, stdin });
   });
 }
 

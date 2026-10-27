@@ -31,6 +31,7 @@ function serializeChallenge(c: {
   kind: string;
   starterCode: string;
   expectedOutput: string | null;
+  sampleInput: string | null;
   status: string;
 }) {
   return {
@@ -41,6 +42,7 @@ function serializeChallenge(c: {
     instructions: c.instructions,
     kind: c.kind,
     starterCode: c.starterCode,
+    sampleInput: c.sampleInput,
     hasExpectedOutput: c.expectedOutput != null,
     status: c.status,
   };
@@ -209,6 +211,7 @@ const attemptSchema = z.object({
   output: z.string().max(20000),
   error: z.string().max(5000).nullable(),
   turtle: z.string().max(4000).default(""),
+  input: z.string().max(2000).default(""),
 });
 
 export async function submitAttempt(req: AuthedRequest, res: Response) {

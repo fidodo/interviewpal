@@ -505,6 +505,19 @@ a.course-card:hover {
   font-size: 15px;
 }
 
+.answers-field {
+  margin: 14px 0 0;
+}
+
+.answers-field .helper-text {
+  margin: 2px 0 6px;
+}
+
+.answers-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  resize: vertical;
+}
+
 .run-bar {
   display: flex;
   align-items: center;
