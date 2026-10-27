@@ -1045,9 +1045,117 @@ textarea.code-input {
   color: var(--text);
 }
 
+/* ---------- Dashboard onboarding tour ---------- */
+
+.dashboard-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-heading .btn-link-inline {
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.tour-spotlight {
+  position: fixed;
+  z-index: 1001;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(15, 17, 23, 0.55);
+  outline: 2px solid var(--primary);
+  outline-offset: 0;
+  pointer-events: none;
+}
+
+.tour-popover {
+  position: fixed;
+  z-index: 1002;
+  width: min(340px, calc(100vw - 32px));
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+.tour-popover:focus {
+  outline: none;
+}
+
+.tour-progress {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary-text);
+}
+
+.tour-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.tour-body {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tour-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.tour-btn {
+  min-height: 40px;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+
+.tour-skip {
+  background: none;
+  border: none;
+  padding: 8px 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tour-skip:hover {
+  color: var(--text);
+}
+
 @media (max-width: 560px) {
   .page {
     padding: 20px 16px 40px;
+  }
+  .dashboard-heading {
+    flex-direction: column;
+    gap: 0;
+  }
+  .dashboard-heading .btn-link-inline {
+    margin: -16px 0 16px;
   }
   .card {
     padding: 16px;
@@ -1130,6 +1238,14 @@ textarea.code-input {
 
   .guide-dialog[open] {
     animation: dialog-in 0.22s ease-out;
+  }
+
+  .tour-spotlight {
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+  }
+
+  .tour-popover {
+    animation: dialog-in 0.2s ease-out;
   }
 
   @media (max-width: 560px) {

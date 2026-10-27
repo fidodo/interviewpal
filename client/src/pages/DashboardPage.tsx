@@ -1,15 +1,79 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { TopicPicker } from "../components/TopicPicker";
 import { Difficulty, PRESET_TRACKS, SessionListItem, Topic } from "../types";
 import { HistoryList } from "../components/HistoryList";
+import { OnboardingTour, TourStep } from "../components/OnboardingTour";
+import { useAuth } from "../hooks/useAuth";
 import { groupSessionsByDay } from "../utils/groupSessionsByDay";
 
 const DIFFICULTIES: Difficulty[] = ["JUNIOR", "INTERMEDIATE", "SENIOR"];
 
+const TOUR_STEPS: TourStep[] = [
+  {
+    target: '[data-tour="welcome"]',
+    title: "Welcome to InterviewPal",
+    body: "Here's a quick tour of how to set up a mock interview. It takes about 30 seconds, and you can skip it any time.",
+  },
+  {
+    target: '[data-tour="track"]',
+    title: "1. Choose a track",
+    body: "This is the kind of role you're practising for. It decides which topics show up below.",
+  },
+  {
+    target: '[data-tour="track-other"]',
+    title: "Role not listed?",
+    body: "Pick “Other” and type your own track, for example DevOps or Mobile Engineering.",
+  },
+  {
+    target: '[data-tour="topic"]',
+    title: "2. Pick a topic",
+    body: "Tap a topic to focus the interview on it. The one you pick is highlighted. You need a topic before you can start.",
+  },
+  {
+    target: '[data-tour="custom-topic"]',
+    title: "Or add your own topic",
+    body: "Type anything you want to practise, like “GraphQL” or “Designing a chat app”, then press Add. It's saved to this track and selected for you.",
+  },
+  {
+    target: '[data-tour="difficulty"]',
+    title: "3. Set the difficulty",
+    body: "Junior, Intermediate, or Senior. Higher levels get harder questions and stricter grading.",
+  },
+  {
+    target: '[data-tour="start"]',
+    title: "4. Start the interview",
+    body: "This button turns on once you've picked a topic. You'll get one question at a time: answer out loud with the mic, or type code for coding questions.",
+  },
+  {
+    target: '[data-tour="history-nav"]',
+    title: "Track your progress",
+    body: "Every session is saved with its scores and feedback. Find past interviews under History.",
+  },
+  {
+    target: '[data-tour="replay"]',
+    title: "Need this again?",
+    body: "Tap “Show me around” any time to replay this tour. Good luck!",
+  },
+];
+
+function tourKey(userId: string) {
+  return `onboarding-done:${userId}`;
+}
+
+function hasFinishedTour(userId: string) {
+  try {
+    return localStorage.getItem(tourKey(userId)) !== null;
+  } catch {
+    return false;
+  }
+}
+
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [tourOpen, setTourOpen] = useState(false);
   const [track, setTrack] = useState<string>(PRESET_TRACKS[0]);
   const [customTrack, setCustomTrack] = useState("");
   const [usingOther, setUsingOther] = useState(false);
@@ -24,9 +88,23 @@ export function DashboardPage() {
   useEffect(() => {
     api
       .get<{ sessions: SessionListItem[] }>("/sessions")
-      .then((res) => setRecentSessions(groupSessionsByDay(res.sessions)[0]?.sessions ?? []))
+      .then((res) => {
+        setRecentSessions(groupSessionsByDay(res.sessions)[0]?.sessions ?? []);
+        // First-timers (no sessions yet, tour never finished) get the tour automatically.
+        if (res.sessions.length === 0 && user && !hasFinishedTour(user.id)) setTourOpen(true);
+      })
       .catch(() => setRecentSessions([]));
-  }, []);
+  }, [user]);
+
+  const closeTour = useCallback(() => {
+    setTourOpen(false);
+    if (!user) return;
+    try {
+      localStorage.setItem(tourKey(user.id), "1");
+    } catch {
+      // storage unavailable — the tour may show again next visit
+    }
+  }, [user]);
 
   function selectTrack(value: string) {
     setUsingOther(false);
@@ -59,8 +137,19 @@ export function DashboardPage() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Start a mock interview</h1>
-      <p className="page-subtitle">Pick a track, a topic, and how hard you want it to be.</p>
+      {tourOpen && <OnboardingTour steps={TOUR_STEPS} onClose={closeTour} />}
+
+      <div className="dashboard-heading">
+        <div>
+          <h1 className="page-title" data-tour="welcome">
+            Start a mock interview
+          </h1>
+          <p className="page-subtitle">Pick a track, a topic, and how hard you want it to be.</p>
+        </div>
+        <button type="button" className="btn-link btn-link-inline" data-tour="replay" onClick={() => setTourOpen(true)}>
+          Show me around
+        </button>
+      </div>
 
       <section className="card" aria-labelledby="setup-title">
         <h2 id="setup-title" className="visually-hidden">
@@ -70,7 +159,7 @@ export function DashboardPage() {
           <span className="field-label" id="track-label">
             Track
           </span>
-          <div className="segmented" role="group" aria-labelledby="track-label">
+          <div className="segmented" role="group" aria-labelledby="track-label" data-tour="track">
             {PRESET_TRACKS.map((t) => (
               <button
                 key={t}
@@ -87,6 +176,7 @@ export function DashboardPage() {
               className={`segmented-option ${usingOther ? "active" : ""}`}
               aria-pressed={usingOther}
               onClick={selectOther}
+              data-tour="track-other"
             >
               Other
             </button>
@@ -110,7 +200,7 @@ export function DashboardPage() {
         </div>
 
         {effectiveTrack && (
-          <div className="field">
+          <div className="field" data-tour="topic">
             <span className="field-label" id="topic-label">
               Topic
             </span>
@@ -127,7 +217,7 @@ export function DashboardPage() {
           <span className="field-label" id="difficulty-label">
             Difficulty
           </span>
-          <div className="segmented" role="group" aria-labelledby="difficulty-label">
+          <div className="segmented" role="group" aria-labelledby="difficulty-label" data-tour="difficulty">
             {DIFFICULTIES.map((d) => (
               <button
                 key={d}
@@ -152,6 +242,7 @@ export function DashboardPage() {
           className="btn btn-primary btn-block"
           disabled={!topic || !effectiveTrack || starting}
           onClick={handleStart}
+          data-tour="start"
         >
           {starting ? (
             <>

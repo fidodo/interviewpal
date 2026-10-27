@@ -75,6 +75,12 @@ Both `GOOGLE_CLIENT_ID` (server) and `VITE_GOOGLE_CLIENT_ID` (client) must be se
 
 `MicButton` adds a 5-second countdown before recording. `AnswerGuideModal` (a native `<dialog>`) explains grading and STAR. It opens once per session, tracked in `sessionStorage`.
 
+### Dashboard onboarding tour
+`OnboardingTour.tsx` is a step-by-step spotlight tour with no library behind it. Each step targets a `data-tour="…"` attribute; a step whose target isn't on the page is skipped.
+- **Steps:** defined as `TOUR_STEPS` in `DashboardPage.tsx`. If you rename or move a dashboard control, keep its `data-tour` attribute.
+- **When it opens:** automatically only for users with zero sessions who haven't finished it. Completion is tracked in `localStorage` under `onboarding-done:<userId>`. "Show me around" replays it.
+- **While open:** `.app-shell` is made `inert` so keyboard and screen-reader focus stays in the tour.
+
 ### Reviews
 Two project skills: `interviewpal-code-review` (built-in `/code-review` plus a project-specific checklist) and `interviewpal-ui-review` (axe-core WCAG 2.2 AA audit across pages, light/dark, 360/1280px, with a bundled `scripts/audit.mjs`). Run them after non-trivial changes.
 

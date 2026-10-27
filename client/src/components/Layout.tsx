@@ -44,7 +44,7 @@ export function Layout({ children }: { children: ReactNode }) {
           )}
         </div>
         {user && (
-          <nav className="subnav" aria-label="Main">
+          <nav className="subnav" aria-label="Main" data-tour="history-nav">
             {navLink("/", "Dashboard")}
             {navLink("/history", "History")}
           </nav>

@@ -73,7 +73,7 @@ export function TopicPicker({ track, selectedTopicId, onSelect, labelledBy }: To
         <p className="helper-text">No preset topics for this track yet — type your own below.</p>
       )}
 
-      <form onSubmit={handleAddCustom} style={{ display: "flex", gap: 8, marginTop: 14 }}>
+      <form onSubmit={handleAddCustom} style={{ display: "flex", gap: 8, marginTop: 14 }} data-tour="custom-topic">
         <label htmlFor="custom-topic" className="visually-hidden">
           Custom topic
         </label>
