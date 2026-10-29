@@ -115,6 +115,16 @@ Full mock interview (`server/src/roles/mock.ts`, Phase 3): a session with `mode:
   - **Finished sessions are frozen:** they reject new questions and answers.
   - **Duplicate questions:** if two requests create the same question number, the later one is deleted.
 
+"Learn this" courses (`server/src/learn`, Phase 4): an adult course engine, separate from the kids tables, which belong to child profiles.
+- **Course:** a `LearnCourse` covers one role skill (`@@unique([userId, skillId])`, opened through the free `GET /learn/courses/for-skill/:id`) or any topic.
+- **Lessons:** the AI outlines the lessons when the course is created. Each lesson is written on first open by `generateLesson`; a race is safe, because a conditional write claims it.
+- **Questions:** each lesson has 3 multiple-choice questions plus 1 short written answer.
+  - **Multiple choice:** options are shuffled when stored and marked on the server without the AI, so these answers aren't rate limited.
+  - **Written answers:** the AI marks them against a model answer.
+  - **Answers stay on the server:** a question's answer is only sent after the learner has answered it.
+- **Spaced repetition** (`ReviewItem`, `schedule()`): a wrong answer puts the question in box 1, due tomorrow. A correct review answer moves it to box 2–4 (due in 3, 7 or 14 days), and passing box 4 retires it. Only items that are due can move; answering early changes nothing.
+- **Lesson text format** (`LessonContent.tsx`): `## ` headings, `- ` bullets and fenced code, rendered as React text and never as HTML.
+
 AI output validation: every AI call goes through `retryOnInvalid` or `generateValidated` (`server/src/ai/retry.ts`), which retries once on malformed JSON or a schema failure. Answers are graded *before* being saved, then the answer and its feedback are written together, so a failed grading never leaves a half-saved answer.
 
 ### Kids section (`/kids`)

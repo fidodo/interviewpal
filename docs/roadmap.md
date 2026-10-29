@@ -71,7 +71,11 @@ How it differs from the plan below: the closing "what would you ask us?" round i
 - **Final report:** a verdict (hire, lean hire or no hire), scores per round, and the skills updated.
 - Single-question practice mode stays as it is, with instant feedback.
 
-## Phase 4: "Learn this" courses
+## Phase 4: "Learn this" courses (done 2026-10-29)
+
+How it differs from the plan below:
+- The adult courses follow the kids engine's structure (course, lessons, questions) in their own tables, because the kids tables belong to child profiles.
+- Instead of hints, every answer gets an explanation, and written answers get AI feedback.
 
 - Each skill in the gap plan gets a **"Learn this"** course: short lessons plus practice questions. It's built on the kids course engine (levels, challenges, hints) with an adult tone.
 - **Spaced repetition:** questions you got wrong come back after a few days.

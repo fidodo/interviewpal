@@ -153,3 +153,66 @@ export interface RoleListItem {
   skillCount: number;
   readiness: number | null;
 }
+
+// ---- "Learn this" courses (mirrors server/src/learn/learn.controller.ts responses) ----
+
+export interface LearnCourseSummary {
+  id: string;
+  title: string;
+  summary: string;
+  level: Difficulty;
+  skillId: string | null;
+  lessonCount: number;
+  completedCount: number;
+}
+
+export interface LearnCourse {
+  id: string;
+  title: string;
+  summary: string;
+  level: Difficulty;
+  skill: { name: string; roleTitle: string } | null;
+  lessons: { id: string; order: number; title: string; objective: string; written: boolean; completed: boolean; questionCount: number }[];
+}
+
+export interface LearnAnswerResult {
+  correct: boolean;
+  feedback: string;
+  correctIndex: number | null;
+  modelAnswer: string | null;
+  explanation: string;
+  nextReviewDays?: number | null;
+  mastered?: boolean;
+  lessonComplete?: boolean;
+  // What the learner answered (present when re-opening a lesson).
+  response?: string;
+}
+
+export interface LearnQuestion {
+  id: string;
+  order?: number;
+  kind: "MCQ" | "SHORT";
+  prompt: string;
+  options: string[];
+  result?: LearnAnswerResult | null;
+}
+
+export interface LearnLesson {
+  id: string;
+  order: number;
+  title: string;
+  objective: string;
+  content: string | null;
+  completed: boolean;
+  course: { id: string; title: string; lessonCount: number };
+  nextLessonId: string | null;
+  questions: LearnQuestion[];
+}
+
+export interface ReviewItem {
+  id: string;
+  box: number;
+  question: LearnQuestion;
+  lessonTitle: string;
+  course: { id: string; title: string };
+}

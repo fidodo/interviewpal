@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { rolesApi } from "../api/roles";
+import { learnApi } from "../api/learn";
 import { RoleDetail, RoleSkill, SkillCategory } from "../types";
 
 const errorMessage = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
@@ -33,6 +34,7 @@ export function RoleSkillsPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [learning, setLearning] = useState<string | null>(null);
 
   const load = useCallback(() => {
     rolesApi
@@ -74,6 +76,21 @@ export function RoleSkillsPage() {
       load();
     } catch (err) {
       setError(errorMessage(err, "Couldn't add the skill"));
+    }
+  }
+
+  async function learn(skill: RoleSkill) {
+    if (learning) return;
+    setLearning(skill.id);
+    setError(null);
+    setStatus(`Opening the course for ${skill.name}…`);
+    try {
+      const { course } = await learnApi.openForSkill(skill.id);
+      navigate(`/learn/courses/${course.id}`);
+    } catch (err) {
+      setLearning(null);
+      setStatus(null);
+      setError(errorMessage(err, "Couldn't open the course"));
     }
   }
 
@@ -149,9 +166,15 @@ export function RoleSkillsPage() {
                   </button>
                 ))}
               </div>
-              <button type="button" className="btn-link btn-link-inline skill-remove" onClick={() => removeSkill(s)}>
-                Remove<span className="visually-hidden"> {s.name}</span>
-              </button>
+              <div className="skill-card-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => learn(s)} disabled={learning !== null}>
+                  {learning === s.id ? "Opening…" : "Learn this"}
+                  <span className="visually-hidden"> ({s.name})</span>
+                </button>
+                <button type="button" className="btn-link btn-link-inline skill-remove" onClick={() => removeSkill(s)}>
+                  Remove<span className="visually-hidden"> {s.name}</span>
+                </button>
+              </div>
             </li>
           );
         })}

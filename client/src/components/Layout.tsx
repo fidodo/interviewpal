@@ -51,6 +51,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <nav className="subnav" aria-label="Main" data-tour="history-nav">
             {navLink("/", "Home")}
             {navLink("/roles", "Roles")}
+            {navLink("/learn", "Learn")}
             {navLink("/history", "History")}
             {navLink("/kids", "Kids")}
           </nav>

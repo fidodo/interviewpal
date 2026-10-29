@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { rolesApi } from "../api/roles";
+import { learnApi } from "../api/learn";
 import { LEVEL_LABELS, RoleDetail, RoleSkill } from "../types";
 
 const errorMessage = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
@@ -44,7 +45,7 @@ export function SkillBar({ skill }: { skill: RoleSkill }) {
 // The home page's top card: the active target role's readiness, weakest skills and this week's plan.
 export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onChanged: () => void }) {
   const navigate = useNavigate();
-  const [busy, setBusy] = useState<"practice" | "mock" | "plan" | null>(null);
+  const [busy, setBusy] = useState<"practice" | "mock" | "plan" | "learn" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Ticks show immediately; the server copy catches up on the next reload.
   const [goalOverrides, setGoalOverrides] = useState<Record<string, boolean>>({});
@@ -81,6 +82,19 @@ export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onCh
       navigate(`/sessions/${session.id}`);
     } catch (err) {
       setError(errorMessage(err, "Couldn't start practice. Try again."));
+      setBusy(null);
+    }
+  }
+
+  // Opens the skill's "Learn this" course, creating it the first time.
+  async function learn(skillId: string) {
+    setBusy("learn");
+    setError(null);
+    try {
+      const { course } = await learnApi.openForSkill(skillId);
+      navigate(`/learn/courses/${course.id}`);
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't open the course. Try again."));
       setBusy(null);
     }
   }
@@ -164,6 +178,9 @@ export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onCh
           {weakest.map((s) => (
             <div key={s.id} className="skill-row">
               <SkillBar skill={s} />
+              <button type="button" className="btn-link btn-link-inline" onClick={() => learn(s.id)} disabled={busy !== null}>
+                Learn<span className="visually-hidden"> {s.name}</span>
+              </button>
               <button type="button" className="btn-link btn-link-inline" onClick={() => practice(s.id)} disabled={busy !== null}>
                 Practise<span className="visually-hidden"> {s.name}</span>
               </button>

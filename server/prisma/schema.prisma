@@ -26,6 +26,8 @@ model User {
   topics        Topic[]
   authTokens    AuthToken[]
   roles         TargetRole[]
+  courses       LearnCourse[]
+  reviewItems   ReviewItem[]
 }
 
 // Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
@@ -263,6 +265,7 @@ model RoleSkill {
   createdAt     DateTime           @default(now())
   history       SkillRatingEvent[]
   goals         WeeklyGoal[]
+  courses       LearnCourse[]
 
   @@unique([roleId, name])
 }
@@ -286,4 +289,83 @@ model WeeklyGoal {
   weekStart DateTime
   done      Boolean    @default(false)
   createdAt DateTime   @default(now())
+}
+
+// ---- "Learn this" courses (Phase 4 of docs/roadmap.md, server/src/learn) ----
+
+// A short AI-written course on one skill of a target role, or on any topic. Lessons are outlined up front and
+// written the first time they're opened.
+model LearnCourse {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId   String?
+  skill     RoleSkill?    @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  title     String
+  summary   String        @default("")
+  level     String
+  context   String        @default("")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  lessons   LearnLesson[]
+
+  // One course per skill per user (topic courses have no skill; NULLs don't collide).
+  @@unique([userId, skillId])
+}
+
+model LearnLesson {
+  id          String          @id @default(cuid())
+  courseId    String
+  course      LearnCourse     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order       Int
+  title       String
+  objective   String
+  // Null until the lesson is first opened.
+  content     String?
+  completedAt DateTime?
+  questions   LearnQuestion[]
+
+  @@unique([courseId, order])
+}
+
+// kind MCQ: `options` is a JSON array and `answer` the correct index. kind SHORT: `answer` is a model answer the
+// AI marks against. Answers never leave the server until the learner has responded.
+model LearnQuestion {
+  id          String        @id @default(cuid())
+  lessonId    String
+  lesson      LearnLesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  order       Int
+  kind        String
+  prompt      String
+  options     String        @default("[]")
+  answer      String
+  explanation String
+  responses   LearnAnswer[]
+  reviewItems ReviewItem[]
+}
+
+model LearnAnswer {
+  id         String        @id @default(cuid())
+  questionId String
+  question   LearnQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  response   String
+  correct    Boolean
+  feedback   String        @default("")
+  fromReview Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+}
+
+// Spaced repetition for questions answered wrongly: `box` 1-4 maps to 1, 3, 7, 14 days; passing box 4 retires it.
+model ReviewItem {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String
+  question   LearnQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  box        Int           @default(1)
+  dueAt      DateTime
+  createdAt  DateTime      @default(now())
+
+  @@unique([userId, questionId])
+  @@index([userId, dueAt])
 }
