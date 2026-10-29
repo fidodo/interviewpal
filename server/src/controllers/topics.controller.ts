@@ -2,11 +2,12 @@ import { Response } from "express";
 import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { AuthedRequest } from "../middleware/auth.middleware";
+import { visibleTopics } from "../services/topic.service";
 
 export async function listTopics(req: AuthedRequest, res: Response) {
-  const track = req.query.track as string | undefined;
+  const track = typeof req.query.track === "string" ? req.query.track : undefined;
   const topics = await prisma.topic.findMany({
-    where: track ? { track } : undefined,
+    where: { ...visibleTopics(req.userId!), ...(track ? { track } : {}) },
     orderBy: [{ isCustom: "asc" }, { name: "asc" }],
   });
   res.json({ topics });
@@ -24,10 +25,11 @@ export async function createTopic(req: AuthedRequest, res: Response) {
     return;
   }
   const { name, track } = parsed.data;
+  const ownerId = req.userId!;
   const topic = await prisma.topic.upsert({
-    where: { name_track: { name, track } },
+    where: { name_track_ownerId: { name, track, ownerId } },
     update: {},
-    create: { name, track, isCustom: true },
+    create: { name, track, isCustom: true, ownerId },
   });
   res.status(201).json({ topic });
 }

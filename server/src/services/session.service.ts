@@ -3,6 +3,7 @@ import { prisma } from "../db/prisma";
 import { aiProvider } from "../ai/provider.factory";
 import { PriorQA } from "../ai/provider.interface";
 import { analyzeFillers } from "./transcriptAnalysis";
+import { visibleTopics } from "./topic.service";
 
 async function loadPriorQA(sessionId: string): Promise<PriorQA[]> {
   const questions = await prisma.question.findMany({
@@ -21,6 +22,9 @@ async function loadPriorQA(sessionId: string): Promise<PriorQA[]> {
 }
 
 export async function createSession(userId: string, topicId: string, track: Track, difficulty: Difficulty) {
+  // Only preset topics or the user's own custom topics can be used.
+  const topic = await prisma.topic.findFirst({ where: { id: topicId, ...visibleTopics(userId) } });
+  if (!topic) return null;
   return prisma.interviewSession.create({
     data: { userId, topicId, track, difficulty },
     include: { topic: true },

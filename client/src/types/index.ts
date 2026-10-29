@@ -7,6 +7,9 @@ export type QuestionType = "VERBAL" | "CODING";
 export interface User {
   id: string;
   email: string;
+  emailVerified: boolean;
+  // false for Google-only accounts
+  hasPassword: boolean;
 }
 
 export interface Topic {

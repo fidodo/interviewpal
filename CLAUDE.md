@@ -66,6 +66,15 @@ Two login paths:
 
 Both `GOOGLE_CLIENT_ID` (server) and `VITE_GOOGLE_CLIENT_ID` (client) must be set to the same OAuth Client ID from Google Cloud Console for Google sign-in to work; without it, the button area on the login page just shows a hint instead of rendering.
 
+Security rules (Phase 1 of `docs/roadmap.md`):
+- **Token revocation.** JWTs carry `tv`, which must equal `User.tokenVersion`. `requireAuth` checks it on every request, which costs one database read. "Log out" clears this browser only; `POST /auth/logout-all` and a password reset bump the version, which signs out every device.
+- **Email verification and password reset** go through Resend (`services/email.service.ts`). They are optional: with no `RESEND_API_KEY`, accounts stay unverified, `requireVerified` is a no-op, forgot-password returns 503, and in development the links are printed to the server console. Link tokens are single-use and stored as SHA-256 hashes in `AuthToken`.
+- **Google takeover guard.** If Google signs in to an unverified account that has a password, `loginWithGoogle` removes the password and bumps the token version, because someone else may have registered that email first.
+- **Topics.** Custom topics belong to their creator. `visibleTopics` (`services/topic.service.ts`) is presets plus the user's own topics. Use it for listing topics and for starting a session.
+- **Rate limits** are stored in the `RateLimit` table (`PrismaStore` in `middleware/rateLimit.ts`), because serverless instances don't share memory. AI routes use `requireVerified`, the hourly limit and the daily allowance: 50 a day for interviews and 60 for kids. `User.isAdmin` is exempt and is set by the seed for seed user 1. `/sessions/:id/end` is deliberately left unguarded. In production, `trust proxy` is set to 1.
+- **Delete account** (`DELETE /auth/account`) requires the password, or a fresh Google credential for Google-only accounts.
+- **Client CSP** lives in `client/vercel.json`. It allows Google sign-in (GSI), Google Fonts and the Pyodide CDN. Blockly's icons are self-hosted in `client/public/blockly-media/`. If you add a third-party script, font or endpoint, add it to the CSP too.
+
 ### Voice input
 `client/src/hooks/useSpeechRecognition.ts` wraps the browser Web Speech API. Things that look odd but are deliberate:
 - **Mobile mode.** On mobile (UA sniff), recognition runs with `continuous = false` and is restarted from `onend`. Mobile Chrome in continuous mode returns cumulative results ("I think", "I think the", …), which used to duplicate words.

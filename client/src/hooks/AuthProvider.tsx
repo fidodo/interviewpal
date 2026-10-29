@@ -7,13 +7,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api
-      .get<{ user: User }>("/auth/me")
-      .then((res) => setUser(res.user))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+  const refresh = useCallback(async () => {
+    try {
+      const res = await api.get<{ user: User }>("/auth/me");
+      setUser(res.user);
+    } catch {
+      setUser(null);
+    }
   }, []);
+
+  useEffect(() => {
+    refresh().finally(() => setLoading(false));
+  }, [refresh]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.post<{ user: User }>("/auth/login", { email, password });
@@ -40,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

@@ -7,6 +7,8 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { InterviewSessionPage } from "./pages/InterviewSessionPage";
 import { SummaryPage } from "./pages/SummaryPage";
+import { AccountPage } from "./pages/AccountPage";
+import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./pages/EmailLinkPages";
 import { getKidLock, kidHomePath } from "./kids/kidMode";
 
 // The kids section is its own lazy chunk (Blockly, CodeMirror, the Python runner) with its own layout.
@@ -35,6 +37,17 @@ function InterviewRoutes() {
     <Layout>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <AccountPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/"
           element={

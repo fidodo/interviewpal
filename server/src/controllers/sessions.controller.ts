@@ -70,6 +70,10 @@ export async function createSession(req: AuthedRequest, res: Response) {
   }
   const { topicId, track, difficulty } = parsed.data;
   const session = await sessionService.createSession(req.userId!, topicId, track, difficulty);
+  if (!session) {
+    res.status(404).json({ error: "Topic not found" });
+    return;
+  }
   res.status(201).json({ session });
 }
 

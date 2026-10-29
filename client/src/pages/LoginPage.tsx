@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../api/client";
 import { FeedbackCard } from "../components/FeedbackCard";
@@ -220,6 +220,11 @@ export function LoginPage() {
               "Log in"
             )}
           </button>
+          {mode === "login" && (
+            <Link to="/forgot-password" className="btn-link forgot-link">
+              Forgot password?
+            </Link>
+          )}
           <button type="button" className="btn-link" onClick={toggleMode}>
             {mode === "register" ? "Already have an account? Log in" : "Don't have an account? Sign up"}
           </button>

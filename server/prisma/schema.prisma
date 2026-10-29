@@ -14,19 +14,50 @@ model User {
   googleId     String?            @unique
   createdAt    DateTime           @default(now())
   sessions     InterviewSession[]
-  kidsPinHash  String?
-  children     ChildProfile[]
+  kidsPinHash   String?
+  children      ChildProfile[]
+  // Set by email-link verification or a Google sign-in. Unverified password accounts lose their password if
+  // Google later proves someone else owns the email (stops pre-registration account takeover).
+  emailVerified Boolean            @default(false)
+  // Bumped on logout / password reset; tokens carrying an older version are rejected.
+  tokenVersion  Int                @default(0)
+  // Exempt from the daily AI allowance.
+  isAdmin       Boolean            @default(false)
+  topics        Topic[]
+  authTokens    AuthToken[]
 }
 
+// Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
 model Topic {
   id        String             @id @default(cuid())
   name      String
   track     String
   isCustom  Boolean            @default(false)
+  ownerId   String?
+  owner     User?              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt DateTime           @default(now())
   sessions  InterviewSession[]
 
-  @@unique([name, track])
+  @@unique([name, track, ownerId])
+}
+
+// Single-use links sent by email. Only a SHA-256 of the token is stored.
+model AuthToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+// Rate-limit counters shared by every server instance (serverless memory isn't).
+model RateLimit {
+  key     String   @id
+  hits    Int
+  resetAt DateTime
 }
 
 model InterviewSession {

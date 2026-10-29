@@ -8,6 +8,8 @@ export interface AuthContextValue {
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
+  // Re-reads the signed-in user (e.g. after verifying an email or resetting a password).
+  refresh: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

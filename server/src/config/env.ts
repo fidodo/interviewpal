@@ -26,5 +26,10 @@ export const env = {
     apiKey: process.env.GROQ_API_KEY ?? "",
     model: process.env.GROQ_MODEL ?? "openai/gpt-oss-120b",
   },
+  // Email (Resend) is optional: without a key, accounts stay unverified and links are only logged in dev.
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  emailFrom: process.env.EMAIL_FROM ?? "InterviewPal <onboarding@resend.dev>",
   isProd: process.env.NODE_ENV === "production",
 };
+
+export const emailEnabled = Boolean(env.resendApiKey);

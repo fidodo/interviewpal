@@ -54,10 +54,12 @@ async function seedUser(email: string | undefined, password: string | undefined,
     return;
   }
   const passwordHash = await bcrypt.hash(password, 10);
+  // Seeded users are the owner's accounts: verified, and seed user 1 is the admin (no daily AI allowance).
+  const isAdmin = label === "user 1";
   await prisma.user.upsert({
     where: { email },
-    update: { passwordHash },
-    create: { email, passwordHash },
+    update: { passwordHash, emailVerified: true, isAdmin },
+    create: { email, passwordHash, emailVerified: true, isAdmin },
   });
   console.log(`Seeded user: ${email}`);
 }
@@ -65,11 +67,9 @@ async function seedUser(email: string | undefined, password: string | undefined,
 async function seedTopics() {
   for (const track of Object.keys(STARTER_TOPICS)) {
     for (const name of STARTER_TOPICS[track]) {
-      await prisma.topic.upsert({
-        where: { name_track: { name, track } },
-        update: {},
-        create: { name, track, isCustom: false },
-      });
+      // Preset topics have no owner; a compound unique with a NULL column can't be upserted on, so look first.
+      const existing = await prisma.topic.findFirst({ where: { name, track, ownerId: null } });
+      if (!existing) await prisma.topic.create({ data: { name, track, isCustom: false } });
     }
   }
   console.log("Seeded starter topics.");

@@ -1305,3 +1305,36 @@ textarea.code-input {
   from { transform: translateY(100%); }
   to { transform: none; }
 }
+
+/* ---- Account & email verification ---- */
+
+.verify-banner {
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 15px;
+  background: var(--primary-soft);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.verify-banner a,
+.topbar-email {
+  color: var(--primary-text);
+}
+
+.topbar-email {
+  text-decoration: none;
+}
+
+.topbar-email:hover {
+  text-decoration: underline;
+}
+
+.forgot-link {
+  display: block;
+  text-decoration: none;
+}
+
+.danger-zone {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+}

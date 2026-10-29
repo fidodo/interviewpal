@@ -1,9 +1,11 @@
 import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useAuthConfig } from "../hooks/useAuthConfig";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  const { emailEnabled } = useAuthConfig();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,7 +38,9 @@ export function Layout({ children }: { children: ReactNode }) {
           </Link>
           {user && (
             <div className="topbar-actions">
-              <span className="topbar-email">{user.email}</span>
+              <Link to="/account" className="topbar-email" aria-current={location.pathname === "/account" ? "page" : undefined}>
+                {user.email}
+              </Link>
               <button className="btn btn-secondary" onClick={handleLogout}>
                 Log out
               </button>
@@ -51,6 +55,11 @@ export function Layout({ children }: { children: ReactNode }) {
           </nav>
         )}
       </header>
+      {user && emailEnabled && !user.emailVerified && (
+        <div className="verify-banner" role="status">
+          Please confirm your email to keep practising. Check your inbox, or <Link to="/account">resend the link</Link>.
+        </div>
+      )}
       <main id="main" tabIndex={-1} className="app-main">
         {children}
       </main>

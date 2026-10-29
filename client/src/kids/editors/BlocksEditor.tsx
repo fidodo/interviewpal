@@ -36,6 +36,8 @@ export function BlocksEditor({ toolbox, storageKey, onCodeChange }: BlocksEditor
     const workspace = Blockly.inject(host, {
       toolbox: buildToolbox(toolbox),
       renderer: "zelos",
+      // Serve Blockly's icons ourselves instead of from Google's demo server (keeps the CSP same-origin).
+      media: "/blockly-media/",
       trashcan: true,
       sounds: false,
       move: { scrollbars: true, drag: true, wheel: false },
