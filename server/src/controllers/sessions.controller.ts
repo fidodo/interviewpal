@@ -4,6 +4,7 @@ import { Difficulty } from "../types";
 import { AuthedRequest } from "../middleware/auth.middleware";
 import * as sessionService from "../services/session.service";
 import * as summaryService from "../services/summary.service";
+import { MOCK_ROUNDS } from "../roles/mock";
 
 function parseJsonArray(value: string): string[] {
   try {
@@ -46,13 +47,29 @@ function serializeFillerStats(fillerStats: string | null | undefined) {
   }
 }
 
-function serializeSummary(summary: { overallScore: number; assessment: string; strengths: string; improvements: string } | null | undefined) {
+function parseRoundScores(value: string | null): { round: string; score: number }[] | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function serializeSummary(
+  summary:
+    | { overallScore: number; assessment: string; strengths: string; improvements: string; verdict: string | null; roundScores: string | null }
+    | null
+    | undefined
+) {
   if (!summary) return null;
   return {
     overallScore: summary.overallScore,
     assessment: summary.assessment,
     strengths: parseJsonArray(summary.strengths),
     improvements: parseJsonArray(summary.improvements),
+    verdict: summary.verdict,
+    roundScores: parseRoundScores(summary.roundScores),
   };
 }
 
@@ -79,7 +96,15 @@ export async function createSession(req: AuthedRequest, res: Response) {
 
 export async function generateNextQuestion(req: AuthedRequest, res: Response) {
   const question = await sessionService.generateNextQuestion(req.params.id, req.userId!);
-  res.status(201).json({ question });
+  if (question === "completed") {
+    res.status(409).json({ error: "This interview has finished." });
+    return;
+  }
+  if (!question) {
+    res.status(409).json({ error: "That was the last question. Finish the interview to see your report." });
+    return;
+  }
+  res.status(201).json({ question: { id: question.id, text: question.text, type: question.type, order: question.order, round: question.round } });
 }
 
 const submitAnswerSchema = z.object({
@@ -93,11 +118,11 @@ export async function submitAnswer(req: AuthedRequest, res: Response) {
     return;
   }
   const result = await sessionService.submitAnswer(req.params.id, req.userId!, parsed.data.transcript);
-  if (!result) {
-    res.status(409).json({ error: "This question has already been answered." });
+  if (result === "answered" || result === "completed") {
+    res.status(409).json({ error: result === "answered" ? "This question has already been answered." : "This interview has finished." });
     return;
   }
-  const { answer, feedback } = result;
+  const { answer, feedback, mode } = result;
   res.status(201).json({
     answer: {
       id: answer.id,
@@ -105,7 +130,8 @@ export async function submitAnswer(req: AuthedRequest, res: Response) {
       submittedAt: answer.submittedAt,
       fillerStats: serializeFillerStats(answer.fillerStats),
     },
-    feedback: serializeFeedback(feedback),
+    // Mock interviews hold all feedback until the report, like a real interview.
+    feedback: mode === "MOCK" ? null : serializeFeedback(feedback),
   });
 }
 
@@ -120,7 +146,7 @@ export async function getSummary(req: AuthedRequest, res: Response) {
     res.status(404).json({ error: "Summary not found" });
     return;
   }
-  res.json({ session: result.session, summary: serializeSummary(result.summary) });
+  res.json({ session: result.session, summary: serializeSummary(result.summary), skillsTested: result.skillsTested });
 }
 
 export async function deleteSession(req: AuthedRequest, res: Response) {
@@ -150,6 +176,7 @@ export async function getSessionDetail(req: AuthedRequest, res: Response) {
     res.status(404).json({ error: "Session not found" });
     return;
   }
+  const hideFeedback = session.mode === "MOCK" && session.status !== "COMPLETED";
   res.json({
     session: {
       id: session.id,
@@ -159,17 +186,21 @@ export async function getSessionDetail(req: AuthedRequest, res: Response) {
       status: session.status,
       startedAt: session.startedAt,
       endedAt: session.endedAt,
+      mode: session.mode,
+      plannedRounds: session.mode === "MOCK" ? MOCK_ROUNDS.length : null,
       questions: session.questions.map((q) => ({
         id: q.id,
         text: q.text,
         type: q.type,
         order: q.order,
+        round: q.round,
         answer: q.answer
           ? {
               id: q.answer.id,
               transcript: q.answer.transcript,
               fillerStats: serializeFillerStats(q.answer.fillerStats),
-              feedback: serializeFeedback(q.answer.feedback),
+              // Hidden while a mock interview is still running.
+              feedback: hideFeedback ? null : serializeFeedback(q.answer.feedback),
             }
           : null,
       })),

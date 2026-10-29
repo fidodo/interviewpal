@@ -26,7 +26,8 @@ function roleInstructions(role: RoleContext): string[] {
   const lines = [
     `The candidate is preparing for this role: "${role.title}". The skills that matter for it are: ${role.skills.join("; ")}.`,
   ];
-  if (role.focusSkill) lines.push(`Focus this question on the skill "${role.focusSkill}".`);
+  if (role.roundInstructions) lines.push(role.roundInstructions);
+  else if (role.focusSkill) lines.push(`Focus this question on the skill "${role.focusSkill}".`);
   if (role.jobDescription) {
     lines.push(`The job description they are applying to (use it to make questions realistic for this employer):\n${role.jobDescription.slice(0, MAX_JOB_DESCRIPTION_CHARS)}`);
   }
@@ -56,8 +57,14 @@ export function questionPrompt(params: { topic: string; track: Track; difficulty
   ].join("\n");
 }
 
-export function gradingPrompt(params: { question: string; transcript: string; difficulty: Difficulty; questionType: QuestionType }): string {
-  const { question, transcript, difficulty, questionType } = params;
+export function gradingPrompt(params: {
+  question: string;
+  transcript: string;
+  difficulty: Difficulty;
+  questionType: QuestionType;
+  roundInstructions?: string;
+}): string {
+  const { question, transcript, difficulty, questionType, roundInstructions } = params;
   const modeInstructions =
     questionType === "CODING"
       ? `The candidate's answer is code they typed directly into a plain text box (no IDE, no autocomplete, no syntax highlighting). Judge correctness of logic, handling of edge cases, and time/space complexity where relevant. Be lenient on minor syntax slips (missing semicolons, small typos) but strict on whether the approach actually solves the problem.`
@@ -66,6 +73,7 @@ export function gradingPrompt(params: { question: string; transcript: string; di
     `You are grading a candidate's interview answer for a ${difficulty.toLowerCase()}-level technical role.`,
     `Be fair but rigorous for the stated level — junior answers should not be held to senior-level depth, and senior answers should be held to a higher bar.`,
     modeInstructions,
+    ...(roundInstructions ? [roundInstructions] : []),
     ``,
     `Question: ${question}`,
     `Candidate's answer: ${transcript}`,

@@ -176,6 +176,12 @@ export async function setGoalDone(req: AuthedRequest, res: Response) {
   res.status(204).send();
 }
 
+export async function startMock(req: AuthedRequest, res: Response) {
+  const session = await rolesService.startMock(req.userId!, req.params.id);
+  if (!session) return notFound(res);
+  res.status(201).json({ session: { id: session.id } });
+}
+
 export async function startPractice(req: AuthedRequest, res: Response) {
   const parsed = z.object({ skillId: z.string().max(40).optional() }).safeParse(req.body ?? {});
   const session = await rolesService.startPractice(req.userId!, req.params.id, parsed.success ? parsed.data.skillId : undefined);

@@ -24,5 +24,6 @@ export const rolesApi = {
   regenerateSkills: (id: string) => api.post<void>(`/roles/${id}/skills/regenerate`),
   planWeek: (id: string) => api.post<void>(`/roles/${id}/goals/generate`),
   setGoalDone: (id: string, goalId: string, done: boolean) => api.patch<void>(`/roles/${id}/goals/${goalId}`, { done }),
+  mock: (id: string) => api.post<{ session: { id: string } }>(`/roles/${id}/mock`),
   practice: (id: string, skillId?: string) => api.post<{ session: { id: string } }>(`/roles/${id}/practice`, skillId ? { skillId } : {}),
 };

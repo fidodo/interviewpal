@@ -105,6 +105,16 @@ A `TargetRole` is the job a user is working towards. It can be any job, and each
 - **Weekly goals:** `WeeklyGoal` rows are grouped by Monday (UTC) and generated for the 3 weakest skills.
 - **Home page:** the dashboard shows `RoleHub` above the existing picker, which is now labelled "Quick practice".
 
+Full mock interview (`server/src/roles/mock.ts`, Phase 3): a session with `mode: "MOCK"`, started by `POST /roles/:id/mock`.
+- **Rounds:** it runs the fixed rounds in `MOCK_ROUNDS` (2 behavioural, 2 role-specific, 1 closing "your questions for us"). Each `Question.round` adds round-specific instructions to the question and grading prompts.
+- **Feedback held back:** answers are graded and update skills as usual, except the closing round, which grades the candidate's own questions. But the API hides feedback until the session is `COMPLETED`.
+- **One question at a time:** asking for a question while one is open returns the open one.
+- **Report:** `buildMockReport` writes a `HIRE`/`LEAN_HIRE`/`NO_HIRE` verdict and per-round averages into `SessionSummary.verdict`/`roundScores`.
+- **Sessions in general:**
+  - **Ending:** `endSession` builds the summary before marking the session completed, and a race between two end requests resolves to the first summary.
+  - **Finished sessions are frozen:** they reject new questions and answers.
+  - **Duplicate questions:** if two requests create the same question number, the later one is deleted.
+
 AI output validation: every AI call goes through `retryOnInvalid` or `generateValidated` (`server/src/ai/retry.ts`), which retries once on malformed JSON or a schema failure. Answers are graded *before* being saved, then the answer and its feedback are written together, so a failed grading never leaves a half-saved answer.
 
 ### Kids section (`/kids`)

@@ -6,8 +6,9 @@ import { PriorQA } from "../ai/provider.interface";
 import { analyzeFillers } from "./transcriptAnalysis";
 import { visibleTopics } from "./topic.service";
 import { applyEvidence, roleContextForSession } from "../roles/roles.service";
+import { MOCK_ROUNDS, MockRound, roundGradingInstructions, roundQuestionInstructions } from "../roles/mock";
 
-function parseSkillTags(value: string): string[] {
+export function parseSkillTags(value: string): string[] {
   try {
     return JSON.parse(value);
   } catch {
@@ -54,9 +55,24 @@ export async function generateNextQuestion(sessionId: string, userId: string) {
     include: { topic: true, questions: true },
   });
   if (!session) throw new Error("Session not found");
+  if (session.status === "COMPLETED") return "completed" as const;
+
+  const isMock = session.mode === "MOCK";
+  if (isMock) {
+    // One question at a time: hand back the open one instead of generating another (reloads, double clicks).
+    const open = await prisma.question.findFirst({ where: { sessionId, answer: null }, orderBy: { order: "asc" } });
+    if (open) return open;
+    if (session.questions.length >= MOCK_ROUNDS.length) return null;
+  }
+  const order = session.questions.length + 1;
+  const round: MockRound | null = isMock ? MOCK_ROUNDS[order - 1] : null;
 
   const priorQA = await loadPriorQA(sessionId);
-  const role = await roleContextForSession(session.roleId, session.focusSkill);
+  // A mock keeps its round structure even if its role was deleted mid-interview.
+  const role =
+    (await roleContextForSession(session.roleId, session.focusSkill)) ??
+    (round ? { title: session.track, isTechnical: true, skills: [], focusSkill: null, jobDescription: null } : undefined);
+  if (role && round) role.roundInstructions = roundQuestionInstructions(round, order, MOCK_ROUNDS.length, role.isTechnical);
   const generated = await retryOnInvalid(() =>
     aiProvider.generateQuestion({
     topic: session.topic.name,
@@ -70,12 +86,20 @@ export async function generateNextQuestion(sessionId: string, userId: string) {
   // Keep only tags that name one of the role's skills, so evidence never lands on a skill that doesn't exist.
   const known = new Map((role?.skills ?? []).map((name) => [name.toLowerCase(), name]));
   const skillTags = (generated.skills ?? []).map((t) => known.get(t.trim().toLowerCase())).filter((t): t is string => !!t);
-  const type = role && !role.isTechnical ? "VERBAL" : generated.type;
+  // Code only where it makes sense: technical roles, and in a mock interview only the role-specific round.
+  const type = (role && !role.isTechnical) || (round && round !== "ROLE") ? "VERBAL" : generated.type;
 
-  const order = session.questions.length + 1;
-  return prisma.question.create({
-    data: { sessionId, text: generated.text, type, order, skillTags: JSON.stringify([...new Set(skillTags)]) },
+  const created = await prisma.question.create({
+    data: { sessionId, text: generated.text, type, order, round, skillTags: JSON.stringify([...new Set(skillTags)]) },
   });
+  // Two overlapping requests (double click, reload during generation) can both create question N. Keep the
+  // first one and drop ours, so a session never gets duplicate or extra questions.
+  const first = await prisma.question.findFirst({ where: { sessionId, order }, orderBy: [{ generatedAt: "asc" }, { id: "asc" }] });
+  if (first && first.id !== created.id) {
+    await prisma.question.delete({ where: { id: created.id } });
+    return first;
+  }
+  return created;
 }
 
 export async function submitAnswer(questionId: string, userId: string, transcript: string) {
@@ -84,9 +108,11 @@ export async function submitAnswer(questionId: string, userId: string, transcrip
     include: { session: true },
   });
   if (!question || question.session.userId !== userId) throw new Error("Question not found");
+  // A finished session (including one ended early) is frozen: its report is already written.
+  if (question.session.status === "COMPLETED") return "completed" as const;
 
   // A double-click or retry must not pay for a second grading: reject before calling the AI.
-  if (await prisma.answer.findUnique({ where: { questionId }, select: { id: true } })) return null;
+  if (await prisma.answer.findUnique({ where: { questionId }, select: { id: true } })) return "answered" as const;
 
   const questionType = question.type as QuestionType;
   const fillerStats = questionType === "VERBAL" ? analyzeFillers(transcript) : null;
@@ -99,6 +125,7 @@ export async function submitAnswer(questionId: string, userId: string, transcrip
       transcript,
       difficulty: question.session.difficulty as Difficulty,
       questionType,
+      roundInstructions: question.round ? roundGradingInstructions(question.round as MockRound) : undefined,
     })
   );
 
@@ -122,14 +149,15 @@ export async function submitAnswer(questionId: string, userId: string, transcrip
     include: { feedback: true },
   });
 
-  // Skill ratings are a side effect: if updating them fails, the user still gets their graded answer.
-  if (question.session.roleId) {
+  // Skill ratings are a side effect: if updating them fails, the user still gets their graded answer. The closing
+  // round grades the questions the candidate asks, not a skill, so it doesn't count as evidence.
+  if (question.session.roleId && question.round !== "CLOSING") {
     await applyEvidence(question.session.roleId, parseSkillTags(question.skillTags), grading.score).catch((err) =>
       console.error("Couldn't update skill ratings:", err)
     );
   }
 
-  return { answer, feedback: answer.feedback! };
+  return { answer, feedback: answer.feedback!, mode: question.session.mode };
 }
 
 export async function listSessions(userId: string) {

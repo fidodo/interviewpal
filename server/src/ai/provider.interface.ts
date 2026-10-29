@@ -21,6 +21,8 @@ export interface RoleContext {
   skills: string[];
   focusSkill?: string | null;
   jobDescription?: string | null;
+  // Mock interviews only: extra instructions for this round (see server/src/roles/mock.ts).
+  roundInstructions?: string;
 }
 
 export interface GradingBreakdown {
@@ -57,6 +59,8 @@ export interface GradeAnswerParams {
   transcript: string;
   difficulty: Difficulty;
   questionType: QuestionType;
+  // Mock interviews only: how to judge this round (see server/src/roles/mock.ts).
+  roundInstructions?: string;
 }
 
 export interface GenerateSummaryParams {

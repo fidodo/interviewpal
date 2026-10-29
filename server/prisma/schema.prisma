@@ -78,6 +78,8 @@ model InterviewSession {
   roleId     String?
   role       TargetRole?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
   focusSkill String?
+  // "PRACTICE" (one question at a time, instant feedback) or "MOCK" (fixed rounds, feedback held until the end).
+  mode       String          @default("PRACTICE")
 }
 
 model Question {
@@ -91,6 +93,8 @@ model Question {
   answer      Answer?
   // JSON array of the role skill names this question tests (empty outside role practice).
   skillTags   String           @default("[]")
+  // Mock interviews only: BEHAVIOURAL, ROLE or CLOSING.
+  round       String?
 }
 
 model Answer {
@@ -126,6 +130,9 @@ model SessionSummary {
   strengths    String
   improvements String
   generatedAt  DateTime         @default(now())
+  // Mock interviews only: HIRE, LEAN_HIRE or NO_HIRE, and a JSON array of { round, score } averages.
+  verdict      String?
+  roundScores  String?
 }
 
 // ---- Kids section (see server/src/kids). Profiles belong to a parent User; children have no login. ----

@@ -1717,3 +1717,136 @@ textarea.code-input {
   display: flex;
   justify-content: flex-end;
 }
+
+/* ---- Mock interviews: in-session note and the report ---- */
+
+.mock-note {
+  margin: 8px 0 0;
+}
+
+.mock-saved p {
+  margin-top: 0;
+}
+
+.verdict {
+  border-width: 2px;
+}
+
+.verdict-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.verdict-title {
+  margin: 4px 0;
+  font-size: 32px;
+  line-height: 1.15;
+}
+
+.verdict-note {
+  margin: 0 0 14px;
+}
+
+.verdict-hire {
+  border-color: var(--up);
+}
+
+.verdict-hire .verdict-title {
+  color: var(--up);
+}
+
+.verdict-lean-hire {
+  border-color: var(--warning);
+}
+
+.verdict-no-hire {
+  border-color: var(--down);
+}
+
+.verdict-no-hire .verdict-title {
+  color: var(--down);
+}
+
+.round-scores {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.round-score {
+  display: grid;
+  grid-template-columns: minmax(120px, 200px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.round-score dt {
+  font-weight: 600;
+}
+
+.round-score dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.round-score .skill-bar {
+  flex: 1;
+  display: block;
+}
+
+.skills-tested {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skills-tested li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.question-review {
+  margin-top: 20px;
+}
+
+.review-item summary {
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.review-head {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  vertical-align: top;
+}
+
+.review-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.review-question {
+  font-weight: 600;
+}
+
+.review-answer {
+  white-space: pre-wrap;
+  color: var(--text-muted);
+}
+
+.review-item .card {
+  margin-top: 12px;
+}

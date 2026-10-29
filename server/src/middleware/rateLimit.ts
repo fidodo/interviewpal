@@ -102,3 +102,9 @@ export const emailLinkLimiter = limiter("email", HOUR, 10, "Too many requests. T
 // Confirming a sensitive account action (delete account) with a password, per user so other people on the
 // same network can't use it up.
 export const accountLimiter = limiter("account", 15 * 60 * 1000, 5, "Too many tries. Wait 15 minutes and try again.", { keyGenerator: byUserOrIp });
+
+// Finishing an interview (summary or mock report): generous, separate from the daily allowance.
+export const endLimiter = limiter("end", HOUR, 20, "You've finished a lot of interviews this hour. Try again shortly.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});

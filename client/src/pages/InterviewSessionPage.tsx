@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
-import { SessionDetail, Feedback, FillerStats, Question } from "../types";
+import { SessionDetail, Feedback, FillerStats, Question, ROUND_LABELS } from "../types";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { MicButton } from "../components/MicButton";
 import { MicTestButton } from "../components/MicTestButton";
@@ -23,6 +23,8 @@ export function InterviewSessionPage() {
   const [busy, setBusy] = useState<"loading" | "generating" | "submitting" | "ending" | null>("loading");
   const [error, setError] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState(0);
+  // Mock interviews: the current answer is saved (feedback is held back) and we're waiting to move on.
+  const [answerSaved, setAnswerSaved] = useState(false);
   // Shown at the start of every session, but not again when reloading or resuming the same one.
   const guideSeenKey = `guide-seen:${id}`;
   const [guideOpen, setGuideOpen] = useState(() => {
@@ -54,6 +56,7 @@ export function InterviewSessionPage() {
         setCodeAnswer("");
         setFeedback(null);
         setFillerStats(null);
+        setAnswerSaved(false);
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Couldn't generate a question. Try again.");
       } finally {
@@ -71,11 +74,18 @@ export function InterviewSessionPage() {
         setSession(res.session);
         const unanswered = res.session.questions.find((q) => !q.answer);
         setQuestionCount(res.session.questions.length);
-        if (unanswered) {
+        const last = res.session.questions[res.session.questions.length - 1];
+        if (res.session.status === "COMPLETED") {
+          // Finished sessions (including ones ended early with a question still open) go to their report.
+          navigate(`/sessions/${id}/summary`, { replace: true });
+        } else if (unanswered) {
           setCurrentQuestion(unanswered);
           setBusy(null);
-        } else if (res.session.status === "COMPLETED") {
-          navigate(`/sessions/${id}/summary`);
+        } else if (res.session.mode === "MOCK" && last && res.session.questions.length >= (res.session.plannedRounds ?? 0)) {
+          // Every round answered but not finished yet (e.g. a reload): offer the report.
+          setCurrentQuestion(last);
+          setAnswerSaved(true);
+          setBusy(null);
         } else {
           loadNextQuestion(id);
         }
@@ -97,8 +107,12 @@ export function InterviewSessionPage() {
         `/questions/${currentQuestion.id}/answer`,
         { transcript: answerText }
       );
-      setFeedback(res.feedback);
-      setFillerStats(res.answer.fillerStats);
+      if (res.feedback) {
+        setFeedback(res.feedback);
+        setFillerStats(res.answer.fillerStats);
+      } else {
+        setAnswerSaved(true);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't grade your answer. Try again.");
     } finally {
@@ -106,9 +120,9 @@ export function InterviewSessionPage() {
     }
   }
 
-  async function handleEnd() {
+  async function handleEnd(confirmFirst = true) {
     if (!id) return;
-    if (!window.confirm("End this interview now? You won't be able to add more answers.")) return;
+    if (confirmFirst && !window.confirm("End this interview now? You won't be able to add more answers.")) return;
     setBusy("ending");
     try {
       await api.post(`/sessions/${id}/end`);
@@ -135,6 +149,10 @@ export function InterviewSessionPage() {
     );
   }
 
+  const isMock = session.mode === "MOCK";
+  const totalRounds = session.plannedRounds ?? 0;
+  const isLastRound = isMock && currentQuestion != null && currentQuestion.order >= totalRounds;
+
   return (
     <div className="page">
       <div className="session-header">
@@ -145,11 +163,12 @@ export function InterviewSessionPage() {
           <div className="history-tags">
             <span className="badge badge-primary">{session.track}</span>
             <span className="badge">{session.difficulty}</span>
-            <span className="badge">Question {questionCount}</span>
+            <span className="badge">{isMock ? `Question ${currentQuestion?.order ?? questionCount} of ${totalRounds}` : `Question ${questionCount}`}</span>
           </div>
+          {isMock && <p className="helper-text mock-note">Like a real interview: you'll get all your feedback and a verdict at the end.</p>}
         </div>
-        <button className="btn btn-danger" onClick={handleEnd} disabled={busy !== null}>
-          End Interview
+        <button className="btn btn-danger" onClick={() => handleEnd()} disabled={busy !== null}>
+          {isMock ? "End early" : "End Interview"}
         </button>
       </div>
 
@@ -160,6 +179,7 @@ export function InterviewSessionPage() {
           <div className="question-card-top">
             <h2 className="question-label">
               Question {currentQuestion.order}
+              {currentQuestion.round && <span className="badge badge-primary" style={{ marginLeft: 8 }}>{ROUND_LABELS[currentQuestion.round]}</span>}
               {currentQuestion.type === "CODING" && <span className="badge" style={{ marginLeft: 8 }}>Coding</span>}
             </h2>
             <button type="button" className="btn-link btn-link-inline" onClick={() => setGuideOpen(true)}>
@@ -176,7 +196,29 @@ export function InterviewSessionPage() {
         </p>
       )}
 
-      {!feedback && currentQuestion && busy !== "generating" && (
+      {answerSaved && (
+        <div className="card mock-saved" role="status">
+          <p>
+            <strong>Answer saved.</strong> {isLastRound ? "That was the last question." : "Take a breath, then carry on when you're ready."}
+          </p>
+          {error && (
+            <p className="error-text" role="alert">
+              {error}
+            </p>
+          )}
+          {isLastRound ? (
+            <button className="btn btn-primary btn-block" onClick={() => handleEnd(false)} disabled={busy !== null}>
+              {busy === "ending" ? "Writing your report…" : "Finish and see my report"}
+            </button>
+          ) : (
+            <button className="btn btn-primary btn-block" onClick={() => id && loadNextQuestion(id)} disabled={busy !== null}>
+              Next question
+            </button>
+          )}
+        </div>
+      )}
+
+      {!feedback && !answerSaved && currentQuestion && busy !== "generating" && (
         <div className="card">
           {currentQuestion.type === "CODING" ? (
             <CodeAnswerBox value={codeAnswer} onChange={setCodeAnswer} disabled={busy === "submitting"} />

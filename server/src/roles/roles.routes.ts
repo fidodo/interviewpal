@@ -27,3 +27,4 @@ rolesRouter.post("/:id/goals/generate", ...aiGuard, asyncHandler(rolesController
 rolesRouter.patch("/:id/goals/:goalId", asyncHandler(rolesController.setGoalDone));
 
 rolesRouter.post("/:id/practice", asyncHandler(rolesController.startPractice));
+rolesRouter.post("/:id/mock", asyncHandler(rolesController.startMock));

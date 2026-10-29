@@ -255,6 +255,19 @@ export async function startPractice(userId: string, roleId: string, skillId?: st
   });
 }
 
+// Starts a full mock interview for the role (see ./mock.ts). Questions are generated round by round as usual.
+export async function startMock(userId: string, roleId: string) {
+  const role = await prisma.targetRole.findFirst({ where: { id: roleId, userId } });
+  if (!role) return null;
+  const track = role.title.slice(0, 60);
+  const topic = await prisma.topic.upsert({
+    where: { name_track_ownerId: { name: "Mock interview", track, ownerId: userId } },
+    update: {},
+    create: { name: "Mock interview", track, isCustom: true, ownerId: userId },
+  });
+  return prisma.interviewSession.create({ data: { userId, topicId: topic.id, track, difficulty: role.level, roleId, mode: "MOCK" } });
+}
+
 // Role context for question generation, or undefined for sessions not tied to a role.
 export async function roleContextForSession(roleId: string | null, focusSkill: string | null): Promise<RoleContext | undefined> {
   if (!roleId) return undefined;

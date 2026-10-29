@@ -44,7 +44,7 @@ export function SkillBar({ skill }: { skill: RoleSkill }) {
 // The home page's top card: the active target role's readiness, weakest skills and this week's plan.
 export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onChanged: () => void }) {
   const navigate = useNavigate();
-  const [busy, setBusy] = useState<"practice" | "plan" | null>(null);
+  const [busy, setBusy] = useState<"practice" | "mock" | "plan" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Ticks show immediately; the server copy catches up on the next reload.
   const [goalOverrides, setGoalOverrides] = useState<Record<string, boolean>>({});
@@ -81,6 +81,18 @@ export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onCh
       navigate(`/sessions/${session.id}`);
     } catch (err) {
       setError(errorMessage(err, "Couldn't start practice. Try again."));
+      setBusy(null);
+    }
+  }
+
+  async function startMock() {
+    setBusy("mock");
+    setError(null);
+    try {
+      const { session } = await rolesApi.mock(role.id);
+      navigate(`/sessions/${session.id}`);
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't start the mock interview. Try again."));
       setBusy(null);
     }
   }
@@ -141,8 +153,8 @@ export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onCh
         <button type="button" className="btn btn-primary" onClick={() => practice()} disabled={busy !== null}>
           {busy === "practice" ? "Starting…" : "Practise my weakest skill"}
         </button>
-        <button type="button" className="btn btn-secondary" disabled title="Coming in the next update">
-          Full mock interview (coming soon)
+        <button type="button" className="btn btn-secondary" onClick={startMock} disabled={busy !== null}>
+          {busy === "mock" ? "Starting…" : "Full mock interview"}
         </button>
       </div>
 

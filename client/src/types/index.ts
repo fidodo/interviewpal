@@ -50,11 +50,21 @@ export interface FillerStats {
   wordCount: number;
 }
 
+export type MockRound = "BEHAVIOURAL" | "ROLE" | "CLOSING";
+
+export const ROUND_LABELS: Record<MockRound, string> = {
+  BEHAVIOURAL: "Behavioural",
+  ROLE: "Role-specific",
+  CLOSING: "Your questions for us",
+};
+
 export interface Question {
   id: string;
   text: string;
   type: QuestionType;
   order: number;
+  // Mock interviews only.
+  round?: MockRound | null;
 }
 
 export interface QuestionWithAnswer extends Question {
@@ -69,14 +79,22 @@ export interface SessionDetail {
   status: SessionStatus;
   startedAt: string;
   endedAt: string | null;
+  // "MOCK" sessions run a fixed number of rounds (plannedRounds) and hide feedback until they're finished.
+  mode: "PRACTICE" | "MOCK";
+  plannedRounds: number | null;
   questions: QuestionWithAnswer[];
 }
+
+export type Verdict = "HIRE" | "LEAN_HIRE" | "NO_HIRE";
 
 export interface Summary {
   overallScore: number;
   assessment: string;
   strengths: string[];
   improvements: string[];
+  // Mock interviews only.
+  verdict: Verdict | null;
+  roundScores: { round: MockRound; score: number }[] | null;
 }
 
 // ---- Target roles (mirrors server/src/roles/roles.controller.ts responses) ----

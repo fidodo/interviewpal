@@ -61,7 +61,9 @@ How it differs from the plan below:
 - **The current Track/Topic picker becomes "Quick practice."** It defaults to the active role and its weakest skill, and can still pick any topic. Existing sessions and history are kept.
 - The coding answer box only appears for technical roles.
 
-## Phase 3: full mock interview
+## Phase 3: full mock interview (done 2026-10-29)
+
+How it differs from the plan below: the closing "what would you ask us?" round is graded, but it doesn't change skill ratings, because it measures interview etiquette rather than a job skill.
 
 - About **5 questions**: 2 behavioural, 2 role-specific or technical, and 1 closing "what would you ask us?".
 - Voice or typing for each answer.
