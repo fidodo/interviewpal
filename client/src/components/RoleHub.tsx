@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { rolesApi } from "../api/roles";
 import { learnApi } from "../api/learn";
-import { LEVEL_LABELS, RoleDetail, RoleSkill } from "../types";
+import { LEVEL_LABELS, Persona, RoleDetail, RoleSkill } from "../types";
+import { PersonaPicker } from "./PersonaPicker";
 
 const errorMessage = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 
@@ -47,6 +48,7 @@ export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onCh
   const navigate = useNavigate();
   const [busy, setBusy] = useState<"practice" | "mock" | "plan" | "learn" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [persona, setPersona] = useState<Persona>("NEUTRAL");
   // Ticks show immediately; the server copy catches up on the next reload.
   const [goalOverrides, setGoalOverrides] = useState<Record<string, boolean>>({});
 
@@ -78,7 +80,7 @@ export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onCh
     setBusy("practice");
     setError(null);
     try {
-      const { session } = await rolesApi.practice(role.id, skillId);
+      const { session } = await rolesApi.practice(role.id, skillId, persona);
       navigate(`/sessions/${session.id}`);
     } catch (err) {
       setError(errorMessage(err, "Couldn't start practice. Try again."));
@@ -103,7 +105,7 @@ export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onCh
     setBusy("mock");
     setError(null);
     try {
-      const { session } = await rolesApi.mock(role.id);
+      const { session } = await rolesApi.mock(role.id, persona);
       navigate(`/sessions/${session.id}`);
     } catch (err) {
       setError(errorMessage(err, "Couldn't start the mock interview. Try again."));
@@ -162,6 +164,8 @@ export function RoleHub({ detail, onChanged }: { detail: RoleDetail | null; onCh
           <Link to={`/roles/${role.id}/skills`}>Rate my skills</Link>
         </p>
       )}
+
+      <PersonaPicker value={persona} onChange={setPersona} idPrefix="hub" />
 
       <div className="role-hub-actions">
         <button type="button" className="btn btn-primary" onClick={() => practice()} disabled={busy !== null}>

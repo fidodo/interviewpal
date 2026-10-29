@@ -2090,3 +2090,163 @@ textarea.code-input {
 .skill-card-actions .skill-remove {
   margin-top: 0;
 }
+
+
+/* ---- Runnable code, personas, debug practice ---- */
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.code-header-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.code-language {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.code-language .input {
+  width: auto;
+}
+
+.code-editor {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.code-editor .cm-editor {
+  min-height: 220px;
+}
+
+.code-editor:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.code-runner {
+  margin-bottom: 14px;
+}
+
+.code-runner-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.test-results {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+
+.test-summary {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--down);
+}
+
+.test-summary.all-passed {
+  color: var(--up);
+}
+
+.test-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.test-list code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-word;
+}
+
+.test-status {
+  display: inline-block;
+  min-width: 40px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.test-pass .test-status {
+  color: var(--up);
+}
+
+.test-fail .test-status {
+  color: var(--down);
+}
+
+.test-detail {
+  display: block;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.test-error,
+.test-output {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.test-error {
+  color: var(--down);
+}
+
+.test-output-label {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.persona-desc {
+  margin: 6px 0 0;
+}
+
+.scenario-text {
+  margin-top: 0;
+  white-space: pre-line;
+}
+
+.hint-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.debug-result:focus {
+  outline: none;
+}
+
+.debug-result-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.debug-result-head .helper-text {
+  margin: 2px 0 0;
+}
+
+.debug-result details {
+  margin: 12px 0 16px;
+}

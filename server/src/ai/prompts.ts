@@ -1,5 +1,6 @@
 import { Difficulty, QuestionType, Track } from "../types";
 import { PriorQA, RoleContext } from "./provider.interface";
+import { PERSONAS, personaOf } from "./personas";
 
 const MAX_PRIOR_QA = 20;
 
@@ -36,8 +37,19 @@ function roleInstructions(role: RoleContext): string[] {
   return lines;
 }
 
-export function questionPrompt(params: { topic: string; track: Track; difficulty: Difficulty; priorQA: PriorQA[]; role?: RoleContext }): string {
+// Asks for a test spec so CODING answers can be run in the browser (Python or JavaScript).
+const CODE_SPEC_INSTRUCTIONS = `If the question is "CODING" and asks the candidate to implement a function whose inputs and output are plain JSON values (numbers, strings, booleans, arrays, objects), also return "code": { "functionName": a camelCase or snake_case name, "params": the parameter names, "tests": 3-6 cases as { "args": [ ...arguments in order ], "expected": the exact return value } }, including at least one edge case. Name the function and parameters in the question text so the candidate knows the signature. Otherwise (verbal questions, SQL, UI, design, code that needs I/O) set "code" to null.`;
+
+export function questionPrompt(params: {
+  topic: string;
+  track: Track;
+  difficulty: Difficulty;
+  priorQA: PriorQA[];
+  role?: RoleContext;
+  persona?: string;
+}): string {
   const { topic, track, difficulty, priorQA, role } = params;
+  const persona = PERSONAS[personaOf(params.persona)];
   return [
     role
       ? `You are an interviewer for the role "${role.title}" at ${difficulty.toLowerCase()} level, currently on the topic "${topic}".`
@@ -47,13 +59,13 @@ export function questionPrompt(params: { topic: string; track: Track; difficulty
     `Decide the question's type based on what best tests this topic: use type "CODING" when the best way to test the candidate is to have them implement something — write a function, solve an algorithm, fix a bug in a snippet, write a query, etc. Use type "VERBAL" when the topic is best tested by an explanation — architecture, tradeoffs, design decisions, how something works conceptually. For topics centered on algorithms, data structures, or implementation (e.g. a topic literally about writing code), most or all questions should be "CODING". For topics centered on design/best-practices/conceptual understanding, most questions should be "VERBAL". Don't default to "VERBAL" just because it's safer — pick whichever type actually tests the candidate better for this specific question.`,
     ``,
     ...(role ? [``, ...roleInstructions(role)] : []),
+    ...(persona.question ? [persona.question] : []),
+    CODE_SPEC_INSTRUCTIONS,
     ``,
     `Interview so far:`,
     formatHistory(priorQA),
     ``,
-    role
-      ? `Ask the next question. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING", "skills": string[] }`
-      : `Ask the next question. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING" }`,
+    `Ask the next question. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING", ${role ? `"skills": string[], ` : ``}"code": { "functionName": string, "params": string[], "tests": [{ "args": any[], "expected": any }] } | null }`,
   ].join("\n");
 }
 
@@ -63,8 +75,14 @@ export function gradingPrompt(params: {
   difficulty: Difficulty;
   questionType: QuestionType;
   roundInstructions?: string;
+  persona?: string;
+  testResults?: { language: string; passed: number; total: number } | null;
 }): string {
-  const { question, transcript, difficulty, questionType, roundInstructions } = params;
+  const { question, transcript, difficulty, questionType, roundInstructions, testResults } = params;
+  const persona = PERSONAS[personaOf(params.persona)];
+  const tests = testResults
+    ? `The candidate ran this ${testResults.language} code against ${testResults.total} test cases in the browser and ${testResults.passed} passed. Weigh that heavily for correctness, but still judge approach, edge cases and readability.`
+    : ``;
   const modeInstructions =
     questionType === "CODING"
       ? `The candidate's answer is code they typed directly into a plain text box (no IDE, no autocomplete, no syntax highlighting). Judge correctness of logic, handling of edge cases, and time/space complexity where relevant. Be lenient on minor syntax slips (missing semicolons, small typos) but strict on whether the approach actually solves the problem.`
@@ -74,6 +92,8 @@ export function gradingPrompt(params: {
     `Be fair but rigorous for the stated level — junior answers should not be held to senior-level depth, and senior answers should be held to a higher bar.`,
     modeInstructions,
     ...(roundInstructions ? [roundInstructions] : []),
+    ...(persona.grading ? [persona.grading] : []),
+    ...(tests ? [tests] : []),
     ``,
     `Question: ${question}`,
     `Candidate's answer: ${transcript}`,

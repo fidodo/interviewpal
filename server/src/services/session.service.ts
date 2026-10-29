@@ -5,6 +5,7 @@ import { retryOnInvalid } from "../ai/retry";
 import { PriorQA } from "../ai/provider.interface";
 import { analyzeFillers } from "./transcriptAnalysis";
 import { visibleTopics } from "./topic.service";
+import { Persona } from "../ai/personas";
 import { applyEvidence, roleContextForSession } from "../roles/roles.service";
 import { MOCK_ROUNDS, MockRound, roundGradingInstructions, roundQuestionInstructions } from "../roles/mock";
 
@@ -32,12 +33,12 @@ async function loadPriorQA(sessionId: string): Promise<PriorQA[]> {
     }));
 }
 
-export async function createSession(userId: string, topicId: string, track: Track, difficulty: Difficulty) {
+export async function createSession(userId: string, topicId: string, track: Track, difficulty: Difficulty, persona: Persona = "NEUTRAL") {
   // Only preset topics or the user's own custom topics can be used.
   const topic = await prisma.topic.findFirst({ where: { id: topicId, ...visibleTopics(userId) } });
   if (!topic) return null;
   return prisma.interviewSession.create({
-    data: { userId, topicId, track, difficulty },
+    data: { userId, topicId, track, difficulty, persona },
     include: { topic: true },
   });
 }
@@ -80,6 +81,7 @@ export async function generateNextQuestion(sessionId: string, userId: string) {
     difficulty: session.difficulty as Difficulty,
       priorQA,
       role,
+      persona: session.persona,
     })
   );
 
@@ -90,7 +92,15 @@ export async function generateNextQuestion(sessionId: string, userId: string) {
   const type = (role && !role.isTechnical) || (round && round !== "ROLE") ? "VERBAL" : generated.type;
 
   const created = await prisma.question.create({
-    data: { sessionId, text: generated.text, type, order, round, skillTags: JSON.stringify([...new Set(skillTags)]) },
+    data: {
+      sessionId,
+      text: generated.text,
+      type,
+      order,
+      round,
+      skillTags: JSON.stringify([...new Set(skillTags)]),
+      codeSpec: type === "CODING" && generated.code ? JSON.stringify(generated.code) : null,
+    },
   });
   // Two overlapping requests (double click, reload during generation) can both create question N. Keep the
   // first one and drop ours, so a session never gets duplicate or extra questions.
@@ -102,7 +112,12 @@ export async function generateNextQuestion(sessionId: string, userId: string) {
   return created;
 }
 
-export async function submitAnswer(questionId: string, userId: string, transcript: string) {
+export async function submitAnswer(
+  questionId: string,
+  userId: string,
+  transcript: string,
+  testResults: { language: string; passed: number; total: number } | null = null
+) {
   const question = await prisma.question.findFirst({
     where: { id: questionId },
     include: { session: true },
@@ -126,6 +141,8 @@ export async function submitAnswer(questionId: string, userId: string, transcrip
       difficulty: question.session.difficulty as Difficulty,
       questionType,
       roundInstructions: question.round ? roundGradingInstructions(question.round as MockRound) : undefined,
+      persona: question.session.persona,
+      testResults: question.type === "CODING" ? testResults : null,
     })
   );
 
@@ -134,6 +151,7 @@ export async function submitAnswer(questionId: string, userId: string, transcrip
       questionId,
       transcript,
       fillerStats: fillerStats ? JSON.stringify(fillerStats) : null,
+      testResults: question.type === "CODING" && testResults ? JSON.stringify(testResults) : null,
       feedback: {
         create: {
           score: grading.score,

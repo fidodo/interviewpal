@@ -5,6 +5,9 @@ import { AuthedRequest } from "../middleware/auth.middleware";
 import * as sessionService from "../services/session.service";
 import * as summaryService from "../services/summary.service";
 import { MOCK_ROUNDS } from "../roles/mock";
+import { PERSONA_KEYS } from "../ai/personas";
+import { CodeSpec } from "../ai/provider.interface";
+import { parseJsonObject } from "../utils/json";
 
 function parseJsonArray(value: string): string[] {
   try {
@@ -47,6 +50,10 @@ function serializeFillerStats(fillerStats: string | null | undefined) {
   }
 }
 
+function parseCodeSpec(value: string | null) {
+  return parseJsonObject<CodeSpec>(value);
+}
+
 function parseRoundScores(value: string | null): { round: string; score: number }[] | null {
   if (!value) return null;
   try {
@@ -77,6 +84,7 @@ const createSessionSchema = z.object({
   topicId: z.string().min(1),
   track: z.string().min(1).max(60),
   difficulty: z.nativeEnum(Difficulty),
+  persona: z.enum(PERSONA_KEYS).default("NEUTRAL"),
 });
 
 export async function createSession(req: AuthedRequest, res: Response) {
@@ -85,8 +93,8 @@ export async function createSession(req: AuthedRequest, res: Response) {
     res.status(400).json({ error: "Invalid session request" });
     return;
   }
-  const { topicId, track, difficulty } = parsed.data;
-  const session = await sessionService.createSession(req.userId!, topicId, track, difficulty);
+  const { topicId, track, difficulty, persona } = parsed.data;
+  const session = await sessionService.createSession(req.userId!, topicId, track, difficulty, persona);
   if (!session) {
     res.status(404).json({ error: "Topic not found" });
     return;
@@ -104,11 +112,17 @@ export async function generateNextQuestion(req: AuthedRequest, res: Response) {
     res.status(409).json({ error: "That was the last question. Finish the interview to see your report." });
     return;
   }
-  res.status(201).json({ question: { id: question.id, text: question.text, type: question.type, order: question.order, round: question.round } });
+  res.status(201).json({
+    question: { id: question.id, text: question.text, type: question.type, order: question.order, round: question.round, codeSpec: parseCodeSpec(question.codeSpec) },
+  });
 }
 
 const submitAnswerSchema = z.object({
   transcript: z.string().min(1).max(20000),
+  testResults: z
+    .object({ language: z.enum(["python", "javascript"]), passed: z.number().int().min(0).max(20), total: z.number().int().min(1).max(20) })
+    .refine((r) => r.passed <= r.total)
+    .nullish(),
 });
 
 export async function submitAnswer(req: AuthedRequest, res: Response) {
@@ -117,7 +131,7 @@ export async function submitAnswer(req: AuthedRequest, res: Response) {
     res.status(400).json({ error: "Answer is required and must be under 20,000 characters" });
     return;
   }
-  const result = await sessionService.submitAnswer(req.params.id, req.userId!, parsed.data.transcript);
+  const result = await sessionService.submitAnswer(req.params.id, req.userId!, parsed.data.transcript, parsed.data.testResults ?? null);
   if (result === "answered" || result === "completed") {
     res.status(409).json({ error: result === "answered" ? "This question has already been answered." : "This interview has finished." });
     return;
@@ -187,6 +201,7 @@ export async function getSessionDetail(req: AuthedRequest, res: Response) {
       startedAt: session.startedAt,
       endedAt: session.endedAt,
       mode: session.mode,
+      persona: session.persona,
       plannedRounds: session.mode === "MOCK" ? MOCK_ROUNDS.length : null,
       questions: session.questions.map((q) => ({
         id: q.id,
@@ -194,6 +209,7 @@ export async function getSessionDetail(req: AuthedRequest, res: Response) {
         type: q.type,
         order: q.order,
         round: q.round,
+        codeSpec: parseCodeSpec(q.codeSpec),
         answer: q.answer
           ? {
               id: q.answer.id,

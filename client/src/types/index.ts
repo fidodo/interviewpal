@@ -1,4 +1,14 @@
+import type { CodeSpec } from "../code/protocol";
+
 export type Track = string;
+
+// Interviewer styles (mirrors server/src/ai/personas.ts).
+export type Persona = "NEUTRAL" | "FRIENDLY_STARTUP" | "BIG_TECH_STRICT";
+export const PERSONA_LABELS: Record<Persona, string> = {
+  NEUTRAL: "Balanced",
+  FRIENDLY_STARTUP: "Friendly startup",
+  BIG_TECH_STRICT: "Big Tech, strict",
+};
 export const PRESET_TRACKS = ["Frontend", "Backend", "Full-stack", "AI Engineering"] as const;
 export type Difficulty = "JUNIOR" | "INTERMEDIATE" | "SENIOR";
 export type SessionStatus = "ACTIVE" | "COMPLETED";
@@ -65,6 +75,8 @@ export interface Question {
   order: number;
   // Mock interviews only.
   round?: MockRound | null;
+  // CODING questions that can be run against tests in the browser.
+  codeSpec?: CodeSpec | null;
 }
 
 export interface QuestionWithAnswer extends Question {
@@ -82,6 +94,7 @@ export interface SessionDetail {
   // "MOCK" sessions run a fixed number of rounds (plannedRounds) and hide feedback until they're finished.
   mode: "PRACTICE" | "MOCK";
   plannedRounds: number | null;
+  persona: Persona;
   questions: QuestionWithAnswer[];
 }
 
@@ -215,4 +228,57 @@ export interface ReviewItem {
   question: LearnQuestion;
   lessonTitle: string;
   course: { id: string; title: string };
+}
+
+// ---- Debugging practice (mirrors server/src/debug) ----
+
+export const DEBUG_LANGUAGES: Record<string, { label: string; runnable: boolean }> = {
+  python: { label: "Python", runnable: true },
+  javascript: { label: "JavaScript", runnable: true },
+  typescript: { label: "TypeScript", runnable: false },
+  react: { label: "React (JSX)", runnable: false },
+  java: { label: "Java", runnable: false },
+  csharp: { label: "C#", runnable: false },
+  go: { label: "Go", runnable: false },
+  sql: { label: "SQL", runnable: false },
+  php: { label: "PHP", runnable: false },
+  ruby: { label: "Ruby", runnable: false },
+  kotlin: { label: "Kotlin", runnable: false },
+  cpp: { label: "C++", runnable: false },
+};
+
+export interface DebugSummary {
+  id: string;
+  title: string;
+  language: string;
+  level: Difficulty;
+  status: "OPEN" | "GRADING" | "SUBMITTED";
+  score: number | null;
+  createdAt: string;
+}
+
+export interface DebugChallenge {
+  id: string;
+  title: string;
+  scenario: string;
+  language: string;
+  runnable: boolean;
+  level: Difficulty;
+  buggyCode: string;
+  spec: CodeSpec | null;
+  status: "OPEN" | "GRADING" | "SUBMITTED";
+  bugCount: number;
+  hints: string[];
+  hintsLeft: number;
+  result: {
+    score: number;
+    submittedCode: string;
+    explanation: string;
+    testResults: { passed: number; total: number } | null;
+    bugsFixed: number;
+    feedback: string;
+    missed: string[];
+    bugs: string[];
+    referenceFix: string;
+  } | null;
 }

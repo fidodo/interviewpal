@@ -9,6 +9,8 @@ const QUESTION_SCHEMA = {
   properties: {
     text: { type: "STRING" },
     type: { type: "STRING", enum: ["VERBAL", "CODING"] },
+    // No "code" test spec: Gemini's responseSchema can't express arbitrary JSON test values, so with Gemini coding
+    // answers aren't runnable (they're still graded by reading them).
     skills: { type: "ARRAY", items: { type: "STRING" } },
   },
   required: ["text", "type"],

@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+const identifier = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,40}$/);
+
+export const codeSpecSchema = z.object({
+  functionName: identifier,
+  params: z.array(identifier).max(6),
+  tests: z.array(z.object({ args: z.array(z.unknown()).max(6), expected: z.unknown() })).min(2).max(8),
+});
+
 export const generatedQuestionSchema = z.object({
   text: z.string().min(1),
   type: z.enum(["VERBAL", "CODING"]),
@@ -9,6 +17,8 @@ export const generatedQuestionSchema = z.object({
     .nullish()
     .catch(null)
     .transform((tags) => (tags ?? []).slice(0, 5).map((t) => t.slice(0, 80))),
+  // Optional test spec for CODING questions; anything malformed is dropped rather than failing the question.
+  code: codeSpecSchema.nullish().catch(null),
 });
 
 const dimension = z.number().min(1).max(10).nullish().catch(null);

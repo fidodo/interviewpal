@@ -28,6 +28,7 @@ model User {
   roles         TargetRole[]
   courses       LearnCourse[]
   reviewItems   ReviewItem[]
+  debugs        DebugChallenge[]
 }
 
 // Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
@@ -82,6 +83,8 @@ model InterviewSession {
   focusSkill String?
   // "PRACTICE" (one question at a time, instant feedback) or "MOCK" (fixed rounds, feedback held until the end).
   mode       String          @default("PRACTICE")
+  // Interviewer style (see server/src/ai/personas.ts).
+  persona    String          @default("NEUTRAL")
 }
 
 model Question {
@@ -97,6 +100,8 @@ model Question {
   skillTags   String           @default("[]")
   // Mock interviews only: BEHAVIOURAL, ROLE or CLOSING.
   round       String?
+  // CODING questions: JSON { functionName, params, tests: [{ args, expected }] } so answers can be run in the browser.
+  codeSpec    String?
 }
 
 model Answer {
@@ -105,6 +110,8 @@ model Answer {
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   transcript  String
   fillerStats String?
+  // Runnable coding answers: JSON { language, passed, total } from the browser test run.
+  testResults String?
   submittedAt DateTime @default(now())
   feedback    Feedback?
 }
@@ -368,4 +375,34 @@ model ReviewItem {
 
   @@unique([userId, questionId])
   @@index([userId, dueAt])
+}
+
+// ---- Debugging practice (Phase 5, server/src/debug) ----
+
+// The AI writes realistic broken code in a chosen stack; the learner fixes it and explains the bug. `bugs` and
+// `referenceFix` stay on the server until the challenge is submitted.
+model DebugChallenge {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  language      String
+  level         String
+  title         String
+  scenario      String
+  buggyCode     String
+  // Runnable languages only: JSON { functionName, params, tests }.
+  spec          String?
+  bugs          String
+  referenceFix  String
+  hintsUsed     Int      @default(0)
+  status        String   @default("OPEN")
+  submittedCode String?
+  explanation   String?
+  testResults   String?
+  score         Int?
+  feedback      String?
+  createdAt     DateTime @default(now())
+  submittedAt   DateTime?
+
+  @@index([userId, createdAt])
 }

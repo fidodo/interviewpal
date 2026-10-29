@@ -33,7 +33,8 @@ export function LessonContent({ text }: { text: string }) {
       const code: string[] = [];
       for (i++; i < lines.length && !lines[i].trim().startsWith("```"); i++) code.push(lines[i]);
       blocks.push(
-        <pre key={blocks.length} className="lesson-code">
+        // Focusable so keyboard users can scroll wide code sideways.
+        <pre key={blocks.length} className="lesson-code" tabIndex={0}>
           <code>{code.join("\n")}</code>
         </pre>
       );

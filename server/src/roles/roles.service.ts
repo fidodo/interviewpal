@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { generateValidated } from "../ai/retry";
+import { Persona } from "../ai/personas";
 import { RoleContext } from "../ai/provider.interface";
 import { goalsPrompt, skillsPrompt } from "./roles.prompts";
 import { generatedGoalsSchema, generatedSkillsSchema } from "./roles.schemas";
@@ -238,7 +239,7 @@ export async function setGoalDone(userId: string, goalId: string, done: boolean)
 
 // Starts an ordinary interview session aimed at one skill of the role (the weakest if none is given). The skill
 // becomes a private custom topic so the session shows up normally in history.
-export async function startPractice(userId: string, roleId: string, skillId?: string) {
+export async function startPractice(userId: string, roleId: string, skillId?: string, persona: Persona = "NEUTRAL") {
   const role = await prisma.targetRole.findFirst({ where: { id: roleId, userId }, include: { skills: true } });
   if (!role) return null;
   if (role.skills.length === 0) return "noSkills" as const;
@@ -251,12 +252,12 @@ export async function startPractice(userId: string, roleId: string, skillId?: st
     create: { name: skill.name, track, isCustom: true, ownerId: userId },
   });
   return prisma.interviewSession.create({
-    data: { userId, topicId: topic.id, track, difficulty: role.level, roleId, focusSkill: skill.name },
+    data: { userId, topicId: topic.id, track, difficulty: role.level, roleId, focusSkill: skill.name, persona },
   });
 }
 
 // Starts a full mock interview for the role (see ./mock.ts). Questions are generated round by round as usual.
-export async function startMock(userId: string, roleId: string) {
+export async function startMock(userId: string, roleId: string, persona: Persona = "NEUTRAL") {
   const role = await prisma.targetRole.findFirst({ where: { id: roleId, userId } });
   if (!role) return null;
   const track = role.title.slice(0, 60);
@@ -265,7 +266,7 @@ export async function startMock(userId: string, roleId: string) {
     update: {},
     create: { name: "Mock interview", track, isCustom: true, ownerId: userId },
   });
-  return prisma.interviewSession.create({ data: { userId, topicId: topic.id, track, difficulty: role.level, roleId, mode: "MOCK" } });
+  return prisma.interviewSession.create({ data: { userId, topicId: topic.id, track, difficulty: role.level, roleId, mode: "MOCK", persona } });
 }
 
 // Role context for question generation, or undefined for sessions not tied to a role.

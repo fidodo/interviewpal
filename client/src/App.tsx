@@ -12,6 +12,7 @@ import { RolesPage } from "./pages/RolesPage";
 import { RoleFormPage } from "./pages/RoleFormPage";
 import { RoleSkillsPage } from "./pages/RoleSkillsPage";
 import { LearnCoursePage, LearnLessonPage, LearnPage, LearnReviewPage } from "./pages/LearnPages";
+import { DebugChallengePage, DebugPage } from "./pages/DebugPages";
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./pages/EmailLinkPages";
 import { getKidLock, kidHomePath } from "./kids/kidMode";
 
@@ -105,6 +106,22 @@ function InterviewRoutes() {
           element={
             <ProtectedRoute>
               <LearnReviewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/debug"
+          element={
+            <ProtectedRoute>
+              <DebugPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/debug/:id"
+          element={
+            <ProtectedRoute>
+              <DebugChallengePage />
             </ProtectedRoute>
           }
         />

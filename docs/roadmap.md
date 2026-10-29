@@ -81,7 +81,18 @@ How it differs from the plan below:
 - **Spaced repetition:** questions you got wrong come back after a few days.
 - You can also start a course on any topic outside the plan.
 
-## Phase 5: extras
+## Phase 5: extras (1 and 2 done 2026-10-29, plus debug practice)
+
+What was built:
+- **Runnable coding answers:** Python and JavaScript, run in the browser against AI-written test cases. The score feeds into grading.
+- **Personas:** Balanced, Friendly startup, and Big Tech (strict).
+- **Debug practice (added by request):**
+  - The AI writes realistic broken code in a chosen stack; you fix it, explain the root cause and get graded. Hints cost about a point each.
+  - Python and JavaScript fixes run against tests. Other stacks (TypeScript, React, Java, C#, Go, SQL, PHP, Ruby, Kotlin, C++) are graded by the AI reading the fix.
+- **Not yet built:** system design (item 3).
+- **Possible later work:**
+  - Server-side execution for the reviewed-only stacks (needs a sandbox service).
+  - Checking AI-written debug tests against the reference fix before showing them.
 
 1. **Runnable coding answers.** Reuse the kids section's in-browser Pyodide runner, with test cases.
 2. **Interviewer personas.** For example "Big Tech, strict" or "Startup, friendly".

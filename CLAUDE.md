@@ -125,6 +125,18 @@ Full mock interview (`server/src/roles/mock.ts`, Phase 3): a session with `mode:
 - **Spaced repetition** (`ReviewItem`, `schedule()`): a wrong answer puts the question in box 1, due tomorrow. A correct review answer moves it to box 2–4 (due in 3, 7 or 14 days), and passing box 4 retires it. Only items that are due can move; answering early changes nothing.
 - **Lesson text format** (`LessonContent.tsx`): `## ` headings, `- ` bullets and fenced code, rendered as React text and never as HTML.
 
+Phase 5: runnable code, personas and debug practice.
+- **Runnable coding answers:** CODING questions can come with a `codeSpec` (function name, params, JSON test cases).
+  - **Where tests run:** in the browser, never on the server. `client/src/code/runTests.ts` runs JavaScript in `js-runner.worker.ts` and Python through a harness on the kids Pyodide worker. This is the one place interview code uses `client/src/kids/runner`; the harness catches errors itself, so the kids error hints never show.
+  - **On submit:** the answer is re-run, and `{ language, passed, total }` goes to grading.
+  - **Gemini:** its schema omits `code`, so Gemini questions aren't runnable.
+- **JavaScript worker CSP:** `js-runner.worker` is the only script allowed `'unsafe-eval'`. It has its own `vercel.json` header rule, `default-src 'none'`, so it has no network access; the main rule excludes its path, because two matching CSPs would both apply.
+- **Personas:** `server/src/ai/personas.ts` (`NEUTRAL`, `FRIENDLY_STARTUP`, `BIG_TECH_STRICT`) set `InterviewSession.persona`, which adjusts the question tone and the grading strictness.
+- **Debug practice** (`server/src/debug`, `/debug`): the AI writes broken code with 1–3 planted bugs in a chosen stack.
+  - **Running vs reading:** Python and JavaScript are runnable against `spec` tests; the other stacks are read by the AI.
+  - **Kept hidden until submit:** the bugs, hints and reference fix. Hints were written along with the code, so revealing one costs no AI call.
+  - **Grading:** submitting claims the challenge (status `GRADING`, stamped in `submittedAt`) so it's graded once. A claim stuck for more than 2 minutes can be retaken, and only the request holding the claim writes the result.
+
 AI output validation: every AI call goes through `retryOnInvalid` or `generateValidated` (`server/src/ai/retry.ts`), which retries once on malformed JSON or a schema failure. Answers are graded *before* being saved, then the answer and its feedback are written together, so a failed grading never leaves a half-saved answer.
 
 ### Kids section (`/kids`)

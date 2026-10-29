@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AuthedRequest } from "../middleware/auth.middleware";
 import { Difficulty } from "../types";
 import * as rolesService from "./roles.service";
+import { PERSONA_KEYS } from "../ai/personas";
 
 function notFound(res: Response) {
   res.status(404).json({ error: "Role not found" });
@@ -176,15 +177,19 @@ export async function setGoalDone(req: AuthedRequest, res: Response) {
   res.status(204).send();
 }
 
+const personaBody = z.object({ persona: z.enum(PERSONA_KEYS).default("NEUTRAL") });
+
 export async function startMock(req: AuthedRequest, res: Response) {
-  const session = await rolesService.startMock(req.userId!, req.params.id);
+  const { persona } = personaBody.catch({ persona: "NEUTRAL" }).parse(req.body ?? {});
+  const session = await rolesService.startMock(req.userId!, req.params.id, persona);
   if (!session) return notFound(res);
   res.status(201).json({ session: { id: session.id } });
 }
 
 export async function startPractice(req: AuthedRequest, res: Response) {
-  const parsed = z.object({ skillId: z.string().max(40).optional() }).safeParse(req.body ?? {});
-  const session = await rolesService.startPractice(req.userId!, req.params.id, parsed.success ? parsed.data.skillId : undefined);
+  const skill = z.object({ skillId: z.string().max(40).optional() }).safeParse(req.body ?? {});
+  const { persona } = personaBody.catch({ persona: "NEUTRAL" }).parse(req.body ?? {});
+  const session = await rolesService.startPractice(req.userId!, req.params.id, skill.success ? skill.data.skillId : undefined, persona);
   if (!session) return notFound(res);
   if (session === "noSkills") return noSkills(res);
   res.status(201).json({ session: { id: session.id } });

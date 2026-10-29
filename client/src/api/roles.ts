@@ -1,5 +1,5 @@
 import { api } from "./client";
-import { Difficulty, RoleDetail, RoleListItem } from "../types";
+import { Difficulty, Persona, RoleDetail, RoleListItem } from "../types";
 
 export interface RoleInput {
   title: string;
@@ -24,6 +24,7 @@ export const rolesApi = {
   regenerateSkills: (id: string) => api.post<void>(`/roles/${id}/skills/regenerate`),
   planWeek: (id: string) => api.post<void>(`/roles/${id}/goals/generate`),
   setGoalDone: (id: string, goalId: string, done: boolean) => api.patch<void>(`/roles/${id}/goals/${goalId}`, { done }),
-  mock: (id: string) => api.post<{ session: { id: string } }>(`/roles/${id}/mock`),
-  practice: (id: string, skillId?: string) => api.post<{ session: { id: string } }>(`/roles/${id}/practice`, skillId ? { skillId } : {}),
+  mock: (id: string, persona: Persona = "NEUTRAL") => api.post<{ session: { id: string } }>(`/roles/${id}/mock`, { persona }),
+  practice: (id: string, skillId?: string, persona: Persona = "NEUTRAL") =>
+    api.post<{ session: { id: string } }>(`/roles/${id}/practice`, { ...(skillId ? { skillId } : {}), persona }),
 };

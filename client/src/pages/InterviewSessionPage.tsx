@@ -1,7 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
-import { SessionDetail, Feedback, FillerStats, Question, ROUND_LABELS } from "../types";
+import { SessionDetail, Feedback, FillerStats, Question, ROUND_LABELS, PERSONA_LABELS } from "../types";
+import { RunLanguage, starterCode } from "../code/protocol";
+import { runTests } from "../code/runTests";
+
+// The code editor and test runner are a separate chunk (CodeMirror), only loaded for runnable coding questions.
+const CodeRunner = lazy(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
+
+const LANGUAGE_KEY = "code-lang";
+function savedLanguage(): RunLanguage {
+  try {
+    return localStorage.getItem(LANGUAGE_KEY) === "javascript" ? "javascript" : "python";
+  } catch {
+    return "python";
+  }
+}
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { MicButton } from "../components/MicButton";
 import { MicTestButton } from "../components/MicTestButton";
@@ -25,6 +39,7 @@ export function InterviewSessionPage() {
   const [questionCount, setQuestionCount] = useState(0);
   // Mock interviews: the current answer is saved (feedback is held back) and we're waiting to move on.
   const [answerSaved, setAnswerSaved] = useState(false);
+  const [language, setLanguage] = useState<RunLanguage>(savedLanguage);
   // Shown at the start of every session, but not again when reloading or resuming the same one.
   const guideSeenKey = `guide-seen:${id}`;
   const [guideOpen, setGuideOpen] = useState(() => {
@@ -103,9 +118,14 @@ export function InterviewSessionPage() {
     setBusy("submitting");
     setError(null);
     try {
+      // Runnable answers are re-run on submit, so the grade uses results for exactly the code being submitted.
+      const spec = isCoding ? currentQuestion.codeSpec : null;
+      // If the runner itself can't load (e.g. the Python CDN is blocked), submit without test results.
+      const run = spec ? await runTests(language, answerText, spec).catch(() => null) : null;
+      const testResults = run && run.total > 0 ? { language, passed: run.passed, total: run.total } : null;
       const res = await api.post<{ answer: { fillerStats: FillerStats | null }; feedback: Feedback }>(
         `/questions/${currentQuestion.id}/answer`,
-        { transcript: answerText }
+        { transcript: answerText, testResults }
       );
       if (res.feedback) {
         setFeedback(res.feedback);
@@ -163,6 +183,7 @@ export function InterviewSessionPage() {
           <div className="history-tags">
             <span className="badge badge-primary">{session.track}</span>
             <span className="badge">{session.difficulty}</span>
+            {session.persona !== "NEUTRAL" && <span className="badge">{PERSONA_LABELS[session.persona]}</span>}
             <span className="badge">{isMock ? `Question ${currentQuestion?.order ?? questionCount} of ${totalRounds}` : `Question ${questionCount}`}</span>
           </div>
           {isMock && <p className="helper-text mock-note">Like a real interview: you'll get all your feedback and a verdict at the end.</p>}
@@ -220,7 +241,47 @@ export function InterviewSessionPage() {
 
       {!feedback && !answerSaved && currentQuestion && busy !== "generating" && (
         <div className="card">
-          {currentQuestion.type === "CODING" ? (
+          {currentQuestion.type === "CODING" && currentQuestion.codeSpec ? (
+            <>
+              <div className="code-header">
+                <h3 id="code-answer-label" className="code-header-title">
+                  Your solution
+                </h3>
+                <label className="code-language">
+                  <span>Language</span>
+                  <select
+                    className="input"
+                    value={language}
+                    disabled={busy === "submitting"}
+                    onChange={(e) => {
+                      const next = e.target.value as RunLanguage;
+                      if (codeAnswer.trim() && codeAnswer !== starterCode(language, currentQuestion.codeSpec!) && !window.confirm("Switch language? Your code will be replaced with a fresh starter.")) return;
+                      setLanguage(next);
+                      try {
+                        localStorage.setItem(LANGUAGE_KEY, next);
+                      } catch {
+                        // Not remembered; nothing else breaks.
+                      }
+                    }}
+                  >
+                    <option value="python">Python</option>
+                    <option value="javascript">JavaScript</option>
+                  </select>
+                </label>
+              </div>
+              <Suspense fallback={<p className="helper-text">Loading the code editor…</p>}>
+                <CodeRunner
+                  language={language}
+                  spec={currentQuestion.codeSpec}
+                  initialCode={starterCode(language, currentQuestion.codeSpec)}
+                  editorKey={`${currentQuestion.id}:${language}`}
+                  labelledBy="code-answer-label"
+                  disabled={busy === "submitting"}
+                  onCodeChange={setCodeAnswer}
+                />
+              </Suspense>
+            </>
+          ) : currentQuestion.type === "CODING" ? (
             <CodeAnswerBox value={codeAnswer} onChange={setCodeAnswer} disabled={busy === "submitting"} />
           ) : (
             <>

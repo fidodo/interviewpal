@@ -4,7 +4,8 @@ import { api, ApiError } from "../api/client";
 import { rolesApi } from "../api/roles";
 import { TopicPicker } from "../components/TopicPicker";
 import { RoleHub } from "../components/RoleHub";
-import { Difficulty, PRESET_TRACKS, RoleDetail, SessionListItem, Topic } from "../types";
+import { PersonaPicker } from "../components/PersonaPicker";
+import { Difficulty, Persona, PRESET_TRACKS, RoleDetail, SessionListItem, Topic } from "../types";
 import { HistoryList } from "../components/HistoryList";
 import { OnboardingTour, TourStep } from "../components/OnboardingTour";
 import { useAuth } from "../hooks/useAuth";
@@ -91,6 +92,7 @@ export function DashboardPage() {
   const [usingOther, setUsingOther] = useState(false);
   const [topic, setTopic] = useState<Topic | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>("INTERMEDIATE");
+  const [persona, setPersona] = useState<Persona>("NEUTRAL");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentSessions, setRecentSessions] = useState<SessionListItem[]>([]);
@@ -149,6 +151,7 @@ export function DashboardPage() {
         topicId: topic.id,
         track: effectiveTrack,
         difficulty,
+        persona,
       });
       navigate(`/sessions/${res.session.id}`);
     } catch (err) {
@@ -257,6 +260,8 @@ export function DashboardPage() {
             ))}
           </div>
         </div>
+
+        <PersonaPicker value={persona} onChange={setPersona} idPrefix="quick" />
 
         {error && (
           <p className="error-text" role="alert">
