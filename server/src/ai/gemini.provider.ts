@@ -6,7 +6,11 @@ import { generatedQuestionSchema, gradingResultSchema, summaryResultSchema } fro
 
 const QUESTION_SCHEMA = {
   type: "OBJECT",
-  properties: { text: { type: "STRING" }, type: { type: "STRING", enum: ["VERBAL", "CODING"] } },
+  properties: {
+    text: { type: "STRING" },
+    type: { type: "STRING", enum: ["VERBAL", "CODING"] },
+    skills: { type: "ARRAY", items: { type: "STRING" } },
+  },
   required: ["text", "type"],
 };
 

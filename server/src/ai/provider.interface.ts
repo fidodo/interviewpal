@@ -10,6 +10,17 @@ export interface PriorQA {
 export interface GeneratedQuestion {
   text: string;
   type: QuestionType;
+  // Role practice only: which of the role's skills this question tests.
+  skills?: string[];
+}
+
+// Present when the session practises for a target role (see server/src/roles).
+export interface RoleContext {
+  title: string;
+  isTechnical: boolean;
+  skills: string[];
+  focusSkill?: string | null;
+  jobDescription?: string | null;
 }
 
 export interface GradingBreakdown {
@@ -38,6 +49,7 @@ export interface GenerateQuestionParams {
   track: Track;
   difficulty: Difficulty;
   priorQA: PriorQA[];
+  role?: RoleContext;
 }
 
 export interface GradeAnswerParams {

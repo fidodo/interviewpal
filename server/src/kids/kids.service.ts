@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import { prisma } from "../db/prisma";
-import { aiProvider } from "../ai/provider.factory";
+import { generateValidated } from "../ai/retry";
 import { verifyGoogleEmail } from "../services/auth.service";
 import { challengePrompt, helpPrompt, reviewPrompt, ChildContext, LevelContext } from "./kids.prompts";
 import { generatedChallengeSchema, helpReplySchema, reviewResultSchema } from "./kids.schemas";
@@ -215,15 +215,15 @@ export async function nextChallenge(parentId: string, childId: string, slug: str
   });
 
   const levelContext = toLevelContext(level);
-  const raw = await aiProvider.generateJson(
+  const generated = await generateValidated(
     challengePrompt({
       child: toChildContext(child),
       level: levelContext,
       passedAtLevel: enrollment.passedAtLevel,
       history: history.reverse().map((c) => ({ title: c.title, passed: c.status === ChallengeStatus.PASSED })),
-    })
+    }),
+    generatedChallengeSchema
   );
-  const generated = generatedChallengeSchema.parse(raw);
 
   return prisma.challenge.create({
     data: {
@@ -277,7 +277,7 @@ export async function submitAttempt(
       ? normalizeOutput(submission.output) === normalizeOutput(challenge.expectedOutput)
       : null;
 
-  const raw = await aiProvider.generateJson(
+  const review = await generateValidated(
     reviewPrompt({
       child: toChildContext(child),
       level: toLevelContext(level),
@@ -294,9 +294,9 @@ export async function submitAttempt(
       error: submission.error,
       turtle: submission.turtle,
       outputMatches,
-    })
+    }),
+    reviewResultSchema
   );
-  const review = reviewResultSchema.parse(raw);
   // The deterministic checks win over the model's opinion.
   const passed = submission.error != null ? false : outputMatches === true ? true : review.passed;
   const stars = passed ? Math.max(review.stars, 2) : 1;
@@ -355,7 +355,7 @@ export async function askHelp(parentId: string, challengeId: string, message: st
   const { challenge, level, child } = loaded;
 
   const chat = await prisma.helpMessage.findMany({ where: { challengeId }, orderBy: MESSAGE_ORDER });
-  const raw = await aiProvider.generateJson(
+  const { reply } = await generateValidated(
     helpPrompt({
       child: toChildContext(child),
       level: toLevelContext(level),
@@ -363,9 +363,9 @@ export async function askHelp(parentId: string, challengeId: string, message: st
       code,
       chat: chat.map((m) => ({ role: m.role as "CHILD" | "PAL", text: m.text })),
       message,
-    })
+    }),
+    helpReplySchema
   );
-  const { reply } = helpReplySchema.parse(raw);
 
   const [childMessage, palMessage] = await prisma.$transaction([
     prisma.helpMessage.create({ data: { challengeId, role: HelpRole.CHILD, text: message } }),

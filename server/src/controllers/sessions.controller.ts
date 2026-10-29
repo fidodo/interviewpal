@@ -92,7 +92,12 @@ export async function submitAnswer(req: AuthedRequest, res: Response) {
     res.status(400).json({ error: "Answer is required and must be under 20,000 characters" });
     return;
   }
-  const { answer, feedback } = await sessionService.submitAnswer(req.params.id, req.userId!, parsed.data.transcript);
+  const result = await sessionService.submitAnswer(req.params.id, req.userId!, parsed.data.transcript);
+  if (!result) {
+    res.status(409).json({ error: "This question has already been answered." });
+    return;
+  }
+  const { answer, feedback } = result;
   res.status(201).json({
     answer: {
       id: answer.id,

@@ -90,6 +90,23 @@ Security rules (Phase 1 of `docs/roadmap.md`):
 - **When it opens:** automatically only for users with zero sessions who haven't finished it. Completion is tracked in `localStorage` under `onboarding-done:<userId>`. "Show me around" replays it.
 - **While open:** `.app-shell` is made `inert` so keyboard and screen-reader focus stays in the tour.
 
+### Target roles (`server/src/roles`, Phase 2 of `docs/roadmap.md`)
+A `TargetRole` is the job a user is working towards. It can be any job, and each user has exactly one active role.
+- **Creating a role:** the AI builds the skill list as `RoleSkill`s, each with an importance from 1 to 3. If a CV was pasted, it also suggests a `selfRating`. Pasting a job description or CV is optional.
+- **Ratings:**
+  - The `rating` (1–5) starts at the self-rating.
+  - Once interview evidence exists, the rating follows it: each graded answer moves it toward `score / 2`, with weight 0.3 (`applyEvidence`).
+  - Every change is logged in `SkillRatingEvent`, which feeds the sparklines and the week-ago value.
+- **Readiness** is the importance-weighted average of rated skills. Its weekly change compares the same skills then and now.
+- **Practice:**
+  - **Starting:** "Practise my weakest skill" (`startPractice`) creates a normal `InterviewSession` with `roleId` and `focusSkill`. The skill becomes a private custom topic.
+  - **Question generation:** `roleContextForSession` adds role instructions to `questionPrompt`. The model tags each question with the skills it tests (`Question.skillTags`), and non-technical roles always get `VERBAL` questions.
+  - **Grading:** grading a tagged answer updates those skills.
+- **Weekly goals:** `WeeklyGoal` rows are grouped by Monday (UTC) and generated for the 3 weakest skills.
+- **Home page:** the dashboard shows `RoleHub` above the existing picker, which is now labelled "Quick practice".
+
+AI output validation: every AI call goes through `retryOnInvalid` or `generateValidated` (`server/src/ai/retry.ts`), which retries once on malformed JSON or a schema failure. Answers are graded *before* being saved, then the answer and its feedback are written together, so a failed grading never leaves a half-saved answer.
+
 ### Kids section (`/kids`)
 A learning area for a parent's children, kept separate from the interview app.
 - **Where the code lives:** `server/src/kids/` and `client/src/kids/`. It touches the interview code in only a few places:

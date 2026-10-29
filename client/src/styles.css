@@ -1338,3 +1338,382 @@ textarea.code-input {
 .danger-zone {
   border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
 }
+
+/* ---- Target roles: home hub, role list, skills ---- */
+
+:root {
+  --up: #15803d;
+  --down: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --up: #4ade80;
+    --down: #f87171;
+  }
+}
+
+:root[data-theme="dark"] {
+  --up: #4ade80;
+  --down: #f87171;
+}
+
+.role-hub {
+  margin-bottom: 20px;
+}
+
+.role-hub-empty .btn {
+  margin-top: 6px;
+}
+
+.role-hub-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.role-hub-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.role-hub-title {
+  margin: 2px 0 4px;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.role-hub-meta {
+  margin: 0;
+}
+
+.role-hub-meta a,
+.role-hub-note a,
+.role-hub-more {
+  color: var(--primary-text);
+}
+
+.readiness {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 110px;
+}
+
+.readiness-value {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--primary-text);
+}
+
+.readiness-label {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.delta {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.delta-up {
+  color: var(--up);
+}
+
+.delta-down {
+  color: var(--down);
+}
+
+.role-hub-note {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+}
+
+.role-hub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.role-hub-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 720px) {
+  .role-hub-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .readiness {
+    align-items: flex-start;
+  }
+}
+
+.role-hub-subtitle {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.skill-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.skill-row .skill-bar-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.skill-row .btn-link {
+  width: auto;
+  white-space: nowrap;
+}
+
+.skill-bar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.skill-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-value {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.skill-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.skill-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.role-hub-more {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.goal-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.goal {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.goal input {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+
+.goal-done span {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.quick-practice-intro {
+  margin: -6px 0 16px;
+}
+
+.role-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.role-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.role-card + .role-card {
+  margin-top: 0;
+}
+
+.role-card-active {
+  border-color: var(--primary);
+}
+
+.role-card .card-title,
+.role-card .helper-text {
+  margin: 0;
+}
+
+.role-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.active-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: middle;
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.role-form textarea {
+  resize: vertical;
+}
+
+.role-date {
+  max-width: 220px;
+}
+
+.privacy-note {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.checkbox-row input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+.skill-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skill-card + .skill-card {
+  margin-top: 0;
+}
+
+.skill-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.skill-card-title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.skill-card-head .helper-text {
+  margin: 2px 0 0;
+}
+
+.sparkline {
+  flex-shrink: 0;
+  color: var(--primary-text);
+}
+
+.skill-desc {
+  margin: 8px 0 12px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.rating-group .segmented-option {
+  flex: 1;
+}
+
+.rating-word {
+  font-size: 13px;
+}
+
+@media (max-width: 560px) {
+  .rating-word {
+    display: none;
+  }
+}
+
+.skill-remove {
+  margin-top: 8px;
+}
+
+.add-skill label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.add-skill-row {
+  display: flex;
+  gap: 8px;
+}
+
+.add-skill-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.sticky-save {
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0 16px;
+  background: linear-gradient(transparent, var(--bg) 35%);
+  display: flex;
+  justify-content: flex-end;
+}

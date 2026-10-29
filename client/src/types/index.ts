@@ -78,3 +78,60 @@ export interface Summary {
   strengths: string[];
   improvements: string[];
 }
+
+// ---- Target roles (mirrors server/src/roles/roles.controller.ts responses) ----
+
+export type SkillCategory = "TECHNICAL" | "DOMAIN" | "BEHAVIOURAL";
+
+export const LEVEL_LABELS: Record<Difficulty, string> = { JUNIOR: "Junior", INTERMEDIATE: "Mid-level", SENIOR: "Senior" };
+
+export interface RoleSkill {
+  id: string;
+  name: string;
+  category: SkillCategory;
+  description: string;
+  importance: number;
+  selfRating: number | null;
+  rating: number | null;
+  ratingWeekAgo: number | null;
+  evidenceCount: number;
+  history: { rating: number; source: "SELF" | "INTERVIEW"; at: string }[];
+}
+
+export interface WeeklyGoal {
+  id: string;
+  text: string;
+  done: boolean;
+  skillId: string | null;
+}
+
+export interface TargetRole {
+  id: string;
+  title: string;
+  level: Difficulty;
+  targetDate: string | null;
+  jobDescription: string | null;
+  cvSummary: string | null;
+  isTechnical: boolean;
+  isActive: boolean;
+  sessionCount: number;
+}
+
+export interface RoleDetail {
+  role: TargetRole;
+  skills: RoleSkill[];
+  goals: WeeklyGoal[];
+  readiness: number | null;
+  // Change in readiness over the last week, measured on the skills that were already rated a week ago.
+  readinessChange: number | null;
+}
+
+export interface RoleListItem {
+  id: string;
+  title: string;
+  level: Difficulty;
+  targetDate: string | null;
+  isActive: boolean;
+  skillCount: number;
+  readiness: number | null;
+}

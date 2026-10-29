@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
+import { rolesApi } from "../api/roles";
 import { TopicPicker } from "../components/TopicPicker";
-import { Difficulty, PRESET_TRACKS, SessionListItem, Topic } from "../types";
+import { RoleHub } from "../components/RoleHub";
+import { Difficulty, PRESET_TRACKS, RoleDetail, SessionListItem, Topic } from "../types";
 import { HistoryList } from "../components/HistoryList";
 import { OnboardingTour, TourStep } from "../components/OnboardingTour";
 import { useAuth } from "../hooks/useAuth";
@@ -15,6 +17,16 @@ const TOUR_STEPS: TourStep[] = [
     target: '[data-tour="welcome"]',
     title: "Welcome to InterviewPal",
     body: "Here's a quick tour of how to set up a mock interview. It takes about 30 seconds, and you can skip it any time.",
+  },
+  {
+    target: '[data-tour="role-hub"]',
+    title: "Start with your target role",
+    body: "Tell InterviewPal the job you want. It lists the skills that job needs, shows how ready you are, and plans what to practise each week.",
+  },
+  {
+    target: '[data-tour="quick-practice"]',
+    title: "Or just practise a topic",
+    body: "Quick practice lets you pick any track and topic for a one-off interview. Here's how it works.",
   },
   {
     target: '[data-tour="track"]',
@@ -82,6 +94,17 @@ export function DashboardPage() {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentSessions, setRecentSessions] = useState<SessionListItem[]>([]);
+  // undefined while loading, null when no target role is set up
+  const [activeRole, setActiveRole] = useState<RoleDetail | null | undefined>(undefined);
+
+  const loadActiveRole = useCallback(() => {
+    rolesApi
+      .active()
+      .then((res) => setActiveRole(res.active))
+      .catch(() => setActiveRole(null));
+  }, []);
+
+  useEffect(loadActiveRole, [loadActiveRole]);
 
   const effectiveTrack = usingOther ? customTrack.trim() : track;
 
@@ -142,19 +165,22 @@ export function DashboardPage() {
       <div className="dashboard-heading">
         <div>
           <h1 className="page-title" data-tour="welcome">
-            Start a mock interview
+            Your interview prep
           </h1>
-          <p className="page-subtitle">Pick a track, a topic, and how hard you want it to be.</p>
+          <p className="page-subtitle">Work towards a target role, or jump into a quick practice interview.</p>
         </div>
         <button type="button" className="btn-link btn-link-inline" data-tour="replay" onClick={() => setTourOpen(true)}>
           Show me around
         </button>
       </div>
 
-      <section className="card" aria-labelledby="setup-title">
-        <h2 id="setup-title" className="visually-hidden">
-          Interview setup
+      {activeRole !== undefined && <RoleHub detail={activeRole} onChanged={loadActiveRole} />}
+
+      <section className="card" aria-labelledby="setup-title" data-tour="quick-practice">
+        <h2 id="setup-title" className="card-title">
+          Quick practice
         </h2>
+        <p className="helper-text quick-practice-intro">A one-off interview on any track and topic. It doesn't change your role's skill ratings.</p>
         <div className="field">
           <span className="field-label" id="track-label">
             Track

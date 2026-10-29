@@ -1,5 +1,5 @@
 import { Difficulty, QuestionType, Track } from "../types";
-import { PriorQA } from "./provider.interface";
+import { PriorQA, RoleContext } from "./provider.interface";
 
 const MAX_PRIOR_QA = 20;
 
@@ -18,18 +18,41 @@ function formatHistory(priorQA: PriorQA[]): string {
     .join("\n\n");
 }
 
-export function questionPrompt(params: { topic: string; track: Track; difficulty: Difficulty; priorQA: PriorQA[] }): string {
-  const { topic, track, difficulty, priorQA } = params;
+const MAX_JOB_DESCRIPTION_CHARS = 2500;
+
+// Extra instructions when practising for a target role: aim at its skills, tag what each question tests, and
+// never ask for code in a non-technical role.
+function roleInstructions(role: RoleContext): string[] {
+  const lines = [
+    `The candidate is preparing for this role: "${role.title}". The skills that matter for it are: ${role.skills.join("; ")}.`,
+  ];
+  if (role.focusSkill) lines.push(`Focus this question on the skill "${role.focusSkill}".`);
+  if (role.jobDescription) {
+    lines.push(`The job description they are applying to (use it to make questions realistic for this employer):\n${role.jobDescription.slice(0, MAX_JOB_DESCRIPTION_CHARS)}`);
+  }
+  if (!role.isTechnical) lines.push(`This is not a technical role: always use type "VERBAL", including behavioural (STAR) and role-specific situational questions.`);
+  lines.push(`Also return "skills": the 1-3 names from the skills list above that this question tests, spelled exactly as listed.`);
+  return lines;
+}
+
+export function questionPrompt(params: { topic: string; track: Track; difficulty: Difficulty; priorQA: PriorQA[]; role?: RoleContext }): string {
+  const { topic, track, difficulty, priorQA, role } = params;
   return [
-    `You are a technical interviewer conducting a ${formatTrack(track)} interview at ${difficulty.toLowerCase()} level on the topic "${topic}".`,
+    role
+      ? `You are an interviewer for the role "${role.title}" at ${difficulty.toLowerCase()} level, currently on the topic "${topic}".`
+      : `You are a technical interviewer conducting a ${formatTrack(track)} interview at ${difficulty.toLowerCase()} level on the topic "${topic}".`,
     `Ask one clear, focused question at a time. Build naturally on prior answers when relevant — ask follow-ups that probe depth if the candidate did well, or clarify fundamentals if they struggled.`,
     `Do not repeat a question already asked in this session.`,
     `Decide the question's type based on what best tests this topic: use type "CODING" when the best way to test the candidate is to have them implement something — write a function, solve an algorithm, fix a bug in a snippet, write a query, etc. Use type "VERBAL" when the topic is best tested by an explanation — architecture, tradeoffs, design decisions, how something works conceptually. For topics centered on algorithms, data structures, or implementation (e.g. a topic literally about writing code), most or all questions should be "CODING". For topics centered on design/best-practices/conceptual understanding, most questions should be "VERBAL". Don't default to "VERBAL" just because it's safer — pick whichever type actually tests the candidate better for this specific question.`,
     ``,
+    ...(role ? [``, ...roleInstructions(role)] : []),
+    ``,
     `Interview so far:`,
     formatHistory(priorQA),
     ``,
-    `Ask the next question. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING" }`,
+    role
+      ? `Ask the next question. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING", "skills": string[] }`
+      : `Ask the next question. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING" }`,
   ].join("\n");
 }
 

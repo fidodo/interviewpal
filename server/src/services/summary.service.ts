@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { aiProvider } from "../ai/provider.factory";
+import { retryOnInvalid } from "../ai/retry";
 import { Difficulty } from "../types";
 import { loadPriorQA } from "./session.service";
 
@@ -31,12 +32,14 @@ export async function endSession(sessionId: string, userId: string) {
     return { session: updated, summary };
   }
 
-  const result = await aiProvider.generateSummary({
-    topic: session.topic.name,
-    track: session.track,
-    difficulty: session.difficulty as Difficulty,
-    priorQA,
-  });
+  const result = await retryOnInvalid(() =>
+    aiProvider.generateSummary({
+      topic: session.topic.name,
+      track: session.track,
+      difficulty: session.difficulty as Difficulty,
+      priorQA,
+    })
+  );
 
   const summary = await prisma.sessionSummary.create({
     data: {

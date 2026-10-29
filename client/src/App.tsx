@@ -8,6 +8,9 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { InterviewSessionPage } from "./pages/InterviewSessionPage";
 import { SummaryPage } from "./pages/SummaryPage";
 import { AccountPage } from "./pages/AccountPage";
+import { RolesPage } from "./pages/RolesPage";
+import { RoleFormPage } from "./pages/RoleFormPage";
+import { RoleSkillsPage } from "./pages/RoleSkillsPage";
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./pages/EmailLinkPages";
 import { getKidLock, kidHomePath } from "./kids/kidMode";
 
@@ -40,6 +43,38 @@ function InterviewRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route
+          path="/roles"
+          element={
+            <ProtectedRoute>
+              <RolesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/roles/new"
+          element={
+            <ProtectedRoute>
+              <RoleFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/roles/:id/edit"
+          element={
+            <ProtectedRoute>
+              <RoleFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/roles/:id/skills"
+          element={
+            <ProtectedRoute>
+              <RoleSkillsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/account"
           element={

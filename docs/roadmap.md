@@ -40,7 +40,11 @@ Two changes from the plan below came out of the code review:
 - **Security headers on the client** in `client/vercel.json`: CSP, frame-ancestors and referrer policy. The CSP must allow Google sign-in and the Pyodide CDN.
 - **Upgrade vulnerable packages:** `zod` on the server (high severity) and `react-router` on the client (moderate).
 
-## Phase 2: target roles and skills
+## Phase 2: target roles and skills (done 2026-10-29)
+
+How it differs from the plan below:
+- "Quick practice" stays a free choice of track and topic. It doesn't default to the active role; "Practise my weakest skill" on the home hub covers that.
+- "Full mock interview" appears on the hub as coming soon (Phase 3).
 
 - **Target role profiles.** Each has a title (free text, any job), a level (junior, mid or senior), an optional target date, an optional pasted **job description** and an optional pasted **CV or experience summary**.
   - The job description and CV are **optional**: everything works without them, just less precisely.
