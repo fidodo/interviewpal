@@ -7,6 +7,7 @@ import { rolesRouter } from "../roles/roles.routes";
 import { learnRouter } from "../learn/learn.routes";
 import { debugRouter } from "../debug/debug.routes";
 import { designRouter } from "../design/design.routes";
+import { raglabRouter } from "../raglab/raglab.routes";
 
 export const apiRouter = Router();
 
@@ -21,3 +22,4 @@ apiRouter.use("/roles", rolesRouter);
 apiRouter.use("/learn", learnRouter);
 apiRouter.use("/debug", debugRouter);
 apiRouter.use("/design", designRouter);
+apiRouter.use("/rag-lab", raglabRouter);

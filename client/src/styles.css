@@ -2450,3 +2450,225 @@ textarea.code-input {
 .page.page-wide {
   max-width: 1120px;
 }
+
+/* RAG Lab */
+.rl-path {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rl-path-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+button.rl-path-btn {
+  cursor: pointer;
+}
+
+button.rl-path-btn:hover {
+  background: var(--surface-muted);
+}
+
+.rl-path-item.is-current .rl-path-btn,
+.rl-path-item.is-selected .rl-path-btn {
+  border-color: var(--primary-text);
+  border-width: 2px;
+}
+
+.rl-path-item.is-soon .rl-path-btn,
+.rl-path-item.is-locked .rl-path-btn {
+  background: var(--surface-muted);
+}
+
+.rl-path-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.rl-path-item.is-passed .rl-path-num {
+  background: color-mix(in srgb, var(--success) 15%, var(--surface));
+  color: var(--success);
+}
+
+.rl-path-text {
+  display: grid;
+}
+
+.rl-path-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.rl-path-text .helper-text {
+  margin: 0;
+}
+
+.rl-create {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.rl-banner {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+}
+
+.rl-try {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 10px;
+  align-items: end;
+}
+
+.rl-try .btn {
+  margin-bottom: 16px;
+}
+
+.rl-status {
+  min-height: 1.4em;
+  margin: 8px 0;
+  font-weight: 600;
+}
+
+.rl-try-result {
+  margin-top: 8px;
+}
+
+.rl-trace-wrap {
+  margin-top: 12px;
+}
+
+.rl-trace {
+  max-height: 320px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  list-style: none;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rl-trace-t {
+  color: var(--text-muted);
+}
+
+.rl-trace-error {
+  color: var(--danger);
+}
+
+.rl-trace-status {
+  font-weight: 700;
+}
+
+.rl-table-wrap {
+  overflow-x: auto;
+}
+
+.rl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.rl-table th,
+.rl-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.rl-pass {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.rl-fail {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.rl-hit {
+  font-weight: 700;
+}
+
+.rl-cases,
+.rl-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rl-cases > li {
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+}
+
+.rl-cases summary {
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.rl-case {
+  display: grid;
+  grid-template-columns: minmax(110px, max-content) 1fr;
+  gap: 4px 12px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.rl-case dt {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.rl-case dd {
+  margin: 0;
+}
+
+.rl-history li {
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.rl-hints {
+  margin-top: 8px;
+}
+
+@media (max-width: 560px) {
+  .rl-try,
+  .rl-case {
+    grid-template-columns: 1fr;
+  }
+}

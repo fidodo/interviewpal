@@ -108,3 +108,41 @@ export const endLimiter = limiter("end", HOUR, 20, "You've finished a lot of int
   keyGenerator: byUserOrIp,
   skip: isAdmin,
 });
+
+// A weighted daily budget on the same table, for costs that aren't one-per-request (e.g. how many texts were
+// embedded). Spends `amount` and returns false, without spending, when that would go over `limit`.
+export async function spendBudget(prefix: string, key: string, amount: number, limit: number, windowMs = DAY): Promise<boolean> {
+  const now = new Date();
+  const resetAt = new Date(now.getTime() + windowMs);
+  const rows = await prisma.$queryRaw<{ hits: number }[]>`
+    INSERT INTO "RateLimit" ("key", "hits", "resetAt") VALUES (${`${prefix}:${key}`}, ${amount}, ${resetAt})
+    ON CONFLICT ("key") DO UPDATE SET
+      "hits" = CASE WHEN "RateLimit"."resetAt" <= ${now} THEN ${amount} ELSE "RateLimit"."hits" + ${amount} END,
+      "resetAt" = CASE WHEN "RateLimit"."resetAt" <= ${now} THEN EXCLUDED."resetAt" ELSE "RateLimit"."resetAt" END
+    RETURNING "hits"`;
+  if (Number(rows[0].hits) <= limit) return true;
+  await prisma.rateLimit.updateMany({ where: { key: `${prefix}:${key}` }, data: { hits: { decrement: amount } } });
+  return false;
+}
+
+// Gives back budget spent on work that then failed (e.g. a model call that errored).
+export async function refundBudget(prefix: string, key: string, amount: number) {
+  await prisma.rateLimit.updateMany({ where: { key: `${prefix}:${key}`, hits: { gte: amount } }, data: { hits: { decrement: amount } } });
+}
+
+// RAG Lab toolkit calls (server/src/raglab): a burst limit, with daily budgets charged in the toolkit itself.
+export const ragSdkLimiter = limiter("rag-sdk", 60_000, 120, "Your bot is calling the toolkit very fast. Wait a minute and run it again.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});
+
+// Starting and grading RAG Lab runs: each run stores a code snapshot, and grading calls the AI judge.
+export const ragRunLimiter = limiter("rag-run", HOUR, 60, "You've started a lot of runs this hour. Take a breather and try again shortly.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});
+
+export const ragGradeDailyLimiter = limiter("rag-grade-day", DAY, 80, "You've graded today's 80 RAG Lab runs. Asking your bot single questions still works; grading resumes tomorrow.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});

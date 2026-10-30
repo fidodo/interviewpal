@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
-import { indentUnit } from "@codemirror/language";
+import { HighlightStyle, defaultHighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
 
@@ -23,6 +23,13 @@ const theme = EditorView.theme({
   "&.cm-focused": { outline: "none" },
 });
 
+// CodeMirror's default highlight style, with the two colours that are under 4.5:1 on white darkened: escapes and
+// regexes (#e40) and invalid code (#f00). A non-fallback style replaces basicSetup's default entirely.
+const DARKER: Record<string, string> = { "#e40": "#b03000", "#f00": "#c00000" };
+const highlighting = syntaxHighlighting(
+  HighlightStyle.define(defaultHighlightStyle.specs.map((spec) => (spec.color && DARKER[spec.color] ? { ...spec, color: DARKER[spec.color] } : spec)))
+);
+
 function languageSupport(language: string) {
   if (language === "python") return [python()];
   if (language === "javascript" || language === "react") return [javascript({ jsx: true })];
@@ -42,6 +49,7 @@ export function CodeEditor({ initialCode, onChange, language, labelledBy }: Code
       doc: initialCode,
       parent: hostRef.current,
       extensions: [
+        highlighting,
         basicSetup,
         // Tab indents; Esc then Tab still moves focus out of the editor.
         keymap.of([indentWithTab]),

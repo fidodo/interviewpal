@@ -18,6 +18,12 @@ export const env = {
     apiKey: process.env.GEMINI_API_KEY ?? "",
     model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
   },
+  // The model a RAG Lab learner's bot calls through ip.llm (Gemini, for its free-tier token allowance).
+  // The model a RAG Lab bot's ip.llm calls (see raglab/labModel.ts).
+  ragLab: {
+    provider: (process.env.RAG_LAB_PROVIDER ?? "groq") as "groq" | "gemini",
+    model: process.env.RAG_LAB_MODEL,
+  },
   xai: {
     apiKey: process.env.XAI_API_KEY ?? "",
     model: process.env.XAI_MODEL ?? "grok-beta",

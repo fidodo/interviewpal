@@ -82,10 +82,28 @@ export interface GenerateSummaryParams {
   priorQA: PriorQA[];
 }
 
+// A plain chat completion, used by the RAG Lab toolkit (server/src/raglab), where the learner writes the prompts.
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface ChatOptions {
+  json?: boolean;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export interface ChatResult {
+  text: string;
+  usage: { inputTokens: number; outputTokens: number };
+}
+
 export interface AIProvider {
   generateQuestion(params: GenerateQuestionParams): Promise<GeneratedQuestion>;
   gradeAnswer(params: GradeAnswerParams): Promise<GradingResult>;
   generateSummary(params: GenerateSummaryParams): Promise<SummaryResult>;
   // Raw JSON completion for prompts outside the interview flow (e.g. the kids section), which validate with their own zod schemas.
   generateJson(prompt: string): Promise<unknown>;
+  chat(messages: ChatMessage[], options: ChatOptions): Promise<ChatResult>;
 }

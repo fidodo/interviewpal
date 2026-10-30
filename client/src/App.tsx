@@ -19,6 +19,9 @@ import { getKidLock, kidHomePath } from "./kids/kidMode";
 
 // The kids section is its own lazy chunk (Blockly, CodeMirror, the Python runner) with its own layout.
 const KidsApp = lazy(() => import("./kids/KidsApp"));
+// RAG Lab pulls in CodeMirror and the bot runtimes, so it's its own chunk too.
+const RagLabHomePage = lazy(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabHomePage })));
+const RagLabProjectPage = lazy(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabProjectPage })));
 
 function Loading() {
   return (
@@ -139,6 +142,26 @@ function InterviewRoutes() {
           element={
             <ProtectedRoute>
               <DesignChallengePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rag-lab"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<Loading />}>
+                <RagLabHomePage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rag-lab/:id"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<Loading />}>
+                <RagLabProjectPage />
+              </Suspense>
             </ProtectedRoute>
           }
         />

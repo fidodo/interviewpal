@@ -1,8 +1,8 @@
+import { PYODIDE_URL } from "../../code/pyodide";
 import { PRELUDE } from "./prelude";
 import type { RunRequest, WorkerMessage } from "./protocol";
 
 // Pyodide is loaded from the CDN (not bundled) so it only downloads when a learner opens the Python runner.
-const PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 const MAX_OUTPUT = 20000;
 
 interface PyProxy {

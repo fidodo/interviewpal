@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../config/env";
-import { AIProvider, GenerateQuestionParams, GenerateSummaryParams, GradeAnswerParams, GradingResult, GeneratedQuestion, SummaryResult } from "./provider.interface";
+import { AIProvider, ChatMessage, ChatOptions, ChatResult, GenerateQuestionParams, GenerateSummaryParams, GradeAnswerParams, GradingResult, GeneratedQuestion, SummaryResult } from "./provider.interface";
 import { questionPrompt, gradingPrompt, summaryPrompt } from "./prompts";
 import { generatedQuestionSchema, gradingResultSchema, summaryResultSchema } from "./schemas";
 
@@ -50,13 +50,14 @@ const SUMMARY_SCHEMA = {
 export class GeminiProvider implements AIProvider {
   private client: GoogleGenAI;
 
-  constructor() {
+  // `model` defaults to GEMINI_MODEL; RAG Lab passes its own (see server/src/raglab/labModel.ts).
+  constructor(private model = env.gemini.model) {
     this.client = new GoogleGenAI({ apiKey: env.gemini.apiKey });
   }
 
   async generateJson(prompt: string, schema?: object): Promise<unknown> {
     const response = await this.client.models.generateContent({
-      model: env.gemini.model,
+      model: this.model,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -81,5 +82,24 @@ export class GeminiProvider implements AIProvider {
   async generateSummary(params: GenerateSummaryParams): Promise<SummaryResult> {
     const raw = await this.generateJson(summaryPrompt(params), SUMMARY_SCHEMA);
     return summaryResultSchema.parse(raw);
+  }
+
+  async chat(messages: ChatMessage[], options: ChatOptions): Promise<ChatResult> {
+    // Gemini takes the system prompt separately and calls the assistant "model".
+    const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
+    const response = await this.client.models.generateContent({
+      model: this.model,
+      contents: messages.filter((m) => m.role !== "system").map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+      config: {
+        ...(system ? { systemInstruction: system } : {}),
+        temperature: options.temperature ?? 0.2,
+        maxOutputTokens: options.maxTokens ?? 800,
+        ...(options.json ? { responseMimeType: "application/json" } : {}),
+      },
+    });
+    return {
+      text: response.text ?? "",
+      usage: { inputTokens: response.usageMetadata?.promptTokenCount ?? 0, outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0 },
+    };
   }
 }

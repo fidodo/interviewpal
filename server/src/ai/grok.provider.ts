@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { env } from "../config/env";
-import { AIProvider, GenerateQuestionParams, GenerateSummaryParams, GradeAnswerParams, GradingResult, GeneratedQuestion, SummaryResult } from "./provider.interface";
+import { AIProvider, ChatMessage, ChatOptions, ChatResult, GenerateQuestionParams, GenerateSummaryParams, GradeAnswerParams, GradingResult, GeneratedQuestion, SummaryResult } from "./provider.interface";
+import { openaiChat } from "./openaiChat";
 import { questionPrompt, gradingPrompt, summaryPrompt } from "./prompts";
 import { generatedQuestionSchema, gradingResultSchema, summaryResultSchema } from "./schemas";
 
@@ -35,5 +36,9 @@ export class GrokProvider implements AIProvider {
   async generateSummary(params: GenerateSummaryParams): Promise<SummaryResult> {
     const raw = await this.generateJson(summaryPrompt(params));
     return summaryResultSchema.parse(raw);
+  }
+
+  chat(messages: ChatMessage[], options: ChatOptions): Promise<ChatResult> {
+    return openaiChat(this.client, env.xai.model, messages, options);
   }
 }

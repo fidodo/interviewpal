@@ -30,6 +30,7 @@ model User {
   reviewItems   ReviewItem[]
   debugs        DebugChallenge[]
   designs       DesignChallenge[]
+  ragProjects   RagProject[]
 }
 
 // Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
@@ -436,4 +437,56 @@ model DesignChallenge {
   submittedAt     DateTime?
 
   @@index([userId, createdAt])
+}
+
+// RAG Lab (server/src/raglab): a learner's RAG bot, built level by level in the browser.
+model RagProject {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  // python | typescript | javascript
+  language  String
+  // The level being worked on; passing its held-out run moves it on.
+  level     Int          @default(1)
+  code      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  attempts  RagAttempt[]
+
+  @@index([userId, createdAt])
+}
+
+// One graded run of a project's bot against a test set. The case ids are fixed when the run starts, so the
+// outputs sent back can be checked against them.
+model RagAttempt {
+  id        String     @id @default(cuid())
+  projectId String
+  project   RagProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  level     Int
+  // PRACTICE (visible cases, full feedback) | HELDOUT (unseen cases, totals only; passing moves the level on)
+  kind      String
+  // JSON string[].
+  caseIds   String
+  // RUNNING -> GRADING -> DONE
+  status    String     @default("RUNNING")
+  code      String
+  // JSON: per-case outputs, then per-case verdicts and the metrics.
+  outputs   String?
+  results   String?
+  metrics   String?
+  passed    Boolean?
+  createdAt DateTime   @default(now())
+  gradedAt  DateTime?
+
+  @@index([projectId, createdAt])
+}
+
+// Embeddings by hash of (model, task type, text), so re-running a bot's indexing costs nothing. Vectors are
+// float32 bytes; the text itself isn't kept.
+model EmbeddingCache {
+  hash      String   @id
+  vector    Bytes
+  createdAt DateTime @default(now())
 }

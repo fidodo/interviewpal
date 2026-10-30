@@ -145,6 +145,23 @@ System design practice (`server/src/design`, `/design`): the AI writes an interv
 
 AI output validation: every AI call goes through `retryOnInvalid` or `generateValidated` (`server/src/ai/retry.ts`), which retries once on malformed JSON or a schema failure. Answers are graded *before* being saved, then the answer and its feedback are written together, so a failed grading never leaves a half-saved answer.
 
+### RAG Lab (`/rag-lab`, `server/src/raglab`, `client/src/raglab`)
+A levelled playground where the user builds one RAG bot, in Python or TypeScript/JavaScript, and the app grades it. **The learner writes the bot; don't write their bot's code unless they ask.** Levels 1–3 are playable; 4–10 are stubs in `levels.ts` (see `docs/roadmap.md`).
+- **Contract:** the learner's `RagBot` class has `index(docs)`, `search(question, k)` → `[{chunkId, docId, text, score}]` and `ask(question, history)` → `{answer, citations}`.
+- **The bot runs in the browser** (`client/src/raglab/runtime/`):
+  - **Python:** a Pyodide worker with numpy (`raglab-py.worker.ts`, sharing `PYODIDE_URL` in `client/src/code/pyodide.ts` with the kids runner). The `ip` module is Python source bridged to JS with `registerJsModule("_ip_bridge")`; values cross as JSON strings.
+  - **TypeScript/JavaScript:** `raglab-js.worker.ts` strips types with sucrase and runs the code with `new Function`. Like `js-runner.worker`, it has its own `vercel.json` CSP rule (`'unsafe-eval'`, `connect-src 'self'`) and is excluded from the main rule.
+  - A run is capped at 10 minutes (free-tier models answer only a few questions a minute) and has a Stop button.
+- **The `ip` toolkit** (`corpus`, `embed`, `llm`, `tokens`, `log`) calls `/api/rag-lab/sdk/*` from the worker.
+  - **Embeddings:** `server/src/ai/embeddings.ts` (`gemini-embedding-001`, 768 dimensions, unit length), cached in `EmbeddingCache` by a hash of the text; cache hits are free.
+  - **Model calls:** `ip.llm` goes to `labProvider` (`labModel.ts`), a model separate from the interview one so a test run can't use up the interview allowance. `RAG_LAB_PROVIDER` picks it: `groq` (default, free) uses `openai/gpt-oss-20b`, whose own allowance is 1,000 calls a day and 8,000 tokens a minute for the whole app, and the OpenAI SDK waits out its 429s (6 retries). `gemini` uses Flash-Lite, which is fast but allows only 20 free calls a day, so it needs billing. `RAG_LAB_MODEL` overrides the model. `AIProvider.chat` is the general chat call this needed.
+  - **Budgets:** weighted daily budgets on the `RateLimit` table (`spendBudget`/`refundBudget`): 150 model calls and 5,000 newly embedded texts. Failed calls are refunded. Admin is exempt.
+- **Grading happens on the server** (`grader.ts`). The browser gets only case ids, questions and history; `corpus.ts` and `cases.ts` keep the expected documents and reference answers.
+  - hit@k and citation precision are computed in code. An LLM judge (the main provider) marks correctness, refusals and injection in sequential batches; items it skips are re-marked one at a time. The poisoned `community-wiki-tips` doc carries the canary "pineapple protocol".
+  - Checks are cumulative (`checksUpTo`). PRACTICE runs return per-case results; HELDOUT runs return totals only, and passing one moves the project up a level with a conditional `updateMany`.
+  - Grading claims the attempt (RUNNING → GRADING, retaken after 3 minutes), like debug practice.
+- **Rate limits:** `ragRunLimiter` on starting runs, `aiLimiter` + `ragGradeDailyLimiter` on grading, `ragSdkLimiter` on toolkit calls.
+
 ### Kids section (`/kids`)
 A learning area for a parent's children, kept separate from the interview app.
 - **Where the code lives:** `server/src/kids/` and `client/src/kids/`. It touches the interview code in only a few places:

@@ -54,6 +54,7 @@ export function Layout({ children }: { children: ReactNode }) {
             {navLink("/learn", "Learn")}
             {navLink("/debug", "Debug")}
             {navLink("/design", "Design")}
+            {navLink("/rag-lab", "RAG Lab")}
             {navLink("/history", "History")}
             {navLink("/kids", "Kids")}
           </nav>

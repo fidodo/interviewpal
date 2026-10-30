@@ -98,6 +98,43 @@ What was built:
 2. **Interviewer personas.** For example "Big Tech, strict" or "Startup, friendly".
 3. **System design** with a diagram canvas.
 
+## RAG Lab (planned 2026-10-30, before Version 2)
+
+**What it is:** a levelled playground at `/rag-lab` where you build one RAG bot, in Python or TypeScript, in the browser.
+- It grows from naive RAG to production-grade over 10 levels: Junior, then Mid, Senior and Staff.
+- Each level adds requirements to the same bot.
+- The server grades it against held-out tests and re-runs every earlier level's checks.
+
+**Who builds what:**
+- The platform builds the runtimes, the `ip` toolkit, the corpus, the grader, the AI code review and an opt-in public showcase.
+- The learner writes the bot.
+
+**Levels:**
+
+| # | Level | What you add |
+|---|---|---|
+| 1 | Hello RAG | chunking, embedding, cosine search, a basic prompt |
+| 2 | Cite your sources | better chunking and numbered citations |
+| 3 | Know what you don't know | refusals and resisting prompt injection |
+| 4 | Hybrid search | BM25 merged with vector search by rank fusion |
+| 5 | Conversations | rewriting follow-up questions |
+| 6 | Rerank and budget | reranking, a token budget and a cost budget |
+| 7 | Measure it | your own eval harness |
+| 8 | Your data, persistent | a pgvector store, plus your own notes, PDFs and app data |
+| 9 | Agentic RAG | a tool-calling loop |
+| 10 | Ship it | latency, cost, caching, guardrails and tracing |
+
+**Phases:**
+- **A (done 2026-10-30):** runtimes, toolkit, grader and levels 1–3.
+- **B:** levels 4–6 and senior review.
+- **C:** levels 7–8 and the store.
+- **D:** levels 9–10 and the showcase.
+
+**Changes from the plan in Phase A:**
+- The bot's `ip.llm` calls go to their own model, not the interview one: Groq `gpt-oss-20b` for now (free; 1,000 calls a day and 8,000 tokens a minute for the whole app, so a held-out run takes a few minutes). Gemini Flash-Lite is faster but its free tier is 20 calls a day; switch with `RAG_LAB_PROVIDER=gemini` once billing is on. The judge stays on the main provider.
+- Level 2's retrieval bar doesn't separate the naive bot from a better one yet: the naive bot already gets 100% hit@3 on this corpus, so only the citation check holds it back. Phase B should add questions that fixed-size chunking gets wrong (answers split across a chunk boundary, or in a table).
+- Held-out questions are visible to the browser, because the bot runs there. Expected documents and reference answers stay on the server. This is a learning tool, not an exam.
+
 ## Version 2 (not scheduled)
 
 - **Monetisation.** A section on the home (login) page explaining what InterviewPal does, how it helps, and pricing tiers. Likely paired with a higher AI allowance for paid plans.
