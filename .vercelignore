@@ -1,0 +1,6 @@
+# Files a Vercel deploy must never upload. Without this file the CLI uploaded local .env files with the source;
+# production reads its secrets from the Vercel project's environment variables instead.
+**/.env
+**/.env.*
+!**/.env.example
+**/.vercel
