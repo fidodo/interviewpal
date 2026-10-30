@@ -29,3 +29,30 @@ export function analyzeFillers(transcript: string): FillerStats {
 
   return { count, words, wordCount };
 }
+
+// Phrases that undercut how sure the speaker sounds. "sort of"/"kind of" are counted as fillers above, so they're
+// left out here to avoid counting them twice.
+const HEDGE_PHRASES = [
+  "i think", "i guess", "i suppose", "i feel like", "i'm not sure", "i don't know",
+  "maybe", "perhaps", "probably", "a little bit", "somewhat", "hopefully",
+];
+
+export interface HedgeStats {
+  count: number;
+  phrases: Record<string, number>;
+}
+
+// Pure string analysis, like analyzeFillers: free and instant.
+export function analyzeHedges(transcript: string): HedgeStats {
+  const normalized = transcript.toLowerCase().replace(/[’]/g, "'");
+  const phrases: Record<string, number> = {};
+  let count = 0;
+  for (const phrase of HEDGE_PHRASES) {
+    const matches = normalized.match(new RegExp(`\\b${phrase.replace(/\s+/g, "\\s+")}\\b`, "g"));
+    if (matches?.length) {
+      phrases[phrase] = matches.length;
+      count += matches.length;
+    }
+  }
+  return { count, phrases };
+}

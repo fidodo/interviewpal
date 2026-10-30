@@ -21,6 +21,8 @@ import { getKidLock, kidHomePath } from "./kids/kidMode";
 const KidsApp = lazy(() => import("./kids/KidsApp"));
 // RAG Lab pulls in CodeMirror and the bot runtimes, so it's its own chunk too.
 const RagLabHomePage = lazy(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabHomePage })));
+const SpeakHomePage = lazy(() => import("./story/StoryPages").then((m) => ({ default: m.SpeakHomePage })));
+const StoryPage = lazy(() => import("./story/StoryPages").then((m) => ({ default: m.StoryPage })));
 const RagLabProjectPage = lazy(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabProjectPage })));
 
 function Loading() {
@@ -142,6 +144,26 @@ function InterviewRoutes() {
           element={
             <ProtectedRoute>
               <DesignChallengePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/speak"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<Loading />}>
+                <SpeakHomePage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/speak/:id"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<Loading />}>
+                <StoryPage />
+              </Suspense>
             </ProtectedRoute>
           }
         />

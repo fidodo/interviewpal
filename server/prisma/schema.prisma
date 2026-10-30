@@ -8,12 +8,12 @@ generator client {
 }
 
 model User {
-  id           String             @id @default(cuid())
-  email        String             @unique
-  passwordHash String?
-  googleId     String?            @unique
-  createdAt    DateTime           @default(now())
-  sessions     InterviewSession[]
+  id            String             @id @default(cuid())
+  email         String             @unique
+  passwordHash  String?
+  googleId      String?            @unique
+  createdAt     DateTime           @default(now())
+  sessions      InterviewSession[]
   kidsPinHash   String?
   children      ChildProfile[]
   // Set by email-link verification or a Google sign-in. Unverified password accounts lose their password if
@@ -31,6 +31,7 @@ model User {
   debugs        DebugChallenge[]
   designs       DesignChallenge[]
   ragProjects   RagProject[]
+  stories       StoryPractice[]
 }
 
 // Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
@@ -107,21 +108,21 @@ model Question {
 }
 
 model Answer {
-  id          String   @id @default(cuid())
-  questionId  String   @unique
-  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  questionId  String    @unique
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
   transcript  String
   fillerStats String?
   // Runnable coding answers: JSON { language, passed, total } from the browser test run.
   testResults String?
-  submittedAt DateTime @default(now())
+  submittedAt DateTime  @default(now())
   feedback    Feedback?
 }
 
 model Feedback {
-  id               String @id @default(cuid())
-  answerId         String @unique
-  answer           Answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  answerId         String   @unique
+  answer           Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
   score            Int
   correctnessScore Int?
   clarityScore     Int?
@@ -384,9 +385,9 @@ model ReviewItem {
 // The AI writes realistic broken code in a chosen stack; the learner fixes it and explains the bug. `bugs` and
 // `referenceFix` stay on the server until the challenge is submitted.
 model DebugChallenge {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   language      String
   level         String
   title         String
@@ -396,14 +397,14 @@ model DebugChallenge {
   spec          String?
   bugs          String
   referenceFix  String
-  hintsUsed     Int      @default(0)
-  status        String   @default("OPEN")
+  hintsUsed     Int       @default(0)
+  status        String    @default("OPEN")
   submittedCode String?
   explanation   String?
   testResults   String?
   score         Int?
   feedback      String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
   submittedAt   DateTime?
 
   @@index([userId, createdAt])
@@ -489,4 +490,44 @@ model EmbeddingCache {
   hash      String   @id
   vector    Bytes
   createdAt DateTime @default(now())
+}
+
+// Speak: storytelling practice (server/src/story). One prompt, retold over up to 5 graded takes.
+model StoryPractice {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // EXPERIENCE | EXPLAIN | PITCH | OWN
+  kind          String
+  topic         String?
+  audience      String?
+  targetSeconds Int
+  prompt        String
+  // JSON string[]: what a strong answer includes. Shown after the first take; used for marking.
+  coachingNotes String
+  // Set while a take is being graded, so a double submit can't grade twice.
+  gradingAt     DateTime?
+  createdAt     DateTime    @default(now())
+  takes         StoryTake[]
+
+  @@index([userId, createdAt])
+}
+
+model StoryTake {
+  id          String        @id @default(cuid())
+  storyId     String
+  story       StoryPractice @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  number      Int
+  transcript  String
+  durationSec Int
+  // JSON { wordCount, wpm, durationSec, fillers, hedges }, computed in code.
+  stats       String
+  score       Int
+  // JSON { structure, clarity, specifics, presence, delivery }, each 1-10.
+  breakdown   String
+  // JSON { strengths, improvements, cameAcross, strongerVersion, outline }.
+  feedback    String
+  createdAt   DateTime      @default(now())
+
+  @@unique([storyId, number])
 }

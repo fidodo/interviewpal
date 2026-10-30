@@ -162,6 +162,17 @@ A levelled playground where the user builds one RAG bot, in Python or TypeScript
   - Grading claims the attempt (RUNNING → GRADING, retaken after 3 minutes), like debug practice.
 - **Rate limits:** `ragRunLimiter` on starting runs, `aiLimiter` + `ragGradeDailyLimiter` on grading, `ragSdkLimiter` on toolkit calls.
 
+### Speak (`/speak`, `server/src/story`, `client/src/story`)
+Storytelling practice: the user tells a story or explains a topic out loud, gets marked, then retells the same story.
+- **A story** (`StoryPractice`) has a kind (`EXPERIENCE`, `EXPLAIN`, `PITCH` or `OWN`), a target length (60, 120 or 180 seconds), an AI-written prompt and audience, and hidden `coachingNotes`. The notes are shown only after the first take, so the user tells it their own way first. The suggested shape per kind (STAR and so on) is the `SHAPES` constant, not stored.
+- **Takes** (`StoryTake`, up to `MAX_TAKES` = 5) store the transcript, the delivery `stats`, five 1–10 scores (`structure`, `clarity`, `specifics`, `presence`, `delivery`), an overall score and the feedback.
+  - **Delivery stats are computed in code** (`analyzeFillers` and `analyzeHedges` in `services/transcriptAnalysis.ts`) and given to the grader as facts.
+  - **Typed takes:** the client sends `durationSec` only for a recorded take of at least 5 seconds. A typed take gets an estimated length and `wpm: null`, so it never reports a fake pace.
+  - **The stronger version** uses only facts from the transcript. Missing details become bracketed questions, so the AI never invents the user's experiences.
+  - **Retells** pass the previous take's scores and improvements to the grader.
+- **One grading at a time:** a take claims the story (`gradingAt`, retaken after 2 minutes) before the AI call, so a double submit is refused before a second call. `@@unique([storyId, number])` backs this up.
+- **Limits:** the AI routes use `requireVerified`, `aiLimiter` and `aiDailyLimiter`, so Speak shares the 50-a-day interview allowance.
+
 ### Kids section (`/kids`)
 A learning area for a parent's children, kept separate from the interview app.
 - **Where the code lives:** `server/src/kids/` and `client/src/kids/`. It touches the interview code in only a few places:

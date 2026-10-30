@@ -135,6 +135,22 @@ What was built:
 - Level 2's retrieval bar doesn't separate the naive bot from a better one yet: the naive bot already gets 100% hit@3 on this corpus, so only the citation check holds it back. Phase B should add questions that fixed-size chunking gets wrong (answers split across a chunk boundary, or in a table).
 - Held-out questions are visible to the browser, because the bot runs there. Expected documents and reference answers stay on the server. This is a learning tool, not an exam.
 
+## Speak: storytelling practice (built 2026-10-30)
+
+**What it is:** a section at `/speak` for practising telling a story or explaining a topic out loud. There are four kinds:
+- a personal experience, told with STAR
+- explaining a topic to a chosen audience
+- a pitch or opinion
+- your own topic
+
+**How a take works:**
+- **Plan:** an optional 60-second planning timer.
+- **Speak:** speak, or type, for 1–3 minutes.
+- **Marking:** five scores (structure, clarity, specifics, presence, delivery), with pace, filler and hedging stats measured in code. The feedback says how you came across, and gives a stronger version of your own story, with gaps to fill in, plus an outline.
+- **Retell:** up to 5 takes per story, with a comparison table showing how each score moved.
+
+**Next ideas:** a story bank, so strong personal stories can be tagged (conflict, leadership, failure) and reused in Mock interview behavioural rounds.
+
 ## Version 2 (not scheduled)
 
 - **Monetisation.** A section on the home (login) page explaining what InterviewPal does, how it helps, and pricing tiers. Likely paired with a higher AI allowance for paid plans.
