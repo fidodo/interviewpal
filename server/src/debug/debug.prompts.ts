@@ -56,7 +56,7 @@ export function challengePrompt(params: { language: DebugLanguage; level: string
     runnable
       ? `The code must define a function that "spec" describes (same name and parameters), using only the standard library, with no I/O, imports of third-party packages${language === "javascript" ? ", require/import statements or DOM access" : ""}. "spec.tests": 3-6 cases { "args": [...], "expected": ... } with plain JSON values that ALL pass on referenceFix, where at least one FAILS on buggyCode.`
       : `"spec" must be null (this stack isn't run, the fix is reviewed).`,
-    recentTitles.length ? `Don't repeat these recent exercises: ${recentTitles.join("; ")}.` : ``,
+    recentTitles.length ? `Don't repeat these recent exercises: ${recentTitles.join("; ")}.` : null,
     ``,
     `"title": a short name. "scenario": 2-4 sentences: what the code is meant to do and the symptom someone reported (not the cause).`,
     `"bugs": one entry per bug: "description" (what's wrong and why, for marking) and "hint" (a nudge towards where to look, without the answer).`,

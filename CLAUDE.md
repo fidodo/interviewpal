@@ -137,6 +137,12 @@ Phase 5: runnable code, personas and debug practice.
   - **Kept hidden until submit:** the bugs, hints and reference fix. Hints were written along with the code, so revealing one costs no AI call.
   - **Grading:** submitting claims the challenge (status `GRADING`, stamped in `submittedAt`) so it's graded once. A claim stuck for more than 2 minutes can be retaken, and only the request holding the claim writes the result.
 
+System design practice (`server/src/design`, `/design`): the AI writes an interview question (level and an optional "what to design" topic); the learner draws an architecture on a canvas and writes notes, and the AI marks both.
+- **Canvas** (`client/src/design/DesignCanvas.tsx`): plain SVG, no library. Components are dragged with a pointer or moved with arrow keys; connections are made by picking a component and its target, on the canvas or from the panel under it (the keyboard and screen-reader route). Component kinds live in `COMPONENT_KINDS`, mirrored in `client/src/design/kinds.ts` and `server/src/design/design.prompts.ts`.
+- **What the model sees:** the diagram is sent as JSON `{ nodes, edges }` (zod-checked: at most 40 components, 80 connections, 40-character names) and turned into a text list by `describeDiagram`; positions aren't marked.
+- **Hidden until submit:** `keyPoints` (what a strong answer covers) and the model answer. Hints, grading claims and stale-claim retakes work exactly like debug practice.
+- **Drafts** are kept in `localStorage` (`design-draft:<id>`), written 400 ms after the last change, and cleaned on load because they may be stale.
+
 AI output validation: every AI call goes through `retryOnInvalid` or `generateValidated` (`server/src/ai/retry.ts`), which retries once on malformed JSON or a schema failure. Answers are graded *before* being saved, then the answer and its feedback are written together, so a failed grading never leaves a half-saved answer.
 
 ### Kids section (`/kids`)

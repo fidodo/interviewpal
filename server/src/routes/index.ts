@@ -6,6 +6,7 @@ import { kidsRouter } from "../kids/kids.routes";
 import { rolesRouter } from "../roles/roles.routes";
 import { learnRouter } from "../learn/learn.routes";
 import { debugRouter } from "../debug/debug.routes";
+import { designRouter } from "../design/design.routes";
 
 export const apiRouter = Router();
 
@@ -19,3 +20,4 @@ apiRouter.use("/kids", kidsRouter);
 apiRouter.use("/roles", rolesRouter);
 apiRouter.use("/learn", learnRouter);
 apiRouter.use("/debug", debugRouter);
+apiRouter.use("/design", designRouter);

@@ -75,6 +75,8 @@ export async function submitFix(
   if (claimed.count !== 1) return "alreadySubmitted" as const;
 
   try {
+    // Re-read after the claim, so a hint revealed just before it is counted.
+    const { hintsUsed } = await prisma.debugChallenge.findUniqueOrThrow({ where: { id }, select: { hintsUsed: true } });
     const bugs = parseJsonArray<Bug>(challenge.bugs);
     const runnable = DEBUG_LANGUAGES[challenge.language as DebugLanguage]?.runnable ?? false;
     const testResults = runnable ? submission.testResults : null;
@@ -89,7 +91,7 @@ export async function submitFix(
         submittedCode: submission.code,
         explanation: submission.explanation,
         testResults,
-        hintsUsed: challenge.hintsUsed,
+        hintsUsed,
       }),
       debugGradeSchema
     );

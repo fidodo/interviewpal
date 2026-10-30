@@ -29,6 +29,7 @@ model User {
   courses       LearnCourse[]
   reviewItems   ReviewItem[]
   debugs        DebugChallenge[]
+  designs       DesignChallenge[]
 }
 
 // Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
@@ -403,6 +404,36 @@ model DebugChallenge {
   feedback      String?
   createdAt     DateTime @default(now())
   submittedAt   DateTime?
+
+  @@index([userId, createdAt])
+}
+
+// A system design exercise: the learner draws a diagram (JSON nodes/edges) and writes notes; the AI grades both.
+// keyPoints and referenceDesign stay hidden until it has been submitted.
+model DesignChallenge {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level           String
+  title           String
+  brief           String
+  // JSON { functional: string[], nonFunctional: string[] }.
+  requirements    String
+  // JSON string[].
+  hints           String
+  hintsUsed       Int       @default(0)
+  // JSON string[]: what a strong answer covers, for marking.
+  keyPoints       String
+  referenceDesign String
+  status          String    @default("OPEN")
+  // JSON { nodes, edges } as submitted.
+  diagram         String?
+  notes           String?
+  score           Int?
+  // JSON { breakdown, strengths, gaps, feedback, followUps }.
+  feedback        String?
+  createdAt       DateTime  @default(now())
+  submittedAt     DateTime?
 
   @@index([userId, createdAt])
 }

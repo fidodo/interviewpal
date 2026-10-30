@@ -2250,3 +2250,203 @@ textarea.code-input {
 .debug-result details {
   margin: 12px 0 16px;
 }
+
+/* System design canvas */
+.dg {
+  display: grid;
+  gap: 10px;
+}
+
+.dg-scroll {
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  overflow: auto;
+}
+
+/* On phones the canvas keeps a readable size and scrolls sideways; only the components themselves block
+   touch panning, so they can be dragged. */
+.dg-svg {
+  display: block;
+  width: 100%;
+  min-width: 640px;
+  height: auto;
+  touch-action: pan-x pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dg-svg-view {
+  min-width: 0;
+  max-height: 520px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.dg-bg {
+  fill: var(--surface-muted);
+}
+
+.dg-empty {
+  fill: var(--text-muted);
+  font-size: 18px;
+}
+
+.dg-node-wrap {
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+}
+
+.dg-node-wrap:active {
+  cursor: grabbing;
+}
+
+.dg-node-box {
+  --group: var(--text-muted);
+  fill: color-mix(in srgb, var(--group) 10%, var(--surface));
+  stroke: var(--group);
+  stroke-width: 1.5;
+}
+
+.dg-node--edge .dg-node-box {
+  --group: var(--primary-text);
+}
+
+.dg-node--data .dg-node-box {
+  --group: var(--success);
+}
+
+.dg-node--messaging .dg-node-box {
+  --group: var(--warning);
+}
+
+.dg-node.is-selected .dg-node-box,
+.dg-node-wrap:focus-visible .dg-node-box {
+  stroke: var(--focus);
+  stroke-width: 3.5;
+}
+
+.dg-node.is-connecting .dg-node-box {
+  stroke-dasharray: 6 4;
+  stroke-width: 3.5;
+}
+
+.dg-node-kind {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dg-node-label {
+  fill: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dg-edge-line {
+  stroke: var(--text-muted);
+  stroke-width: 2;
+}
+
+.dg-edge.is-selected .dg-edge-line {
+  stroke: var(--focus);
+  stroke-width: 3.5;
+}
+
+.dg-arrow {
+  fill: var(--text-muted);
+}
+
+.dg-edge-hit {
+  stroke: transparent;
+  stroke-width: 18;
+  cursor: pointer;
+}
+
+.dg-edge-label {
+  fill: var(--text);
+  font-size: 13px;
+  paint-order: stroke;
+  stroke: var(--surface-muted);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.dg-banner {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--primary-soft);
+  font-size: 14px;
+}
+
+.dg-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.dg-panel-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.dg-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 12px;
+  align-items: end;
+}
+
+.dg-row-btn {
+  margin-bottom: 16px;
+}
+
+.dg-selected {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.dg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dg-list ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.design-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.design-breakdown li {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.design-breakdown strong {
+  display: block;
+  font-size: 18px;
+}
+
+.requirement-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.page.page-wide {
+  max-width: 1120px;
+}

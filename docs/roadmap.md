@@ -81,7 +81,7 @@ How it differs from the plan below:
 - **Spaced repetition:** questions you got wrong come back after a few days.
 - You can also start a course on any topic outside the plan.
 
-## Phase 5: extras (1 and 2 done 2026-10-29, plus debug practice)
+## Phase 5: extras (done 2026-10-30, plus debug practice)
 
 What was built:
 - **Runnable coding answers:** Python and JavaScript, run in the browser against AI-written test cases. The score feeds into grading.
@@ -89,14 +89,14 @@ What was built:
 - **Debug practice (added by request):**
   - The AI writes realistic broken code in a chosen stack; you fix it, explain the root cause and get graded. Hints cost about a point each.
   - Python and JavaScript fixes run against tests. Other stacks (TypeScript, React, Java, C#, Go, SQL, PHP, Ruby, Kotlin, C++) are graded by the AI reading the fix.
-- **Not yet built:** system design (item 3).
+- **System design (item 3, done 2026-10-30):** a Design tab. The AI sets a question at your level (or on a system you name); you draw the architecture on a drag-and-connect canvas and explain the API, data model, scaling and trade-offs. Marking gives a score, four sub-scores (requirements, architecture, scale and reliability, trade-offs), gaps, interviewer follow-up questions, and then reveals what a strong answer covers plus a model answer.
 - **Possible later work:**
   - Server-side execution for the reviewed-only stacks (needs a sandbox service).
   - Checking AI-written debug tests against the reference fix before showing them.
 
 1. **Runnable coding answers.** Reuse the kids section's in-browser Pyodide runner, with test cases.
 2. **Interviewer personas.** For example "Big Tech, strict" or "Startup, friendly".
-3. **System design** with a diagram canvas (later, since it's a big build).
+3. **System design** with a diagram canvas.
 
 ## Version 2 (not scheduled)
 

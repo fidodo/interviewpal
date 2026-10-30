@@ -1,4 +1,5 @@
 import type { CodeSpec } from "../code/protocol";
+import type { Diagram } from "../design/kinds";
 
 export type Track = string;
 
@@ -280,5 +281,37 @@ export interface DebugChallenge {
     missed: string[];
     bugs: string[];
     referenceFix: string;
+  } | null;
+}
+
+export interface DesignSummary {
+  id: string;
+  title: string;
+  level: Difficulty;
+  status: "OPEN" | "GRADING" | "SUBMITTED";
+  score: number | null;
+  createdAt: string;
+}
+
+export interface DesignChallenge {
+  id: string;
+  title: string;
+  brief: string;
+  level: Difficulty;
+  requirements: { functional: string[]; nonFunctional: string[] };
+  status: "OPEN" | "GRADING" | "SUBMITTED";
+  hints: string[];
+  hintsLeft: number;
+  result: {
+    score: number;
+    diagram: Diagram;
+    notes: string;
+    breakdown: { requirements: number; architecture: number; scalability: number; tradeoffs: number } | null;
+    strengths: string[];
+    gaps: string[];
+    feedback: string;
+    followUps: string[];
+    keyPoints: string[];
+    referenceDesign: string;
   } | null;
 }

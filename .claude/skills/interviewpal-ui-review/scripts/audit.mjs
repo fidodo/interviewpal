@@ -34,6 +34,8 @@ await api.post(`${BASE}/api/sessions/${s2}/questions`);
 // Kids section: one learner and one AI-generated challenge (uses the kids AI limiter, not the interview one).
 const childId = (await (await api.post(`${BASE}/api/kids/children`, { data: { displayName: "Audit", age: 11, avatar: "owl" } })).json()).child.id;
 const kidChallenge = (await (await api.post(`${BASE}/api/kids/children/${childId}/courses/coding-python/challenges`, { data: {} })).json()).challenge.id;
+// System design: one AI-written question to audit the canvas page.
+const designId = (await (await api.post(`${BASE}/api/design`, { data: { level: "JUNIOR" } })).json()).challenge.id;
 const storage = await setupCtx.storageState();
 
 for (const scheme of ["light", "dark"]) {
@@ -58,6 +60,11 @@ for (const scheme of ["light", "dark"]) {
     await audit(page, `session-guide-${tag}`);
     await page.keyboard.press("Escape");
     await audit(page, `session-${tag}`);
+    await page.goto(`${BASE}/design`);
+    await audit(page, `design-${tag}`);
+    await page.goto(`${BASE}/design/${designId}`);
+    await page.waitForSelector(".dg-svg");
+    await audit(page, `design-canvas-${tag}`);
     await page.goto(`${BASE}/kids/parent`);
     await page.waitForSelector("h1");
     await audit(page, `kids-parent-${tag}`);
