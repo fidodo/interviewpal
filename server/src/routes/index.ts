@@ -9,6 +9,7 @@ import { debugRouter } from "../debug/debug.routes";
 import { designRouter } from "../design/design.routes";
 import { raglabRouter } from "../raglab/raglab.routes";
 import { storyRouter } from "../story/story.routes";
+import { termsRouter } from "../terms/terms.routes";
 
 export const apiRouter = Router();
 
@@ -25,3 +26,4 @@ apiRouter.use("/debug", debugRouter);
 apiRouter.use("/design", designRouter);
 apiRouter.use("/rag-lab", raglabRouter);
 apiRouter.use("/story", storyRouter);
+apiRouter.use("/terms", termsRouter);

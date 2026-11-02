@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { COURSES } from "./curriculum";
+import { seedTerms } from "./seedTerms";
 
 const prisma = new PrismaClient();
 
@@ -113,6 +114,7 @@ async function main() {
   await seedUser(process.env.SEED_USER_2_EMAIL, process.env.SEED_USER_2_PASSWORD, "user 2");
   await seedTopics();
   await seedCourses();
+  await seedTerms(prisma);
 }
 
 main()

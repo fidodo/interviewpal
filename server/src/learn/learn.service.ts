@@ -1,18 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { parseJsonArray } from "../utils/json";
+import { BOX_INTERVAL_DAYS, DAY_MS, MAX_BOX, daysFromNow } from "../utils/spacedRepetition";
 import { generateValidated } from "../ai/retry";
 import { levelLabel } from "../roles/roles.prompts";
 import { lessonPrompt, outlinePrompt, shortAnswerPrompt } from "./learn.prompts";
 import { lessonSchema, outlineSchema, shortMarkSchema } from "./learn.schemas";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-// Spaced repetition: days until the next review for boxes 1-4. Answering correctly in box 4 retires the item.
-const BOX_INTERVAL_DAYS = [0, 1, 3, 7, 14];
-const MAX_BOX = 4;
 const REVIEW_BATCH = 20;
-
-const daysFromNow = (days: number) => new Date(Date.now() + days * DAY_MS);
 
 export const parseOptions = (value: string) => parseJsonArray<string>(value);
 

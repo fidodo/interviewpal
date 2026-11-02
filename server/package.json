@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:seed-terms": "tsx prisma/seedTerms.ts",
     "prisma:studio": "prisma studio"
   },
   "prisma": {

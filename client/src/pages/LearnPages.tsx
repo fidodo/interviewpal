@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import { learnApi } from "../api/learn";
 import { LessonContent } from "../components/LessonContent";
 import { LearnQuestionCard } from "../components/LearnQuestionCard";
+import { TermsCallout } from "../terms/TermsCallout";
 import { Difficulty, LEVEL_LABELS, LearnCourse, LearnCourseSummary, LearnLesson, ReviewItem } from "../types";
 
 const LEVELS: Difficulty[] = ["JUNIOR", "INTERMEDIATE", "SENIOR"];
@@ -54,6 +55,8 @@ export function LearnPage() {
     <div className="page">
       <h1 className="page-title">Learn</h1>
       <p className="page-subtitle">Short courses with practice questions. Anything you get wrong comes back for review until it sticks.</p>
+
+      <TermsCallout />
 
       <section className={`card review-callout ${dueCount ? "has-due" : ""}`} aria-labelledby="review-callout-title">
         <h2 id="review-callout-title" className="card-title">

@@ -29,6 +29,7 @@ Server (`server/`):
 - `npm run build` / `npm start` — compile with `tsc` then run compiled output
 - `npm run prisma:migrate` — apply Prisma migrations (Postgres, via `DATABASE_URL` in `.env` — a pooled Neon connection string)
 - `npm run prisma:seed` — seed starter topics and the two users defined by `SEED_USER_1_EMAIL`/`SEED_USER_1_PASSWORD` and `SEED_USER_2_EMAIL`/`SEED_USER_2_PASSWORD` in `.env`
+- `npm run prisma:seed-terms` — load just the Terms starter decks (`prisma/terms/`); safe to re-run, terms are upserted by `presetKey`
 - `npm run prisma:studio` — open Prisma Studio
 
 Client (`client/`):
@@ -172,6 +173,19 @@ Storytelling practice: the user tells a story or explains a topic out loud, gets
   - **Retells** pass the previous take's scores and improvements to the grader.
 - **One grading at a time:** a take claims the story (`gradingAt`, retaken after 2 minutes) before the AI call, so a double submit is refused before a second call. `@@unique([storyId, number])` backs this up.
 - **Limits:** the AI routes use `requireVerified`, `aiLimiter` and `aiDailyLimiter`, so Speak shares the 50-a-day interview allowance.
+
+### Terms (`/terms`, `server/src/terms`, `client/src/terms`)
+Interview terminology with spaced review. It's reached from the Learn page and a dashboard card (`TermsCallout`), not the nav.
+- **Where terms live:** a `Term` is either a shared starter-deck term (`userId` null, `source: PRESET`, written by hand in `server/prisma/terms/` and upserted by `presetKey`) or the user's own (`AI` deck or `MANUAL`). A term is on someone's list when they have a `TermProgress` row; removing a starter term deletes only that row.
+- **Boxes decide the exercise** (`modeForBox`):
+  - box 1: Recognise (pick the definition, marked in code)
+  - boxes 2–3: Recall (explain it, rated by the learner after `GET /review/:id/reveal`, or AI-marked on request; box 3 asks for an example)
+  - box 4: Use it (answer the term's interview question; AI-marked, and passing requires `usedCorrectly`)
+- **Moving between boxes** (`nextBox`): right moves up, and passing box 4 masters the term. Partly stays, and wrong moves down one; both come back tomorrow. Intervals come from `utils/spacedRepetition.ts`, shared with Learn.
+- **Only due or new terms move.** Practising ahead (`?ahead=1`) never changes the schedule. Answers are conditional `updateMany`s, so a double submit moves a term once.
+- **New terms:** at most `NEW_PER_DAY` (5) are introduced per UTC day.
+- **Recognise options** are the term's one-liner plus other one-liners from the same deck (stored `distractors` fill any gap). They're shuffled on the server, and the answer only comes back after answering.
+- **Limits:** AI routes (generating a deck, adding a term, AI-marked Recall, Use it) use the shared 50-a-day allowance; everything else is behind `termsLimiter` only.
 
 ### Kids section (`/kids`)
 A learning area for a parent's children, kept separate from the interview app.

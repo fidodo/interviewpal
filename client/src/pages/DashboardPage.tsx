@@ -4,6 +4,7 @@ import { api, ApiError } from "../api/client";
 import { rolesApi } from "../api/roles";
 import { TopicPicker } from "../components/TopicPicker";
 import { RoleHub } from "../components/RoleHub";
+import { TermsCallout } from "../terms/TermsCallout";
 import { PersonaPicker } from "../components/PersonaPicker";
 import { Difficulty, Persona, PRESET_TRACKS, RoleDetail, SessionListItem, Topic } from "../types";
 import { HistoryList } from "../components/HistoryList";
@@ -178,6 +179,8 @@ export function DashboardPage() {
       </div>
 
       {activeRole !== undefined && <RoleHub detail={activeRole} onChanged={loadActiveRole} />}
+
+      <TermsCallout />
 
       <section className="card" aria-labelledby="setup-title" data-tour="quick-practice">
         <h2 id="setup-title" className="card-title">

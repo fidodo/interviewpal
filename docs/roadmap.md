@@ -151,6 +151,22 @@ What was built:
 
 **Next ideas:** a story bank, so strong personal stories can be tagged (conflict, leadership, failure) and reused in Mock interview behavioural rounds.
 
+## Terms: interview terminology (built 2026-11-02)
+
+**What it is:** a section at `/terms` (from Learn and the dashboard) for learning the terms interviewers expect.
+- **Where terms come from:**
+  - starter decks per track (74 hand-written terms)
+  - AI decks for any topic
+  - single terms you heard, which the AI fills in
+- **How each term is practised:** it goes from Recognise (pick the definition), to Recall (explain it; self-rated or AI-marked), to Use it (answer an interview question using the term, AI-marked), on a 1/3/7/14-day schedule.
+- **Each term card shows:** a one-liner, an explanation, an example sentence, key points, "often confused with", the interview question it comes up in, and a "Hear it" pronunciation button.
+
+**Next ideas:**
+- find terms you misused or could have used in your interview answers
+- "explain it in Speak"
+- spot-the-misuse exercises
+- Anki export
+
 ## Version 2 (not scheduled)
 
 - **Monetisation.** A section on the home (login) page explaining what InterviewPal does, how it helps, and pricing tiers. Likely paired with a higher AI allowance for paid plans.

@@ -146,3 +146,9 @@ export const ragGradeDailyLimiter = limiter("rag-grade-day", DAY, 80, "You've gr
   keyGenerator: byUserOrIp,
   skip: isAdmin,
 });
+
+// Terms review (server/src/terms): answering cards that aren't AI-marked is free, but still burst-limited.
+export const termsLimiter = limiter("terms", 60_000, 120, "You're going through cards very fast. Wait a minute and carry on.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});

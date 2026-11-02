@@ -32,6 +32,8 @@ model User {
   designs       DesignChallenge[]
   ragProjects   RagProject[]
   stories       StoryPractice[]
+  terms         Term[]
+  termProgress  TermProgress[]
 }
 
 // Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
@@ -530,4 +532,52 @@ model StoryTake {
   createdAt   DateTime      @default(now())
 
   @@unique([storyId, number])
+}
+
+// Terms (server/src/terms): interview terminology with spaced review. Starter-deck terms have no userId and are
+// shared; a term is on a user's list when they have a TermProgress row for it.
+model Term {
+  id                String         @id @default(cuid())
+  userId            String?
+  user              User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // "backend:idempotency": set on starter-deck terms so re-seeding updates them in place.
+  presetKey         String?        @unique
+  // The starter deck's track, or the topic an AI deck was made for.
+  deck              String
+  term              String
+  oneLiner          String
+  explanation       String
+  example           String
+  // JSON string[]
+  keyPoints         String
+  confusedWith      String?
+  interviewQuestion String
+  // JSON string[]: wrong one-liners for Recognise, used when the deck doesn't have enough other terms.
+  distractors       String
+  // PRESET | AI | MANUAL
+  source            String
+  createdAt         DateTime       @default(now())
+  progress          TermProgress[]
+
+  @@index([userId, deck])
+}
+
+model TermProgress {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  termId       String
+  term         Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  // 1 Recognise, 2-3 Recall, 4 Use it.
+  box          Int       @default(1)
+  dueAt        DateTime
+  introducedAt DateTime?
+  masteredAt   DateTime?
+  // RIGHT | PARTLY | WRONG
+  lastResult   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, termId])
+  @@index([userId, dueAt])
 }
