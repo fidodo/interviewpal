@@ -19,6 +19,8 @@ function serialize(c: Challenge) {
   const bugs = parseJsonArray<{ description: string; hint: string }>(c.bugs);
   const hinted = debugService.hintedIndexes(c);
   const submitted = c.status === "SUBMITTED";
+  const revealed = c.status === "REVEALED";
+  const revealInfo = revealed ? (parseObject<{ fixed: boolean[] }>(c.feedback)?.fixed ?? bugs.map(() => false)) : null;
   return {
     id: c.id,
     title: c.title,
@@ -42,7 +44,23 @@ function serialize(c: Challenge) {
           bugs: bugs.map((b) => b.description),
           referenceFix: c.referenceFix,
         }
-      : null,
+      : revealed && revealInfo
+        ? {
+            // "Show me the answer": no score; what was fixed when the learner gave up, bug by bug.
+            revealed: true,
+            score: null,
+            submittedCode: c.submittedCode,
+            explanation: null,
+            testResults: null,
+            fixed: bugs.map((_, i) => !!revealInfo[i]),
+            bugsFixed: revealInfo.filter(Boolean).length,
+            feedback: "",
+            missed: bugs.filter((_, i) => !revealInfo[i]).map((b) => b.description),
+            bugHints: bugs.map((b, i) => (hinted.includes(i) ? b.hint : null)),
+            bugs: bugs.map((b) => b.description),
+            referenceFix: c.referenceFix,
+          }
+        : null,
   };
 }
 
@@ -51,12 +69,28 @@ export async function listChallenges(req: AuthedRequest, res: Response) {
 }
 
 export async function createChallenge(req: AuthedRequest, res: Response) {
-  const parsed = z.object({ language: z.enum(DEBUG_LANGUAGE_KEYS), level: z.nativeEnum(Difficulty) }).safeParse(req.body);
+  const parsed = z
+    .union([
+      z.object({ language: z.enum(DEBUG_LANGUAGE_KEYS), level: z.nativeEnum(Difficulty) }),
+      // "Try a similar one": the same stack, level and kinds of bugs as one of your own exercises.
+      z.object({ similarTo: z.string().min(1).max(40) }),
+    ])
+    .safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Pick a language and a level" });
     return;
   }
-  const challenge = await debugService.createChallenge(req.userId!, parsed.data.language, parsed.data.level);
+  let language: DebugLanguage, level: string, similarBugs: string[] | undefined;
+  if ("similarTo" in parsed.data) {
+    const source = await debugService.findChallenge(req.userId!, parsed.data.similarTo);
+    if (!source || !(source.language in DEBUG_LANGUAGES)) return notFound(res);
+    language = source.language as DebugLanguage;
+    level = source.level;
+    similarBugs = parseJsonArray<{ description: string }>(source.bugs).map((b) => b.description.slice(0, 300));
+  } else {
+    ({ language, level } = parsed.data);
+  }
+  const challenge = await debugService.createChallenge(req.userId!, language, level, similarBugs);
   res.status(201).json({ challenge: { id: challenge.id } });
 }
 
@@ -109,6 +143,33 @@ export async function useHint(req: AuthedRequest, res: Response) {
   }
   const outcome = await debugService.giveHint(req.userId!, challenge, statuses);
   res.json({ challenge: serialize(outcome.challenge), message: outcome.message });
+}
+
+// "Show me the answer": works out which bugs the learner's current code fixes (free check, AI only for unclear ones),
+// then closes the exercise unscored and returns the full answer.
+export async function revealAnswer(req: AuthedRequest, res: Response) {
+  const parsed = z.object({ code: z.string().max(20000) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Send your current code (up to 20,000 characters)" });
+    return;
+  }
+  const challenge = await debugService.findChallenge(req.userId!, req.params.id);
+  if (!challenge) return notFound(res);
+  if (challenge.status !== "OPEN") {
+    res.status(409).json({ error: "This exercise has already been submitted or its answer shown." });
+    return;
+  }
+  let statuses = debugService.hintStatuses(challenge, parsed.data.code);
+  if (statuses.includes("unclear")) {
+    if (!(await passes(req, res, [requireVerified, aiLimiter, aiDailyLimiter]))) return;
+    statuses = await debugService.settleWithAi(challenge, parsed.data.code, statuses);
+  }
+  const revealed = await debugService.revealAnswer(req.userId!, challenge, parsed.data.code, statuses);
+  if (!revealed) {
+    res.status(409).json({ error: "This exercise has already been submitted or its answer shown." });
+    return;
+  }
+  res.json({ challenge: serialize(revealed) });
 }
 
 export async function submitFix(req: AuthedRequest, res: Response) {

@@ -253,7 +253,8 @@ export interface DebugSummary {
   title: string;
   language: string;
   level: Difficulty;
-  status: "OPEN" | "GRADING" | "SUBMITTED";
+  // REVEALED: the learner chose "Show me the answer" (no score).
+  status: "OPEN" | "GRADING" | "SUBMITTED" | "REVEALED";
   score: number | null;
   createdAt: string;
 }
@@ -267,14 +268,18 @@ export interface DebugChallenge {
   level: Difficulty;
   buggyCode: string;
   spec: CodeSpec | null;
-  status: "OPEN" | "GRADING" | "SUBMITTED";
+  status: "OPEN" | "GRADING" | "SUBMITTED" | "REVEALED";
   bugCount: number;
   hints: string[];
   hintsLeft: number;
   result: {
-    score: number;
+    // Set when the answer was shown instead of submitted: no score, and which bugs were fixed at that point.
+    revealed?: boolean;
+    fixed?: boolean[];
+    bugHints?: (string | null)[];
+    score: number | null;
     submittedCode: string;
-    explanation: string;
+    explanation: string | null;
     testResults: { passed: number; total: number } | null;
     bugsFixed: number;
     feedback: string;

@@ -83,8 +83,15 @@ export const debugGradeSchema = z.object({
   missed: z.array(z.string().max(600)).max(6).default([]),
 });
 
-export function challengePrompt(params: { language: DebugLanguage; level: string; roleTitle: string | null; recentTitles: string[] }): string {
-  const { language, level, roleTitle, recentTitles } = params;
+export function challengePrompt(params: {
+  language: DebugLanguage;
+  level: string;
+  roleTitle: string | null;
+  recentTitles: string[];
+  // "Try a similar one": the bugs of an exercise the learner gave up on, to practise the same kinds again.
+  similarBugs?: string[];
+}): string {
+  const { language, level, roleTitle, recentTitles, similarBugs } = params;
   const { label, runnable } = DEBUG_LANGUAGES[language];
   return [
     `You write realistic debugging exercises for a ${levelLabel(level)} developer${roleTitle ? ` preparing for a "${roleTitle}" job` : ""}.`,
@@ -95,6 +102,9 @@ export function challengePrompt(params: { language: DebugLanguage; level: string
       ? `The code must define a function that "spec" describes (same name and parameters), using only the standard library, with no I/O, imports of third-party packages${language === "javascript" ? ", require/import statements or DOM access" : ""}. "spec.tests": 3-6 cases { "args": [...], "expected": ... } with plain JSON values that ALL pass on referenceFix, where at least one FAILS on buggyCode.`
       : `"spec" must be null (this stack isn't run, the fix is reviewed).`,
     recentTitles.length ? `Don't repeat these recent exercises: ${recentTitles.join("; ")}.` : null,
+    similarBugs?.length
+      ? `The developer just struggled with bugs like these. Plant bugs of the same kinds, in a different scenario with different code:\n${similarBugs.map((b) => `- ${b}`).join("\n")}`
+      : null,
     ``,
     `Format "buggyCode" and "referenceFix" the way a careful developer would commit them: one statement per line, the usual indentation for ${label} (${language === "python" || language === "java" || language === "csharp" || language === "kotlin" || language === "cpp" || language === "php" ? "4 spaces" : "2 spaces"}), lines under 100 characters, and blank lines between logical blocks. Never put the code on one line; use "\\n" newlines in the JSON strings.`,
     `"title": a short name. "scenario": 2-4 sentences: what the code is meant to do and the symptom someone reported (not the cause).`,

@@ -48,14 +48,14 @@ export function hintedIndexes(c: { hintedBugs: string; hintsUsed: number }): num
   return stored.length || !c.hintsUsed ? stored : Array.from({ length: c.hintsUsed }, (_, i) => i);
 }
 
-export async function createChallenge(userId: string, language: DebugLanguage, level: string) {
+export async function createChallenge(userId: string, language: DebugLanguage, level: string, similarBugs?: string[]) {
   const [role, recent] = await Promise.all([
     prisma.targetRole.findFirst({ where: { userId, isActive: true }, select: { title: true } }),
     prisma.debugChallenge.findMany({ where: { userId, language }, orderBy: { createdAt: "desc" }, take: RECENT, select: { title: true } }),
   ]);
   const runnable = DEBUG_LANGUAGES[language].runnable;
   const generated = await generateValidated(
-    challengePrompt({ language, level, roleTitle: role?.title ?? null, recentTitles: recent.map((r) => r.title) }),
+    challengePrompt({ language, level, roleTitle: role?.title ?? null, recentTitles: recent.map((r) => r.title), similarBugs }),
     challengeSchema(runnable)
   );
   const [buggyCode, referenceFix] = await Promise.all([formatCode(language, generated.buggyCode), formatCode(language, generated.referenceFix)]);
@@ -136,6 +136,23 @@ export async function giveHint(userId: string, challenge: Challenge, statuses: B
     data: { hintsUsed: { increment: 1 }, hintedBugs: JSON.stringify([...hinted, next]) },
   });
   return { challenge: (await findChallenge(userId, challenge.id))!, message: null };
+}
+
+// "Show me the answer": closes the exercise unscored and records which bugs the learner had fixed. The conditional
+// write on status OPEN means it can't race a submit (which also only claims OPEN) or a second reveal.
+export async function revealAnswer(userId: string, challenge: Challenge, code: string, statuses: BugStatus[]) {
+  const claimed = await prisma.debugChallenge.updateMany({
+    where: { id: challenge.id, userId, status: "OPEN" },
+    data: {
+      status: "REVEALED",
+      submittedCode: code,
+      feedback: JSON.stringify({ revealed: true, fixed: statuses.map((s) => s === "fixed") }),
+      score: null,
+      submittedAt: new Date(),
+    },
+  });
+  if (claimed.count !== 1) return null;
+  return prisma.debugChallenge.findUniqueOrThrow({ where: { id: challenge.id } });
 }
 
 // Grades a fix once. The challenge is claimed (OPEN -> GRADING) first so a double submit can't grade twice; if

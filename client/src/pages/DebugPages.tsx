@@ -2,6 +2,7 @@ import { FormEvent, lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { debugApi } from "../api/debug";
+import { CopyButton } from "../components/CopyButton";
 import { ScoreBadge } from "../components/ScoreBadge";
 import { runTests } from "../code/runTests";
 import { RunLanguage } from "../code/protocol";
@@ -134,7 +135,7 @@ export function DebugPage() {
                   <span className="course-item-title">{c.title}</span>
                   <span className="helper-text">
                     {DEBUG_LANGUAGES[c.language]?.label ?? c.language} · {LEVEL_LABELS[c.level]} ·{" "}
-                    {c.status === "SUBMITTED" ? `scored ${c.score}/10` : "not submitted yet"}
+                    {c.status === "SUBMITTED" ? `scored ${c.score}/10` : c.status === "REVEALED" ? "answer shown" : "not submitted yet"}
                   </span>
                 </Link>
               </li>
@@ -153,7 +154,8 @@ export function DebugChallengePage() {
   const [code, setCode] = useState("");
   const [explanation, setExplanation] = useState("");
   const [editorKey, setEditorKey] = useState(0);
-  const [busy, setBusy] = useState<"hint" | "submit" | "format" | null>(null);
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState<"hint" | "submit" | "format" | "reveal" | "similar" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A message about hints that isn't a new hint (e.g. "your code looks like it fixes every bug").
   const [hintMessage, setHintMessage] = useState<string | null>(null);
@@ -205,6 +207,35 @@ export function DebugChallengePage() {
     }
   }
 
+  // "Show me the answer": closes the exercise unscored and shows what was fixed, bug by bug.
+  async function reveal() {
+    if (!challenge || !window.confirm("You'll see the planted bugs and a fix, and this exercise won't be scored. Show the answer?")) return;
+    setBusy("reveal");
+    setError(null);
+    try {
+      const res = await debugApi.reveal(id, code);
+      writeDraft(id, null);
+      setChallenge(res.challenge);
+      requestAnimationFrame(() => resultRef.current?.focus());
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't show the answer. Try again."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function trySimilar() {
+    setBusy("similar");
+    setError(null);
+    try {
+      const res = await debugApi.createSimilar(id);
+      navigate(`/debug/${res.challenge.id}`);
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't write a similar exercise. Try again."));
+      setBusy(null);
+    }
+  }
+
   function reset() {
     if (!challenge || !window.confirm("Put the original buggy code back? Your changes will be lost.")) return;
     writeDraft(id, null);
@@ -244,7 +275,7 @@ export function DebugChallengePage() {
 
   const { result } = challenge;
   const languageLabel = DEBUG_LANGUAGES[challenge.language]?.label ?? challenge.language;
-  const open = challenge.status !== "SUBMITTED";
+  const open = challenge.status === "OPEN" || challenge.status === "GRADING";
 
   return (
     <div className="page">
@@ -281,6 +312,8 @@ export function DebugChallengePage() {
                     {busy === "format" ? "Formatting…" : "Format code"}
                   </button>
                 )}
+                <CopyButton text={() => code} label="Copy code" />
+                <CopyButton text={challenge.buggyCode} label="Copy the original" />
                 <button type="button" className="btn-link btn-link-inline" onClick={reset}>
                   Reset to original
                 </button>
@@ -346,13 +379,68 @@ export function DebugChallengePage() {
             <button type="button" className="btn btn-primary btn-block" onClick={submit} disabled={busy !== null || !code.trim()}>
               {busy === "submit" ? (challenge.runnable ? "Running tests and grading…" : "Grading your fix…") : "Submit my fix"}
             </button>
+            <button type="button" className="btn btn-secondary btn-block debug-reveal" onClick={reveal} disabled={busy !== null}>
+              {busy === "reveal" ? "Checking your code…" : "Can't solve it? Show me the answer"}
+            </button>
           </section>
         </>
+      ) : result?.revealed ? (
+        <section ref={resultRef} tabIndex={-1} className="card debug-result" aria-labelledby="debug-result-title">
+          <h2 id="debug-result-title" className="feedback-title">
+            Answer shown: you fixed {result.bugsFixed} of {challenge.bugCount} bug{challenge.bugCount === 1 ? "" : "s"}
+          </h2>
+          <p className="helper-text">Not scored. Try a similar one to practise the same kinds of bug while they're fresh.</p>
+          <h3 className="feedback-list-title">Bug by bug</h3>
+          <ol className="feedback-list debug-bug-status">
+            {result.bugs.map((b, i) => (
+              <li key={i}>
+                <span className={`badge ${result.fixed?.[i] ? "badge-success" : "badge-warning"}`}>{result.fixed?.[i] ? "Fixed" : "Not fixed yet"}</span> {b}
+                {result.bugHints?.[i] && <span className="helper-text"> Hint you had: {result.bugHints[i]}</span>}
+              </li>
+            ))}
+          </ol>
+          <div className="debug-compare">
+            <div>
+              <div className="code-header">
+                <h3 className="feedback-list-title">A fix</h3>
+                <CopyButton text={result.referenceFix} label="Copy the fix" />
+              </div>
+              <pre className="lesson-code" tabIndex={0} aria-label="Reference fix">
+                {result.referenceFix}
+              </pre>
+            </div>
+            <div>
+              <div className="code-header">
+                <h3 className="feedback-list-title">Your code when you stopped</h3>
+                <CopyButton text={result.submittedCode} label="Copy your code" />
+              </div>
+              <pre className="lesson-code" tabIndex={0} aria-label="Your code when you stopped">
+                {result.submittedCode}
+              </pre>
+            </div>
+          </div>
+          <div className="code-header">
+            <CopyButton text={challenge.buggyCode} label="Copy the original buggy code" />
+          </div>
+          {error && (
+            <p className="error-text" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="debug-result-actions">
+            <button type="button" className="btn btn-primary" onClick={trySimilar} disabled={busy !== null}>
+              {busy === "similar" ? "Writing a similar exercise…" : "Try a similar one"}
+            </button>
+            <Link to={`/debug?language=${challenge.language}`} className="btn btn-secondary">
+              Try another
+            </Link>
+          </div>
+        </section>
       ) : (
         result && (
           <section ref={resultRef} tabIndex={-1} className="card debug-result" aria-labelledby="debug-result-title">
             <div className="debug-result-head">
-              <ScoreBadge score={result.score} />
+              <ScoreBadge score={result.score ?? 0} />
               <div>
                 <h2 id="debug-result-title" className="feedback-title">
                   Fixed {result.bugsFixed} of {challenge.bugCount} bug{challenge.bugCount === 1 ? "" : "s"}
