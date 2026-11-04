@@ -1,12 +1,52 @@
 import { prisma } from "../db/prisma";
 import { generateValidated } from "../ai/retry";
 import { parseJsonArray } from "../utils/json";
-import { challengePrompt, challengeSchema, debugGradeSchema, DEBUG_LANGUAGES, DebugLanguage, gradePrompt } from "./debug.prompts";
+import {
+  challengePrompt,
+  challengeSchema,
+  debugGradeSchema,
+  DEBUG_LANGUAGES,
+  DebugLanguage,
+  GeneratedBug,
+  gradePrompt,
+  hintCheckPrompt,
+  hintCheckSchema,
+  MIN_CODE_LINES,
+} from "./debug.prompts";
+import { canFormat, formatCode, normaliseCode } from "./format";
 
 const RECENT = 10;
 const STALE_GRADING_MS = 2 * 60 * 1000;
 
-type Bug = { description: string; hint: string };
+type Bug = { description: string; hint: string; buggySnippet?: string | null; fixedSnippet?: string | null };
+type Challenge = NonNullable<Awaited<ReturnType<typeof findChallenge>>>;
+export type BugStatus = "present" | "fixed" | "unclear";
+
+// Keeps a bug's snippets only if they locate it: the buggy one is in the buggy code but not the fix, and the fixed one
+// is in the fix. Compared without layout, so formatting the code afterwards doesn't break the match.
+function checkSnippets(bug: GeneratedBug, buggyCode: string, referenceFix: string): Bug {
+  const code = normaliseCode(buggyCode);
+  const fix = normaliseCode(referenceFix);
+  const buggy = bug.buggySnippet ? normaliseCode(bug.buggySnippet) : "";
+  const fixed = bug.fixedSnippet ? normaliseCode(bug.fixedSnippet) : "";
+  const valid = buggy.length >= 3 && fixed.length >= 1 && code.includes(buggy) && !fix.includes(buggy) && fix.includes(fixed);
+  return { description: bug.description, hint: bug.hint, buggySnippet: valid ? bug.buggySnippet : null, fixedSnippet: valid ? bug.fixedSnippet : null };
+}
+
+// Whether a planted bug is still in the learner's code: the buggy snippet still there means present; gone with the
+// fixed snippet there means fixed; anything else (an unusual edit, or no usable snippets) is unclear.
+export function bugStatus(bug: Bug, code: string): BugStatus {
+  if (!bug.buggySnippet || !bug.fixedSnippet) return "unclear";
+  const current = normaliseCode(code);
+  if (current.includes(normaliseCode(bug.buggySnippet))) return "present";
+  return current.includes(normaliseCode(bug.fixedSnippet)) ? "fixed" : "unclear";
+}
+
+// Bug indexes already hinted, in order. Challenges from before hintedBugs existed revealed hints in bug order.
+export function hintedIndexes(c: { hintedBugs: string; hintsUsed: number }): number[] {
+  const stored = parseJsonArray<number>(c.hintedBugs);
+  return stored.length || !c.hintsUsed ? stored : Array.from({ length: c.hintsUsed }, (_, i) => i);
+}
 
 export async function createChallenge(userId: string, language: DebugLanguage, level: string) {
   const [role, recent] = await Promise.all([
@@ -18,6 +58,7 @@ export async function createChallenge(userId: string, language: DebugLanguage, l
     challengePrompt({ language, level, roleTitle: role?.title ?? null, recentTitles: recent.map((r) => r.title) }),
     challengeSchema(runnable)
   );
+  const [buggyCode, referenceFix] = await Promise.all([formatCode(language, generated.buggyCode), formatCode(language, generated.referenceFix)]);
   return prisma.debugChallenge.create({
     data: {
       userId,
@@ -25,10 +66,10 @@ export async function createChallenge(userId: string, language: DebugLanguage, l
       level,
       title: generated.title,
       scenario: generated.scenario,
-      buggyCode: generated.buggyCode,
+      buggyCode,
       spec: runnable && generated.spec ? JSON.stringify(generated.spec) : null,
-      bugs: JSON.stringify(generated.bugs),
-      referenceFix: generated.referenceFix,
+      bugs: JSON.stringify(generated.bugs.map((b) => checkSnippets(b, buggyCode, referenceFix))),
+      referenceFix,
     },
   });
 }
@@ -42,19 +83,59 @@ export function listChallenges(userId: string) {
   });
 }
 
-export function findChallenge(userId: string, id: string) {
-  return prisma.debugChallenge.findFirst({ where: { id, userId } });
+export async function findChallenge(userId: string, id: string) {
+  const challenge = await prisma.debugChallenge.findFirst({ where: { id, userId } });
+  if (!challenge || challenge.status !== "OPEN" || !canFormat(challenge.language)) return challenge;
+  // Older exercises were sometimes stored on one line: format them the first time they're opened. The write is
+  // conditional on the old code, so it happens once.
+  if (challenge.buggyCode.split("\n").length >= MIN_CODE_LINES) return challenge;
+  const [buggyCode, referenceFix] = await Promise.all([formatCode(challenge.language, challenge.buggyCode), formatCode(challenge.language, challenge.referenceFix)]);
+  if (buggyCode === challenge.buggyCode) return challenge;
+  await prisma.debugChallenge.updateMany({ where: { id, buggyCode: challenge.buggyCode }, data: { buggyCode, referenceFix } });
+  return { ...challenge, buggyCode, referenceFix };
 }
 
-// Reveals the next hint (stored when the challenge was written, so no AI call). The conditional write means two
-// quick clicks reveal one hint, not two.
-export async function useHint(userId: string, id: string) {
-  const challenge = await findChallenge(userId, id);
-  if (!challenge) return null;
+// Hint step 1: where each planted bug stands in the learner's current code, by the free snippet check.
+export function hintStatuses(challenge: Challenge, code: string) {
+  return parseJsonArray<Bug>(challenge.bugs).map((b) => bugStatus(b, code));
+}
+
+// Hint step 2, only when step 1 couldn't tell for some bugs: one AI call settles those, and only those.
+export async function settleWithAi(challenge: Challenge, code: string, statuses: BugStatus[]): Promise<BugStatus[]> {
   const bugs = parseJsonArray<Bug>(challenge.bugs);
-  if (challenge.status !== "OPEN" || challenge.hintsUsed >= bugs.length) return challenge;
-  await prisma.debugChallenge.updateMany({ where: { id, hintsUsed: challenge.hintsUsed, status: "OPEN" }, data: { hintsUsed: { increment: 1 } } });
-  return findChallenge(userId, id);
+  const unclear = statuses.map((s, i) => (s === "unclear" ? i : -1)).filter((i) => i >= 0);
+  if (!unclear.length) return statuses;
+  const { stillPresent } = await generateValidated(
+    hintCheckPrompt({
+      language: challenge.language as DebugLanguage,
+      buggyCode: challenge.buggyCode,
+      bugs: unclear.map((i) => ({ index: i + 1, description: bugs[i].description })),
+      code,
+    }),
+    hintCheckSchema
+  );
+  const present = new Set(stillPresent.map((n) => n - 1));
+  return statuses.map((s, i) => (s === "unclear" ? (present.has(i) ? "present" : "fixed") : s));
+}
+
+export type HintOutcome = { challenge: Challenge; message: string | null };
+
+// Hint step 3: the hint for the first bug that's still in the code and hasn't had one. Nothing is used up when every
+// bug looks fixed, or every remaining bug has had its hint already. The conditional write means two quick clicks
+// reveal one hint, not two.
+export async function giveHint(userId: string, challenge: Challenge, statuses: BugStatus[]): Promise<HintOutcome> {
+  const hinted = hintedIndexes(challenge);
+  const present = statuses.map((s, i) => (s === "present" ? i : -1)).filter((i) => i >= 0);
+  if (!present.length) return { challenge, message: "Your code looks like it fixes every planted bug. Run the tests or submit it." };
+  const next = present.find((i) => !hinted.includes(i));
+  if (next === undefined) {
+    return { challenge, message: `You've had a hint for every bug still in your code. Re-read hint ${hinted.indexOf(present[0]) + 1}.` };
+  }
+  await prisma.debugChallenge.updateMany({
+    where: { id: challenge.id, hintsUsed: challenge.hintsUsed, status: "OPEN" },
+    data: { hintsUsed: { increment: 1 }, hintedBugs: JSON.stringify([...hinted, next]) },
+  });
+  return { challenge: (await findChallenge(userId, challenge.id))!, message: null };
 }
 
 // Grades a fix once. The challenge is claimed (OPEN -> GRADING) first so a double submit can't grade twice; if

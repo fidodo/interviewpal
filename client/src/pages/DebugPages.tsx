@@ -5,6 +5,7 @@ import { debugApi } from "../api/debug";
 import { ScoreBadge } from "../components/ScoreBadge";
 import { runTests } from "../code/runTests";
 import { RunLanguage } from "../code/protocol";
+import { canFormat, FormatError, formatCode } from "../code/formatCode";
 import { DEBUG_LANGUAGES, DebugChallenge, DebugSummary, Difficulty, LEVEL_LABELS } from "../types";
 
 // CodeMirror and the runners are a separate chunk.
@@ -13,21 +14,37 @@ const CodeRunner = lazy(() => import("../code/CodeRunner").then((m) => ({ defaul
 const LEVELS: Difficulty[] = ["JUNIOR", "INTERMEDIATE", "SENIOR"];
 const errorMessage = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 const draftKey = (id: string) => `debug-code:${id}`;
+// The original code a draft was edited from: if the original changes (old one-line exercises are reformatted on
+// first open), the draft no longer lines up with it and is dropped.
+const draftBaseKey = (id: string) => `debug-code-base:${id}`;
 
-function readDraft(id: string) {
+function writeDraft(id: string, code: string | null, base?: string) {
   try {
-    return localStorage.getItem(draftKey(id));
+    if (code == null) {
+      localStorage.removeItem(draftKey(id));
+      localStorage.removeItem(draftBaseKey(id));
+    } else {
+      localStorage.setItem(draftKey(id), code);
+      if (base !== undefined) localStorage.setItem(draftBaseKey(id), base);
+    }
   } catch {
-    return null;
+    // Not remembered; nothing else breaks.
   }
 }
 
-function writeDraft(id: string, code: string | null) {
+function readDraft(id: string, original: string) {
   try {
-    if (code == null) localStorage.removeItem(draftKey(id));
-    else localStorage.setItem(draftKey(id), code);
+    const draft = localStorage.getItem(draftKey(id));
+    const base = localStorage.getItem(draftBaseKey(id));
+    // Drafts saved before bases were recorded: a one-line draft of what's now multi-line code is stale.
+    const stale = base !== null ? base !== original : !!draft && !draft.includes("\n") && original.includes("\n");
+    if (stale) {
+      writeDraft(id, null);
+      return null;
+    }
+    return draft;
   } catch {
-    // Not remembered; nothing else breaks.
+    return null;
   }
 }
 
@@ -136,8 +153,12 @@ export function DebugChallengePage() {
   const [code, setCode] = useState("");
   const [explanation, setExplanation] = useState("");
   const [editorKey, setEditorKey] = useState(0);
-  const [busy, setBusy] = useState<"hint" | "submit" | null>(null);
+  const [busy, setBusy] = useState<"hint" | "submit" | "format" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A message about hints that isn't a new hint (e.g. "your code looks like it fixes every bug").
+  const [hintMessage, setHintMessage] = useState<string | null>(null);
+  // Code to load into the editor on its next remount (after formatting), instead of the draft or the original.
+  const [loadCode, setLoadCode] = useState<string | null>(null);
   const resultRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -151,8 +172,12 @@ export function DebugChallengePage() {
   async function hint() {
     setBusy("hint");
     setError(null);
+    setHintMessage(null);
     try {
-      setChallenge((await debugApi.hint(id)).challenge);
+      // The server checks the current code, so the hint is for a bug that's still there.
+      const res = await debugApi.hint(id, code);
+      setChallenge(res.challenge);
+      setHintMessage(res.message);
     } catch (err) {
       setError(errorMessage(err, "Couldn't get a hint"));
     } finally {
@@ -183,7 +208,24 @@ export function DebugChallengePage() {
   function reset() {
     if (!challenge || !window.confirm("Put the original buggy code back? Your changes will be lost.")) return;
     writeDraft(id, null);
+    setLoadCode(null);
     setEditorKey((k) => k + 1);
+  }
+
+  async function format() {
+    if (!challenge) return;
+    setBusy("format");
+    setError(null);
+    try {
+      const formatted = await formatCode(challenge.language, code);
+      writeDraft(id, formatted === challenge.buggyCode ? null : formatted, challenge.buggyCode);
+      setLoadCode(formatted);
+      setEditorKey((k) => k + 1);
+    } catch (err) {
+      setError(err instanceof FormatError ? err.message : "Couldn't format the code.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   if (!challenge) {
@@ -233,21 +275,28 @@ export function DebugChallengePage() {
               <h2 id="debug-code-label" className="code-header-title">
                 The code
               </h2>
-              <button type="button" className="btn-link btn-link-inline" onClick={reset}>
-                Reset to original
-              </button>
+              <div className="code-header-actions">
+                {canFormat(challenge.language) && (
+                  <button type="button" className="btn-link btn-link-inline" onClick={format} disabled={busy !== null}>
+                    {busy === "format" ? "Formatting…" : "Format code"}
+                  </button>
+                )}
+                <button type="button" className="btn-link btn-link-inline" onClick={reset}>
+                  Reset to original
+                </button>
+              </div>
             </div>
             <Suspense fallback={<p className="helper-text">Loading the code editor…</p>}>
               <CodeRunner
                 language={challenge.language}
                 spec={challenge.runnable ? challenge.spec : null}
-                initialCode={(editorKey === 0 && readDraft(id)) || challenge.buggyCode}
+                initialCode={loadCode ?? ((editorKey === 0 && readDraft(id, challenge.buggyCode)) || challenge.buggyCode)}
                 editorKey={`${id}:${editorKey}`}
                 labelledBy="debug-code-label"
                 disabled={busy !== null}
                 onCodeChange={(next) => {
                   setCode(next);
-                  writeDraft(id, next === challenge.buggyCode ? null : next);
+                  writeDraft(id, next === challenge.buggyCode ? null : next, challenge.buggyCode);
                 }}
               />
             </Suspense>
@@ -264,8 +313,11 @@ export function DebugChallengePage() {
                 ))}
               </ol>
             ) : (
-              <p className="helper-text">Stuck? Each hint points you towards one bug, and costs about a point.</p>
+              <p className="helper-text">Stuck? Each hint points you towards a bug that's still in your code, and costs about a point.</p>
             )}
+            <p className="helper-text" aria-live="polite">
+              {hintMessage}
+            </p>
             {challenge.hintsLeft > 0 && (
               <button type="button" className="btn btn-secondary" onClick={hint} disabled={busy !== null}>
                 {busy === "hint" ? "Getting a hint…" : `Get a hint (${challenge.hintsLeft} left)`}

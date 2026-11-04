@@ -2,9 +2,16 @@ import { useEffect, useRef } from "react";
 import { EditorView, basicSetup } from "codemirror";
 import { keymap } from "@codemirror/view";
 import { indentWithTab } from "@codemirror/commands";
-import { HighlightStyle, defaultHighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, StreamLanguage, defaultHighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
+import { java } from "@codemirror/lang-java";
+import { cpp } from "@codemirror/lang-cpp";
+import { php } from "@codemirror/lang-php";
+import { sql } from "@codemirror/lang-sql";
+import { go } from "@codemirror/legacy-modes/mode/go";
+import { ruby } from "@codemirror/legacy-modes/mode/ruby";
+import { csharp, kotlin } from "@codemirror/legacy-modes/mode/clike";
 
 interface CodeEditorProps {
   initialCode: string;
@@ -30,11 +37,38 @@ const highlighting = syntaxHighlighting(
   HighlightStyle.define(defaultHighlightStyle.specs.map((spec) => (spec.color && DARKER[spec.color] ? { ...spec, color: DARKER[spec.color] } : spec)))
 );
 
+// Stacks conventionally indented with 4 spaces; the rest (JS family, SQL, Ruby, Go's gofmt aside) use 2.
+const FOUR_SPACE = new Set(["python", "java", "csharp", "kotlin", "cpp", "php"]);
+
 function languageSupport(language: string) {
-  if (language === "python") return [python()];
-  if (language === "javascript" || language === "react") return [javascript({ jsx: true })];
-  if (language === "typescript") return [javascript({ typescript: true })];
-  return [];
+  switch (language) {
+    case "python":
+      return [python()];
+    case "javascript":
+    case "react":
+      return [javascript({ jsx: true })];
+    case "typescript":
+      return [javascript({ typescript: true })];
+    case "java":
+      return [java()];
+    case "cpp":
+      return [cpp()];
+    case "php":
+      return [php()];
+    case "sql":
+      return [sql()];
+    // Stacks without an official CodeMirror package use the legacy (stream) modes.
+    case "go":
+      return [StreamLanguage.define(go)];
+    case "ruby":
+      return [StreamLanguage.define(ruby)];
+    case "kotlin":
+      return [StreamLanguage.define(kotlin)];
+    case "csharp":
+      return [StreamLanguage.define(csharp)];
+    default:
+      return [];
+  }
 }
 
 // Uncontrolled after mount: `initialCode` seeds it, and remounting (via `key`) resets it.
@@ -54,7 +88,7 @@ export function CodeEditor({ initialCode, onChange, language, labelledBy }: Code
         // Tab indents; Esc then Tab still moves focus out of the editor.
         keymap.of([indentWithTab]),
         ...languageSupport(language),
-        indentUnit.of(language === "python" ? "    " : "  "),
+        indentUnit.of(FOUR_SPACE.has(language) ? "    " : "  "),
         theme,
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({ "aria-labelledby": labelledBy }),

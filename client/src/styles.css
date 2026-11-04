@@ -2957,3 +2957,9 @@ button.rl-path-btn:hover {
 .tm-result-head {
   margin-top: 0;
 }
+
+.code-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}

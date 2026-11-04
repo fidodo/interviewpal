@@ -8,7 +8,9 @@ export async function retryOnInvalid<T>(fn: () => Promise<T>, attempts = 2): Pro
     try {
       return await fn();
     } catch (err) {
-      const invalidOutput = err instanceof ZodError || err instanceof SyntaxError;
+      // Groq checks JSON mode output itself and answers 400 "json_validate_failed" when the model's JSON is broken
+      // (e.g. raw newlines inside a string): that's invalid output too, not a provider fault.
+      const invalidOutput = err instanceof ZodError || err instanceof SyntaxError || (err as { code?: string }).code === "json_validate_failed";
       if (!invalidOutput || attempt >= attempts) throw err;
       console.warn(`AI returned invalid JSON (attempt ${attempt}), retrying:`, err instanceof Error ? err.message.slice(0, 200) : err);
     }

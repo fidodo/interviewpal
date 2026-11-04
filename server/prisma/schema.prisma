@@ -400,6 +400,8 @@ model DebugChallenge {
   bugs          String
   referenceFix  String
   hintsUsed     Int       @default(0)
+  // JSON number[]: indexes into `bugs` whose hint has been shown, in the order they were given.
+  hintedBugs    String    @default("[]")
   status        String    @default("OPEN")
   submittedCode String?
   explanation   String?

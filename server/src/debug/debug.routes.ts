@@ -13,6 +13,7 @@ debugRouter.use(requireAuth);
 debugRouter.get("/", asyncHandler(debugController.listChallenges));
 debugRouter.post("/", ...aiGuard, asyncHandler(debugController.createChallenge));
 debugRouter.get("/:id", asyncHandler(debugController.getChallenge));
-// Hints were written with the challenge, so revealing one costs no AI call.
+// Hints were written with the challenge; working out which bugs are left is a free code check, and only an unclear
+// case costs an AI call (the controller applies the AI limits then).
 debugRouter.post("/:id/hint", asyncHandler(debugController.useHint));
 debugRouter.post("/:id/submit", ...aiGuard, asyncHandler(debugController.submitFix));
