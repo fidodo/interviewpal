@@ -12,7 +12,7 @@ function summarise(language: RunLanguage, results: TestCaseResult[], output: str
   return { language, results, passed: results.filter((r) => r.passed).length, total: results.length, output, error };
 }
 
-function runJavaScript(code: string, spec: CodeSpec): Promise<TestRun> {
+function runJavaScript(code: string, spec: CodeSpec, language: "javascript" | "typescript"): Promise<TestRun> {
   jsWorker ??= new Worker(new URL("./js-runner.worker.ts", import.meta.url), { type: "module" });
   const worker = jsWorker;
   const id = nextId++;
@@ -22,16 +22,16 @@ function runJavaScript(code: string, spec: CodeSpec): Promise<TestRun> {
       worker.removeEventListener("message", onMessage);
       worker.terminate();
       jsWorker = null;
-      resolve(summarise("javascript", [], "", "Your code ran for too long and was stopped. Is there a loop that never ends?"));
+      resolve(summarise(language, [], "", "Your code ran for too long and was stopped. Is there a loop that never ends?"));
     }, JS_TIMEOUT_MS);
     function onMessage(event: MessageEvent<JsRunResponse>) {
       if (event.data.id !== id) return;
       window.clearTimeout(timer);
       worker.removeEventListener("message", onMessage);
-      resolve(summarise("javascript", event.data.results, event.data.logs.join("\n"), event.data.error));
+      resolve(summarise(language, event.data.results, event.data.logs.join("\n"), event.data.error));
     }
     worker.addEventListener("message", onMessage);
-    worker.postMessage({ id, code, functionName: spec.functionName, tests: spec.tests });
+    worker.postMessage({ id, language, code, functionName: spec.functionName, tests: spec.tests });
   });
 }
 
@@ -101,5 +101,5 @@ async function runPythonTests(code: string, spec: CodeSpec): Promise<TestRun> {
 }
 
 export function runTests(language: RunLanguage, code: string, spec: CodeSpec): Promise<TestRun> {
-  return language === "python" ? runPythonTests(code, spec) : runJavaScript(code, spec);
+  return language === "python" ? runPythonTests(code, spec) : runJavaScript(code, spec, language);
 }

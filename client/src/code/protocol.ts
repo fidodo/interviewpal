@@ -5,7 +5,7 @@ export interface CodeSpec {
   tests: { args: unknown[]; expected: unknown }[];
 }
 
-export type RunLanguage = "python" | "javascript";
+export type RunLanguage = "python" | "javascript" | "typescript";
 
 export interface TestCaseResult {
   passed: boolean;
@@ -26,6 +26,8 @@ export interface TestRun {
 // Messages for the JavaScript runner worker.
 export interface JsRunRequest {
   id: number;
+  // TypeScript is stripped to JavaScript (not type-checked) before it runs.
+  language: "javascript" | "typescript";
   code: string;
   functionName: string;
   tests: CodeSpec["tests"];

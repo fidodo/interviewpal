@@ -176,7 +176,7 @@ export async function submitFix(
     // Re-read after the claim, so a hint revealed just before it is counted.
     const { hintsUsed } = await prisma.debugChallenge.findUniqueOrThrow({ where: { id }, select: { hintsUsed: true } });
     const bugs = parseJsonArray<Bug>(challenge.bugs);
-    const runnable = DEBUG_LANGUAGES[challenge.language as DebugLanguage]?.runnable ?? false;
+    const runnable = (DEBUG_LANGUAGES[challenge.language as DebugLanguage]?.runnable ?? false) && challenge.spec != null;
     const testResults = runnable ? submission.testResults : null;
     const grade = await generateValidated(
       gradePrompt({

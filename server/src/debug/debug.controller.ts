@@ -26,7 +26,8 @@ function serialize(c: Challenge) {
     title: c.title,
     scenario: c.scenario,
     language: c.language,
-    runnable: DEBUG_LANGUAGES[c.language as DebugLanguage]?.runnable ?? false,
+    // Exercises written before a language became runnable have no spec, and stay AI-reviewed.
+    runnable: (DEBUG_LANGUAGES[c.language as DebugLanguage]?.runnable ?? false) && c.spec != null,
     level: c.level,
     buggyCode: c.buggyCode,
     spec: parseObject(c.spec),

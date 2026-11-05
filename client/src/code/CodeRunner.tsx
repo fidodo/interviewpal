@@ -5,7 +5,7 @@ import { runTests } from "./runTests";
 import { CodeSpec, RunLanguage, TestRun } from "./protocol";
 
 interface CodeRunnerProps {
-  // Language of the editor. Tests only run for Python and JavaScript.
+  // Language of the editor. Tests only run for Python, JavaScript and TypeScript.
   language: string;
   spec: CodeSpec | null;
   initialCode: string;
@@ -16,7 +16,7 @@ interface CodeRunnerProps {
   onRun?: (run: TestRun) => void;
 }
 
-const RUNNABLE: RunLanguage[] = ["python", "javascript"];
+const RUNNABLE: RunLanguage[] = ["python", "javascript", "typescript"];
 
 // A code editor with a "Run tests" button and results. Code-editing stacks that can't run in the browser just get
 // the editor.

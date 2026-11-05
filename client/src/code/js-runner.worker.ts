@@ -40,17 +40,40 @@ function toJson(value: unknown): unknown {
 }
 
 scope.onmessage = async (event) => {
-  const { id, code, functionName, tests } = event.data;
+  const { id, language, code, functionName, tests } = event.data;
   const logs: string[] = [];
   const log = (...args: unknown[]) => {
     if (logs.length < MAX_LOG_LINES) logs.push(args.map(format).join(" "));
   };
   const fakeConsole = { log, info: log, warn: log, error: log, debug: log };
 
+  // TypeScript (and any `export`) is compiled to plain JavaScript first. Types are stripped, not checked. sucrase is
+  // loaded only when needed, so JavaScript runs don't download it.
+  let source = code;
+  if (language === "typescript" || /\b(export|import)\b/.test(code)) {
+    try {
+      const { transform } = await import("sucrase");
+      source = transform(code, { transforms: language === "typescript" ? ["typescript", "imports"] : ["imports"] }).code;
+    } catch (err) {
+      scope.postMessage({ id, results: [], logs, error: `Your code doesn't compile: ${err instanceof Error ? err.message : String(err)}` });
+      return;
+    }
+  }
+  const module = { exports: {} as Record<string, unknown> };
+  const require = (name: string) => {
+    throw new Error(`Imports aren't available here ("${name}"). Use plain ${language === "typescript" ? "TypeScript" : "JavaScript"}.`);
+  };
+
   let fn: unknown;
   try {
     // functionName is checked on the server to be a plain identifier.
-    fn = new Function("console", `"use strict";\n${code}\n;return typeof ${functionName} === "function" ? ${functionName} : undefined;`)(fakeConsole);
+    fn = new Function(
+      "console",
+      "exports",
+      "module",
+      "require",
+      `"use strict";\n${source}\n;return typeof ${functionName} === "function" ? ${functionName} : module.exports[${JSON.stringify(functionName)}];`
+    )(fakeConsole, module.exports, module, require);
   } catch (err) {
     scope.postMessage({ id, results: [], logs, error: err instanceof Error ? `${err.name}: ${err.message}` : String(err) });
     return;

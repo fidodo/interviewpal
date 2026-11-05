@@ -7,7 +7,8 @@ import { codeSpecSchema } from "../ai/schemas";
 export const DEBUG_LANGUAGES = {
   python: { label: "Python", runnable: true },
   javascript: { label: "JavaScript", runnable: true },
-  typescript: { label: "TypeScript", runnable: false },
+  // Stripped to JavaScript with sucrase in the browser and run like JavaScript; types aren't checked.
+  typescript: { label: "TypeScript", runnable: true },
   react: { label: "React (JSX)", runnable: false },
   java: { label: "Java", runnable: false },
   csharp: { label: "C#", runnable: false },
@@ -99,8 +100,11 @@ export function challengePrompt(params: {
     `Write a short, realistic piece of ${label} code (20-60 lines) from a real-world scenario (e.g. a pricing function, a data clean-up, an API handler, a React component, a SQL report) that contains ${BUG_COUNT[level] ?? "2 bugs"}.`,
     `Bugs must be the kind that ship in real code: off-by-one, wrong condition, mutating shared state, missing edge case (empty input, null), wrong operator, async/await misuse, wrong JOIN or GROUP BY, stale state in React, and so on. No syntax errors unless the level is junior, and never comments or names that point at the bugs.`,
     runnable
-      ? `The code must define a function that "spec" describes (same name and parameters), using only the standard library, with no I/O, imports of third-party packages${language === "javascript" ? ", require/import statements or DOM access" : ""}. "spec.tests": 3-6 cases { "args": [...], "expected": ... } with plain JSON values that ALL pass on referenceFix, where at least one FAILS on buggyCode.`
+      ? `The code must define a function that "spec" describes (same name and parameters), using only the standard library, with no I/O, imports of third-party packages${language === "javascript" || language === "typescript" ? ", require/import statements or DOM access" : ""}. "spec.tests": 3-6 cases { "args": [...], "expected": ... } with plain JSON values that ALL pass on referenceFix, where at least one FAILS on buggyCode.`
       : `"spec" must be null (this stack isn't run, the fix is reviewed).`,
+    language === "typescript"
+      ? `The code is run with its types stripped, not type-checked, so every bug must change what the code does when it runs (a wrong value, condition or order), never be a type error alone. Use type annotations and interfaces as a careful developer would.`
+      : null,
     recentTitles.length ? `Don't repeat these recent exercises: ${recentTitles.join("; ")}.` : null,
     similarBugs?.length
       ? `The developer just struggled with bugs like these. Plant bugs of the same kinds, in a different scenario with different code:\n${similarBugs.map((b) => `- ${b}`).join("\n")}`

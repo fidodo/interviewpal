@@ -30,9 +30,10 @@ const theme = EditorView.theme({
   "&.cm-focused": { outline: "none" },
 });
 
-// CodeMirror's default highlight style, with the two colours that are under 4.5:1 on white darkened: escapes and
-// regexes (#e40) and invalid code (#f00). A non-fallback style replaces basicSetup's default entirely.
-const DARKER: Record<string, string> = { "#e40": "#b03000", "#f00": "#c00000" };
+// CodeMirror's default highlight style, with the colours that are under 4.5:1 on white or on the active line
+// darkened: escapes and regexes (#e40), invalid code (#f00) and type names (#085, only 3.9:1 on the active line).
+// A non-fallback style replaces basicSetup's default entirely.
+const DARKER: Record<string, string> = { "#e40": "#b03000", "#f00": "#c00000", "#085": "#006644" };
 const highlighting = syntaxHighlighting(
   HighlightStyle.define(defaultHighlightStyle.specs.map((spec) => (spec.color && DARKER[spec.color] ? { ...spec, color: DARKER[spec.color] } : spec)))
 );
