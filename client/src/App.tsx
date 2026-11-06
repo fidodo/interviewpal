@@ -26,6 +26,8 @@ const TermsHomePage = lazy(() => import("./terms/TermsPages").then((m) => ({ def
 const TermReviewPage = lazy(() => import("./terms/TermsPages").then((m) => ({ default: m.TermReviewPage })));
 const SpeakHomePage = lazy(() => import("./story/StoryPages").then((m) => ({ default: m.SpeakHomePage })));
 const StoryPage = lazy(() => import("./story/StoryPages").then((m) => ({ default: m.StoryPage })));
+const StoryBankPage = lazy(() => import("./story/BankPages").then((m) => ({ default: m.StoryBankPage })));
+const StoryDrillPage = lazy(() => import("./story/BankPages").then((m) => ({ default: m.StoryDrillPage })));
 const RagLabProjectPage = lazy(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabProjectPage })));
 
 function Loading() {
@@ -176,6 +178,26 @@ function InterviewRoutes() {
             <ProtectedRoute>
               <Suspense fallback={<Loading />}>
                 <SpeakHomePage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/speak/bank"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<Loading />}>
+                <StoryBankPage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/speak/bank/drill"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<Loading />}>
+                <StoryDrillPage />
               </Suspense>
             </ProtectedRoute>
           }

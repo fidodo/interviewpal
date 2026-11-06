@@ -182,6 +182,14 @@ Storytelling practice: the user tells a story or explains a topic out loud, gets
 - **One grading at a time:** a take claims the story (`gradingAt`, retaken after 2 minutes) before the AI call, so a double submit is refused before a second call. `@@unique([storyId, number])` backs this up.
 - **Limits:** the AI routes use `requireVerified`, `aiLimiter` and `aiDailyLimiter`, so Speak shares the 50-a-day interview allowance.
 
+### Story bank (`/speak/bank`, `server/src/story/bank.*`, `client/src/story/BankPages.tsx`)
+A user's best personal stories (`StoryBankEntry`, at most 30), each tagged with 1-3 of the 10 `COMPETENCIES` in `bank.prompts.ts`. The client gets the competency list from `GET /story-bank`, so it isn't duplicated.
+- **Adding:** "Save to my story bank" on a Speak story (one entry per story, `storyId` unique, set to null if the story is deleted; `bestScore` copied from its best take) or typed in on the bank page. `POST /story-bank/suggest` (AI) fills in a title, a STAR summary using only facts given, and tags; nothing is saved until the user saves the form. Over-long suggestions are trimmed at a sentence, not rejected.
+- **Coverage:** competencies with no story link to Speak with `?kind=EXPERIENCE&topic=…` prefilled.
+- **"Which story fits?" drill** (`/speak/bank/drill`): the question comes free from `BEHAVIOURAL_QUESTIONS`; `POST /story-bank/drill/judge` (AI) rates the pick against the whole bank and may point to a better story or a story worth adding. Only ids from the user's own bank are passed back.
+- **Mock reports:** after the report, a separate AI call (`storyNotesFor` in `roles/mock.ts`; inside the report prompt models skipped it) matches each behavioural answer to a bank story, stored as `SessionSummary.storyNotes` with titles, and bumps `timesUsed` for stories told. A failure there never blocks the report.
+- **Limits:** the two AI routes use the shared allowance; the rest is behind `bankLimiter`.
+
 ### Terms (`/terms`, `server/src/terms`, `client/src/terms`)
 Interview terminology with spaced review. It's reached from the Learn page and a dashboard card (`TermsCallout`), not the nav.
 - **Where terms live:** a `Term` is either a shared starter-deck term (`userId` null, `source: PRESET`, written by hand in `server/prisma/terms/` and upserted by `presetKey`) or the user's own (`AI` deck or `MANUAL`). A term is on someone's list when they have a `TermProgress` row; removing a starter term deletes only that row.

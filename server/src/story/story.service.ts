@@ -36,7 +36,7 @@ export async function listStories(userId: string) {
 }
 
 export function findStory(userId: string, id: string) {
-  return prisma.storyPractice.findFirst({ where: { id, userId }, include: { takes: { orderBy: { number: "asc" } } } });
+  return prisma.storyPractice.findFirst({ where: { id, userId }, include: { takes: { orderBy: { number: "asc" } }, bankEntry: { select: { id: true } } } });
 }
 
 export async function deleteStory(userId: string, id: string) {

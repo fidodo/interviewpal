@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { SaveToBank } from "./BankPages";
 import { ApiError } from "../api/client";
 import { storyApi } from "../api/story";
 import { MicButton } from "../components/MicButton";
@@ -19,8 +20,10 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2,
 // /speak: start a story (type, optional topic and audience, length) and see past ones.
 export function SpeakHomePage() {
   const navigate = useNavigate();
-  const [kind, setKind] = useState<StoryKind>("EXPERIENCE");
-  const [topic, setTopic] = useState("");
+  // ?kind=&topic= prefill the form (from the story bank: "practise one", "tell it now").
+  const [params] = useSearchParams();
+  const [kind, setKind] = useState<StoryKind>(() => (STORY_KINDS.some((k) => k.kind === params.get("kind")) ? (params.get("kind") as StoryKind) : "EXPERIENCE"));
+  const [topic, setTopic] = useState(() => (params.get("topic") ?? "").slice(0, 200));
   const [audience, setAudience] = useState("");
   const [target, setTarget] = useState<number>(120);
   const [stories, setStories] = useState<StorySummary[] | null>(null);
@@ -57,6 +60,9 @@ export function SpeakHomePage() {
       <p className="page-subtitle">
         Practise telling a story or explaining a topic out loud. Get marked on structure, clarity, specifics, how you came across and delivery, see a stronger version of
         your own story, then retell it and watch the scores move.
+      </p>
+      <p className="bank-callout">
+        <Link to="/speak/bank">Your story bank</Link>: keep your best stories, see which competencies have no story yet, and practise picking the right one for a question.
       </p>
 
       <form className="card" onSubmit={handleCreate}>
@@ -560,6 +566,7 @@ export function StoryPage() {
               </Link>
             </div>
           )}
+          {!recording && <SaveToBank storyId={story.id} bankEntryId={story.bankEntryId} onSaved={(id) => setStory((s) => (s ? { ...s, bankEntryId: id } : s))} />}
         </section>
       )}
 

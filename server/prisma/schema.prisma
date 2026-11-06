@@ -32,6 +32,7 @@ model User {
   designs       DesignChallenge[]
   ragProjects   RagProject[]
   stories       StoryPractice[]
+  storyBank     StoryBankEntry[]
   terms         Term[]
   termProgress  TermProgress[]
 }
@@ -169,6 +170,8 @@ model SessionSummary {
   // Mock interviews only: HIRE, LEAN_HIRE or NO_HIRE, and a JSON array of { round, score } averages.
   verdict      String?
   roundScores  String?
+  // Mock interviews only: JSON [{ question, used, suggested, note }] matching behavioural answers to the story bank.
+  storyNotes   String?
 }
 
 // ---- Kids section (see server/src/kids). Profiles belong to a parent User; children have no login. ----
@@ -520,9 +523,9 @@ model EmbeddingCache {
 
 // Speak: storytelling practice (server/src/story). One prompt, retold over up to 5 graded takes.
 model StoryPractice {
-  id            String      @id @default(cuid())
+  id            String          @id @default(cuid())
   userId        String
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   // EXPERIENCE | EXPLAIN | PITCH | OWN
   kind          String
   topic         String?
@@ -533,8 +536,9 @@ model StoryPractice {
   coachingNotes String
   // Set while a take is being graded, so a double submit can't grade twice.
   gradingAt     DateTime?
-  createdAt     DateTime    @default(now())
+  createdAt     DateTime        @default(now())
   takes         StoryTake[]
+  bankEntry     StoryBankEntry?
 
   @@index([userId, createdAt])
 }
@@ -604,4 +608,26 @@ model TermProgress {
 
   @@unique([userId, termId])
   @@index([userId, dueAt])
+}
+
+// The story bank (server/src/story/bank.*): a user's best personal stories, tagged by the competencies they show,
+// reused for behavioural questions. An entry may come from a Speak story (one entry per story) or be typed in.
+model StoryBankEntry {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storyId    String?        @unique
+  story      StoryPractice? @relation(fields: [storyId], references: [id], onDelete: SetNull)
+  title      String
+  // A short STAR summary, written for reuse (and given to the AI when matching stories to questions).
+  summary    String
+  // JSON array of competency keys (see COMPETENCIES in bank.prompts.ts).
+  tags       String
+  bestScore  Int?
+  timesUsed  Int            @default(0)
+  lastUsedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([userId])
 }

@@ -4,7 +4,7 @@ import { Difficulty } from "../types";
 import { AuthedRequest } from "../middleware/auth.middleware";
 import * as sessionService from "../services/session.service";
 import * as summaryService from "../services/summary.service";
-import { MOCK_PLAN } from "../roles/mock";
+import { MOCK_PLAN, StoryNote } from "../roles/mock";
 import { PERSONA_KEYS } from "../ai/personas";
 import { CodeSpec } from "../ai/provider.interface";
 import { parseJsonObject } from "../utils/json";
@@ -65,7 +65,7 @@ function parseRoundScores(value: string | null): { round: string; score: number 
 
 function serializeSummary(
   summary:
-    | { overallScore: number; assessment: string; strengths: string; improvements: string; verdict: string | null; roundScores: string | null }
+    | { overallScore: number; assessment: string; strengths: string; improvements: string; verdict: string | null; roundScores: string | null; storyNotes?: string | null }
     | null
     | undefined
 ) {
@@ -77,6 +77,7 @@ function serializeSummary(
     improvements: parseJsonArray(summary.improvements),
     verdict: summary.verdict,
     roundScores: parseRoundScores(summary.roundScores),
+    storyNotes: parseJsonObject<StoryNote[]>(summary.storyNotes ?? null),
   };
 }
 

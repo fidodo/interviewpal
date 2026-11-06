@@ -66,6 +66,49 @@ export interface Story {
   shape: string[];
   coachingNotes: string[] | null;
   maxTakes: number;
+  // Set once the story has been saved to the story bank.
+  bankEntryId: string | null;
   takes: StoryTake[];
   createdAt: string;
+}
+
+// ---- Story bank ----
+
+export interface Competency {
+  key: string;
+  label: string;
+  description: string;
+}
+
+export interface CoverageItem extends Competency {
+  count: number;
+}
+
+export interface BankEntry {
+  id: string;
+  storyId: string | null;
+  title: string;
+  summary: string;
+  tags: string[];
+  bestScore: number | null;
+  timesUsed: number;
+  lastUsedAt: string | null;
+  updatedAt: string;
+}
+
+export interface BankSuggestion {
+  title: string;
+  summary: string;
+  tags: string[];
+}
+
+export type FitVerdict = "STRONG" | "PARTIAL" | "WEAK" | "NONE";
+
+export interface Fit {
+  verdict: FitVerdict;
+  reason: string;
+  angle: string | null;
+  betterId: string | null;
+  betterTitle: string | null;
+  missing: string | null;
 }

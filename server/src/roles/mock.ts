@@ -2,6 +2,8 @@ import { z } from "zod";
 import { prisma } from "../db/prisma";
 import { generateValidated } from "../ai/retry";
 import { levelLabel } from "./roles.prompts";
+import { storyNotesPrompt, storyNotesResultSchema } from "../story/bank.prompts";
+import { listEntries, recordUse, toBankStory } from "../story/bank.service";
 
 // A full mock interview (Phase 3 of docs/roadmap.md): a fixed run of rounds, no feedback until the end, then a
 // hiring verdict. Questions, grading and skill evidence reuse the normal session flow.
@@ -56,6 +58,14 @@ const mockReportSchema = z.object({
   improvements: z.array(z.string().max(400)).max(6),
 });
 
+// Stored in SessionSummary.storyNotes: per behavioural answer, the bank story it told and a better one, by title.
+export interface StoryNote {
+  order: number;
+  used: { id: string; title: string } | null;
+  suggested: { id: string; title: string } | null;
+  note: string;
+}
+
 function mockReportPrompt(params: {
   title: string;
   level: string;
@@ -79,7 +89,7 @@ function mockReportPrompt(params: {
 }
 
 // Builds the end-of-interview report from the graded answers. Returns null if nothing was answered.
-export async function buildMockReport(sessionId: string, role: { title: string; level: string }) {
+export async function buildMockReport(sessionId: string, userId: string, role: { title: string; level: string }) {
   const questions = await prisma.question.findMany({
     where: { sessionId },
     orderBy: { order: "asc" },
@@ -89,6 +99,7 @@ export async function buildMockReport(sessionId: string, role: { title: string; 
     .filter((q) => q.round && q.answer?.feedback)
     .map((q) => ({
       round: q.round as MockRound,
+      order: q.order,
       question: q.text,
       answer: q.answer!.transcript,
       score: q.answer!.feedback!.score,
@@ -104,5 +115,30 @@ export async function buildMockReport(sessionId: string, role: { title: string; 
     .filter((r): r is { round: MockRound; score: number } => r !== null);
 
   const report = await generateValidated(mockReportPrompt({ title: role.title, level: role.level, rounds, roundScores }), mockReportSchema);
-  return { ...report, roundScores };
+  return { ...report, roundScores, storyNotes: await storyNotesFor(userId, rounds) };
+}
+
+// Which bank story each behavioural answer told, and a better one. Only ids from the candidate's own bank are kept,
+// and the stories used are counted. A failure here never blocks the report.
+async function storyNotesFor(userId: string, rounds: { round: MockRound; order: number; question: string; answer: string }[]): Promise<StoryNote[] | null> {
+  const behavioural = rounds.filter((r) => r.round === "BEHAVIOURAL");
+  const entries = await listEntries(userId);
+  if (!entries.length || !behavioural.length) return null;
+  try {
+    const { stories } = await generateValidated(storyNotesPrompt(entries.map(toBankStory), behavioural), storyNotesResultSchema);
+    const byId = new Map(entries.map((e) => [e.id, { id: e.id, title: e.title }]));
+    const notes: StoryNote[] = stories.flatMap((n) => {
+      const r = behavioural[n.question - 1];
+      if (!r) return [];
+      const used = (n.used && byId.get(n.used)) || null;
+      const suggested = (n.suggested && n.suggested !== n.used && byId.get(n.suggested)) || null;
+      return [{ order: r.order, used, suggested, note: n.note }];
+    });
+    await recordUse(userId, notes.flatMap((n) => (n.used ? [n.used.id] : [])));
+    return notes;
+  } catch (err) {
+    console.error("Couldn't match answers to the story bank:", err);
+    return null;
+  }
+
 }

@@ -41,6 +41,7 @@ async function createSummary(session: Parameters<typeof buildSummary>[0]) {
 
 async function buildSummary(session: {
   id: string;
+  userId: string;
   mode: string;
   track: string;
   difficulty: string;
@@ -58,7 +59,7 @@ async function buildSummary(session: {
   }
 
   if (session.mode === "MOCK") {
-    const report = await buildMockReport(session.id, session.role ?? { title: session.track, level: session.difficulty });
+    const report = await buildMockReport(session.id, session.userId, session.role ?? { title: session.track, level: session.difficulty });
     if (report) {
       return {
         overallScore: report.overallScore,
@@ -67,6 +68,7 @@ async function buildSummary(session: {
         improvements: JSON.stringify(report.improvements),
         verdict: report.verdict,
         roundScores: JSON.stringify(report.roundScores),
+        storyNotes: report.storyNotes ? JSON.stringify(report.storyNotes) : null,
       };
     }
   }

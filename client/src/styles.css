@@ -3067,3 +3067,85 @@ button.rl-path-btn:hover {
 .retake-result .feedback-title:focus {
   outline: none;
 }
+
+/* Story bank */
+.bank-callout {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+.bank-coverage {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.bank-coverage li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  border: 1px solid transparent;
+}
+.bank-coverage li.gap {
+  border: 1px dashed var(--border);
+}
+.bank-coverage-name {
+  font-weight: 600;
+}
+.bank-actions {
+  margin: 16px 0;
+}
+.bank-form {
+  display: grid;
+  gap: 12px;
+}
+.bank-form > .btn {
+  justify-self: start;
+}
+.bank-tags {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.bank-tags legend {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.bank-tags .checkbox-row {
+  margin-bottom: 8px;
+  align-items: flex-start;
+}
+.bank-entry-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+.bank-entry-summary {
+  margin: 10px 0;
+}
+.bank-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.bank-drill-filter {
+  max-width: 320px;
+}
+.bank-save {
+  margin-top: 16px;
+}
+.story-notes {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: grid;
+  gap: 10px;
+}
+.story-note-head {
+  margin: 0;
+}

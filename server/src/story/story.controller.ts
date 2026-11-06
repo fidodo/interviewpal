@@ -24,6 +24,8 @@ function serialize(s: Story) {
     shape: SHAPES[s.kind as StoryKind] ?? SHAPES.OWN,
     coachingNotes: s.takes.length ? parseJsonArray<string>(s.coachingNotes) : null,
     maxTakes: storyService.MAX_TAKES,
+    // Set once the story has been saved to the story bank.
+    bankEntryId: s.bankEntry?.id ?? null,
     takes: s.takes.map((t) => ({
       id: t.id,
       number: t.number,

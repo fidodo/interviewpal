@@ -122,6 +122,15 @@ export interface Summary {
   // Mock interviews only.
   verdict: Verdict | null;
   roundScores: { round: MockRound; score: number }[] | null;
+  // Mock interviews with a story bank: per behavioural answer, the story it told and a better one.
+  storyNotes?: StoryNote[] | null;
+}
+
+export interface StoryNote {
+  order: number;
+  used: { id: string; title: string } | null;
+  suggested: { id: string; title: string } | null;
+  note: string;
 }
 
 // ---- Target roles (mirrors server/src/roles/roles.controller.ts responses) ----

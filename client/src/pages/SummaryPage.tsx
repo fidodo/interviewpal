@@ -131,6 +131,26 @@ export function SummaryPage() {
         )}
       </div>
 
+      {summary.storyNotes && summary.storyNotes.length > 0 && (
+        <section className="card" aria-labelledby="story-notes-title">
+          <h2 id="story-notes-title" className="card-title">
+            Your stories
+          </h2>
+          <ul className="story-notes">
+            {summary.storyNotes.map((n) => (
+              <li key={n.order}>
+                <p className="story-note-head">
+                  <strong>Question {n.order}:</strong> {n.used ? <>you told "{n.used.title}"</> : "you didn't use a story from your bank"}
+                  {n.suggested && <>. "{n.suggested.title}" would have fitted better</>}
+                </p>
+                <p className="helper-text">{n.note}</p>
+              </li>
+            ))}
+          </ul>
+          <Link to="/speak/bank">Open your story bank</Link>
+        </section>
+      )}
+
       {skillsTested.length > 0 && (
         <section className="card" aria-labelledby="skills-tested-title">
           <h2 id="skills-tested-title" className="card-title">
