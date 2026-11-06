@@ -12,6 +12,7 @@ import { storyRouter } from "../story/story.routes";
 import { bankRouter } from "../story/bank.routes";
 import { progressRouter } from "../progress/progress.routes";
 import { termsRouter } from "../terms/terms.routes";
+import { cronRouter, remindersRouter, todayRouter } from "../today/today.routes";
 
 export const apiRouter = Router();
 
@@ -31,3 +32,6 @@ apiRouter.use("/story", storyRouter);
 apiRouter.use("/story-bank", bankRouter);
 apiRouter.use("/progress", progressRouter);
 apiRouter.use("/terms", termsRouter);
+apiRouter.use("/today", todayRouter);
+apiRouter.use("/reminders", remindersRouter);
+apiRouter.use("/cron", cronRouter);

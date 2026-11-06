@@ -160,6 +160,12 @@ export const bankLimiter = limiter("story-bank", 60_000, 60, "That's a lot of ch
   skip: isAdmin,
 });
 
+// The daily plan and reminder settings: read-only and cheap, but each load runs several queries.
+export const todayLimiter = limiter("today", 60_000, 30, "Too many refreshes. Wait a minute and try again.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});
+
 export const termsLimiter = limiter("terms", 60_000, 120, "You're going through cards very fast. Wait a minute and carry on.", {
   keyGenerator: byUserOrIp,
   skip: isAdmin,

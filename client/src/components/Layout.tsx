@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useAuthConfig } from "../hooks/useAuthConfig";
+import { RewardToaster } from "../today/RewardToaster";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -70,6 +71,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <main id="main" tabIndex={-1} className="app-main">
         {children}
       </main>
+      {user && <RewardToaster />}
     </div>
   );
 }

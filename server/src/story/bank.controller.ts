@@ -4,6 +4,7 @@ import { AuthedRequest } from "../middleware/auth.middleware";
 import { parseJsonArray } from "../utils/json";
 import { COMPETENCIES, COMPETENCY_KEYS, drillQuestion } from "./bank.prompts";
 import * as bankService from "./bank.service";
+import { recordPractice } from "../today/practice.service";
 
 function notFound(res: Response) {
   res.status(404).json({ error: "Story not found" });
@@ -101,5 +102,5 @@ export async function judge(req: AuthedRequest, res: Response) {
   }
   const fit = await bankService.judgeFit(req.userId!, parsed.data.question, parsed.data.entryId);
   if (!fit) return notFound(res);
-  res.json({ fit });
+  res.json({ fit, rewards: await recordPractice(req.userId!, "DRILL") });
 }

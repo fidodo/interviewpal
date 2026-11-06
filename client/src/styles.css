@@ -2462,7 +2462,7 @@ textarea.code-input {
 /* RAG Lab */
 .rl-path {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -3397,4 +3397,314 @@ button.rl-path-btn:hover {
   flex-wrap: wrap;
   gap: 16px;
   margin: 4px 0 12px;
+}
+
+/* ---- Today card, rewards and badges (Phase D) ---- */
+.today-card {
+  border-color: var(--primary-soft);
+}
+
+.today-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.today-head .helper-text {
+  margin: 4px 0 0;
+}
+
+.today-stats {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.today-streak {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+}
+
+.today-streak dt {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.today-streak dd {
+  margin: 2px 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.today-week {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.today-week .helper-text {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.week-ring path {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.week-ring-on {
+  stroke: var(--primary);
+}
+
+.week-ring-off {
+  stroke: var(--border-strong);
+}
+
+.week-ring-text {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--text);
+}
+
+.today-note {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--text);
+}
+
+.today-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.today-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.today-item.done {
+  background: var(--surface-muted);
+}
+
+.today-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.today-item.done .today-check {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--surface);
+}
+
+.today-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.today-item-body .helper-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.today-item-title {
+  font-weight: 600;
+  color: var(--primary-text);
+}
+
+.today-item.done .today-item-title {
+  color: var(--text);
+}
+
+.today-min {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.today-foot {
+  margin: 14px 0 0;
+}
+
+#quick-practice:focus {
+  outline: none;
+}
+
+#quick-practice:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.reward-toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(360px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.reward-toast {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reward-toast {
+    animation: reward-in 220ms ease-out;
+  }
+}
+
+@keyframes reward-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.reward-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+}
+
+.reward-streak .reward-icon {
+  color: var(--warning);
+}
+
+.reward-best .reward-icon {
+  color: var(--primary-text);
+}
+
+.reward-badge .reward-icon {
+  color: var(--success);
+}
+
+.reward-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.92rem;
+}
+
+.reward-close {
+  min-width: 32px;
+  min-height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.reward-close:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.badge-shelf:focus {
+  outline: none;
+}
+
+.badge-grid {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.badge-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.badge-tile .helper-text {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.badge-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  margin-bottom: 4px;
+}
+
+.badge-tile.earned {
+  border-color: var(--success);
+}
+
+.badge-tile.earned .badge-tile-icon {
+  background: var(--primary-soft);
+  color: var(--success);
+}
+
+.badge-tile.locked {
+  background: var(--surface-muted);
+}
+
+.badge-tile.locked .badge-tile-icon {
+  background: var(--surface);
+  color: var(--border-strong);
+}
+
+.badge-tile-when {
+  margin-top: auto;
+  padding-top: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.badge-tile.earned .badge-tile-when {
+  color: var(--success);
 }

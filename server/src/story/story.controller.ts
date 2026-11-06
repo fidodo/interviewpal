@@ -4,6 +4,7 @@ import { AuthedRequest } from "../middleware/auth.middleware";
 import { parseJsonArray, parseJsonObject } from "../utils/json";
 import { SHAPES, STORY_KINDS, StoryKind, TARGET_SECONDS } from "./story.prompts";
 import * as storyService from "./story.service";
+import { recordPractice } from "../today/practice.service";
 
 type Story = NonNullable<Awaited<ReturnType<typeof storyService.findStory>>>;
 
@@ -100,7 +101,8 @@ export async function submitTake(req: AuthedRequest, res: Response) {
     res.status(409).json({ error: "This take is already being marked. Refresh in a moment to see it." });
     return;
   }
-  res.status(201).json({ story: serialize(result) });
+  const latest = result!.takes[result!.takes.length - 1];
+  res.status(201).json({ story: serialize(result!), rewards: await recordPractice(req.userId!, "SPEAK", latest?.score ?? null) });
 }
 
 export async function deleteStory(req: AuthedRequest, res: Response) {

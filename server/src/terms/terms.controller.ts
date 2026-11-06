@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AuthedRequest } from "../middleware/auth.middleware";
 import { Difficulty } from "../types";
 import * as terms from "./terms.service";
+import { recordPractice } from "../today/practice.service";
 
 function notFound(res: Response) {
   res.status(404).json({ error: "Term not found" });
@@ -96,7 +97,7 @@ export async function answerRecognise(req: AuthedRequest, res: Response) {
   await withTermErrors(res, async () => {
     const out = await terms.answerRecognise(req.userId!, req.params.termId, parsed.data.chosen);
     if (!out) return notFound(res);
-    res.json(out);
+    res.json({ ...out, rewards: await recordPractice(req.userId!, "TERMS") });
   });
 }
 
@@ -117,7 +118,7 @@ export async function answerRecallSelf(req: AuthedRequest, res: Response) {
   await withTermErrors(res, async () => {
     const out = await terms.answerRecallSelf(req.userId!, req.params.termId, parsed.data.result);
     if (!out) return notFound(res);
-    res.json(out);
+    res.json({ ...out, rewards: await recordPractice(req.userId!, "TERMS") });
   });
 }
 
@@ -132,7 +133,7 @@ export async function markRecall(req: AuthedRequest, res: Response) {
   await withTermErrors(res, async () => {
     const out = await terms.markRecall(req.userId!, req.params.termId, parsed.data.answer);
     if (!out) return notFound(res);
-    res.json(out);
+    res.json({ ...out, rewards: await recordPractice(req.userId!, "TERMS") });
   });
 }
 
@@ -145,6 +146,6 @@ export async function answerUse(req: AuthedRequest, res: Response) {
   await withTermErrors(res, async () => {
     const out = await terms.answerUse(req.userId!, req.params.termId, parsed.data.transcript);
     if (!out) return notFound(res);
-    res.json(out);
+    res.json({ ...out, rewards: await recordPractice(req.userId!, "TERMS") });
   });
 }

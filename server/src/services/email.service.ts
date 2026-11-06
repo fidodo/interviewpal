@@ -33,23 +33,31 @@ export async function consumeToken(token: string, type: AuthTokenType): Promise<
   return claimed.count === 1 ? row.userId : null;
 }
 
-async function send(to: string, subject: string, text: string, link: string) {
+// Sends one plain-text email through Resend. Returns false if it couldn't be sent; it never throws.
+export async function sendEmail(to: string, subject: string, text: string, headers?: Record<string, string>): Promise<boolean> {
   if (!emailEnabled) {
-    // No email provider configured. Links are only printed in development; logging them in production would leak them.
-    if (!env.isProd) console.log(`[email disabled] ${subject} for ${to}: ${link}`);
-    return;
+    // No email provider configured. Emails are only printed in development; logging them in production would leak links.
+    if (!env.isProd) console.log(`[email disabled] ${subject} for ${to}:\n${text}`);
+    return false;
   }
-  // A failed send must not fail the request (e.g. sign-up has already created the account); the user can resend.
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${env.resendApiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: env.emailFrom, to, subject, text: `${text}\n\n${link}\n\nIf you didn't ask for this, you can ignore this email.` }),
+      body: JSON.stringify({ from: env.emailFrom, to, subject, text, ...(headers ? { headers } : {}) }),
     });
     if (!res.ok) console.error(`Resend failed (${res.status}): ${await res.text().catch(() => "")}`);
+    return res.ok;
   } catch (err) {
     console.error("Resend request failed:", err);
+    return false;
   }
+}
+
+// A link email. A failed send must not fail the request (e.g. sign-up has already created the account); the user
+// can resend.
+async function send(to: string, subject: string, text: string, link: string) {
+  await sendEmail(to, subject, `${text}\n\n${link}\n\nIf you didn't ask for this, you can ignore this email.`);
 }
 
 export async function sendVerificationEmail(user: { id: string; email: string }) {

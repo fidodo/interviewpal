@@ -5,6 +5,7 @@ import { Difficulty } from "../types";
 import { parseJsonArray, parseJsonObject } from "../utils/json";
 import { diagramSchema } from "./design.prompts";
 import * as designService from "./design.service";
+import { recordPractice } from "../today/practice.service";
 
 type Challenge = NonNullable<Awaited<ReturnType<typeof designService.findChallenge>>>;
 
@@ -83,5 +84,5 @@ export async function submitDesign(req: AuthedRequest, res: Response) {
     res.status(409).json({ error: "This design is already being graded or was submitted. Refresh the page in a moment to see the result." });
     return;
   }
-  res.status(201).json({ challenge: serialize(result) });
+  res.status(201).json({ challenge: serialize(result), rewards: await recordPractice(req.userId!, "DESIGN", result.score) });
 }

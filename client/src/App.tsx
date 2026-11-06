@@ -17,6 +17,7 @@ import { DebugChallengePage, DebugPage } from "./pages/DebugPages";
 import { DesignChallengePage, DesignPage } from "./pages/DesignPages";
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from "./pages/EmailLinkPages";
 import { getKidLock, kidHomePath } from "./kids/kidMode";
+import { UnsubscribePage } from "./today/UnsubscribePage";
 
 // The kids section is its own lazy chunk (Blockly, CodeMirror, the Python runner) with its own layout.
 const KidsApp = lazy(() => import("./kids/KidsApp"));
@@ -57,6 +58,7 @@ function InterviewRoutes() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/unsubscribe" element={<UnsubscribePage />} />
         <Route
           path="/roles"
           element={

@@ -8,33 +8,39 @@ generator client {
 }
 
 model User {
-  id            String             @id @default(cuid())
-  email         String             @unique
-  passwordHash  String?
-  googleId      String?            @unique
-  createdAt     DateTime           @default(now())
-  sessions      InterviewSession[]
-  kidsPinHash   String?
-  children      ChildProfile[]
+  id             String             @id @default(cuid())
+  email          String             @unique
+  passwordHash   String?
+  googleId       String?            @unique
+  createdAt      DateTime           @default(now())
+  sessions       InterviewSession[]
+  kidsPinHash    String?
+  children       ChildProfile[]
   // Set by email-link verification or a Google sign-in. Unverified password accounts lose their password if
   // Google later proves someone else owns the email (stops pre-registration account takeover).
-  emailVerified Boolean            @default(false)
+  emailVerified  Boolean            @default(false)
   // Bumped on logout / password reset; tokens carrying an older version are rejected.
-  tokenVersion  Int                @default(0)
+  tokenVersion   Int                @default(0)
   // Exempt from the daily AI allowance.
-  isAdmin       Boolean            @default(false)
-  topics        Topic[]
-  authTokens    AuthToken[]
-  roles         TargetRole[]
-  courses       LearnCourse[]
-  reviewItems   ReviewItem[]
-  debugs        DebugChallenge[]
-  designs       DesignChallenge[]
-  ragProjects   RagProject[]
-  stories       StoryPractice[]
-  storyBank     StoryBankEntry[]
-  terms         Term[]
-  termProgress  TermProgress[]
+  isAdmin        Boolean            @default(false)
+  topics         Topic[]
+  authTokens     AuthToken[]
+  roles          TargetRole[]
+  courses        LearnCourse[]
+  reviewItems    ReviewItem[]
+  debugs         DebugChallenge[]
+  designs        DesignChallenge[]
+  ragProjects    RagProject[]
+  stories        StoryPractice[]
+  storyBank      StoryBankEntry[]
+  terms          Term[]
+  termProgress   TermProgress[]
+  practiceDays   PracticeDay[]
+  achievements   Achievement[]
+  bests          PersonalBest[]
+  // Daily reminder email (Phase D): opt-in, sent at most once a UTC day on days with no practice.
+  dailyReminder  Boolean            @default(false)
+  reminderSentOn DateTime?          @db.Date
 }
 
 // Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
@@ -630,4 +636,36 @@ model StoryBankEntry {
   updatedAt  DateTime       @updatedAt
 
   @@index([userId])
+}
+
+// Daily habit (Phase D, server/src/today). One row per UTC day the user practised anything; `kinds` lists what
+// (ANSWER, RETAKE, SPEAK, DRILL, TERMS, LEARN, DEBUG, DESIGN). Streaks are worked out from these rows.
+model PracticeDay {
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day    DateTime @db.Date
+  kinds  String[]
+
+  @@id([userId, day])
+}
+
+// Badges (streak milestones, first 9/10, ...), each earned once. Keys are listed in today/badges.ts.
+model Achievement {
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key      String
+  earnedAt DateTime @default(now())
+
+  @@id([userId, key])
+}
+
+// The best score so far per kind of graded practice (ANSWER, SPEAK, DEBUG, DESIGN), for "New personal best!".
+model PersonalBest {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String
+  score      Int
+  achievedAt DateTime @default(now())
+
+  @@id([userId, kind])
 }

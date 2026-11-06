@@ -6,6 +6,7 @@ import { Difficulty } from "../types";
 import { parseJsonArray, parseJsonObject as parseObject } from "../utils/json";
 import { DEBUG_LANGUAGE_KEYS, DEBUG_LANGUAGES, DebugLanguage } from "./debug.prompts";
 import * as debugService from "./debug.service";
+import { recordPractice } from "../today/practice.service";
 
 type Challenge = NonNullable<Awaited<ReturnType<typeof debugService.findChallenge>>>;
 
@@ -194,5 +195,5 @@ export async function submitFix(req: AuthedRequest, res: Response) {
     res.status(409).json({ error: "This fix is already being graded or was submitted. Refresh the page in a moment to see the result." });
     return;
   }
-  res.status(201).json({ challenge: serialize(result) });
+  res.status(201).json({ challenge: serialize(result), rewards: await recordPractice(req.userId!, "DEBUG", result.score) });
 }

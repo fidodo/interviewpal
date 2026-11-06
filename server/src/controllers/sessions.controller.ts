@@ -8,6 +8,7 @@ import { MOCK_PLAN, StoryNote } from "../roles/mock";
 import { PERSONA_KEYS } from "../ai/personas";
 import { CodeSpec } from "../ai/provider.interface";
 import { parseJsonObject } from "../utils/json";
+import { recordPractice } from "../today/practice.service";
 
 function parseJsonArray(value: string): string[] {
   try {
@@ -173,6 +174,8 @@ export async function submitAnswer(req: AuthedRequest, res: Response) {
     return;
   }
   const { answer, feedback, mode } = result;
+  // A running mock hides the score, so it can't be celebrated as a personal best yet.
+  const rewards = await recordPractice(req.userId!, "ANSWER", mode === "MOCK" ? null : feedback.score);
   res.status(201).json({
     answer: {
       id: answer.id,
@@ -182,6 +185,7 @@ export async function submitAnswer(req: AuthedRequest, res: Response) {
     },
     // Mock interviews hold all feedback until the report, like a real interview.
     feedback: mode === "MOCK" ? null : serializeFeedback(feedback),
+    rewards,
   });
 }
 
@@ -207,7 +211,7 @@ export async function submitRetake(req: AuthedRequest, res: Response) {
     res.status(409).json({ error: RETAKE_ERRORS[result] });
     return;
   }
-  res.status(201).json({ retake: serializeRetake(result) });
+  res.status(201).json({ retake: serializeRetake(result), rewards: await recordPractice(req.userId!, "RETAKE", result.score) });
 }
 
 export async function endSession(req: AuthedRequest, res: Response) {

@@ -35,6 +35,8 @@ export const env = {
   // Email (Resend) is optional: without a key, accounts stay unverified and links are only logged in dev.
   resendApiKey: process.env.RESEND_API_KEY ?? "",
   emailFrom: process.env.EMAIL_FROM ?? "InterviewPal <onboarding@resend.dev>",
+  // Vercel Cron sends this as a bearer token to /api/cron/* (see server/vercel.json). Without it, cron routes refuse.
+  cronSecret: process.env.CRON_SECRET ?? "",
   isProd: process.env.NODE_ENV === "production",
 };
 

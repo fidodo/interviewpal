@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { LineChart } from "./LineChart";
+import { RewardIcon } from "../today/RewardToaster";
+import { Today } from "../today/types";
 
 interface Week {
   start: string;
@@ -71,6 +73,22 @@ function describe(values: (number | null)[], labels: string[], format: (v: numbe
 export function ProgressPage() {
   const [data, setData] = useState<Progress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [today, setToday] = useState<Today | null>(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    api
+      .get<Today>("/today")
+      .then(setToday)
+      .catch(() => {
+        // The badge shelf is extra; the charts still work without it.
+      });
+  }, []);
+
+  // /progress#badges (from the dashboard's Today card) jumps to the shelf once it's on the page.
+  useEffect(() => {
+    if (today && location.hash === "#badges") document.getElementById("badges")?.scrollIntoView({ block: "start" });
+  }, [today, location.hash]);
 
   useEffect(() => {
     api
@@ -111,6 +129,22 @@ export function ProgressPage() {
             <dt>Retakes</dt>
             <dd>{data.totals.retakes}</dd>
           </div>
+          {today && (
+            <>
+              <div className="stat-tile">
+                <dt>Current streak</dt>
+                <dd>
+                  {today.streak.current} day{today.streak.current === 1 ? "" : "s"}
+                </dd>
+              </div>
+              <div className="stat-tile">
+                <dt>Best streak</dt>
+                <dd>
+                  {today.streak.best} day{today.streak.best === 1 ? "" : "s"}
+                </dd>
+              </div>
+            </>
+          )}
           <div className="stat-tile">
             <dt>Average gain on a retake</dt>
             <dd>{data.totals.averageRetakeGain == null ? "–" : `${data.totals.averageRetakeGain > 0 ? "+" : ""}${data.totals.averageRetakeGain} points`}</dd>
@@ -188,6 +222,32 @@ export function ProgressPage() {
             </div>
           </details>
         </>
+      )}
+
+      {today && (
+        <section className="card badge-shelf" id="badges" tabIndex={-1} aria-labelledby="badges-title">
+          <h2 id="badges-title" className="card-title">
+            Badges
+          </h2>
+          <p className="helper-text">
+            {today.badges.filter((b) => b.earnedAt).length} of {today.badges.length} earned. Practise on {today.week.goal} days a week; one missed day a week won't break your
+            streak.
+          </p>
+          <ul className="badge-grid">
+            {today.badges.map((b) => (
+              <li key={b.key} className={`badge-tile ${b.earnedAt ? "earned" : "locked"}`}>
+                <span className="badge-tile-icon">
+                  <RewardIcon type="badge" />
+                </span>
+                <strong>{b.title}</strong>
+                <span className="helper-text">{b.description}</span>
+                <span className="badge-tile-when">
+                  {b.earnedAt ? `Earned ${new Date(b.earnedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "Not earned yet"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

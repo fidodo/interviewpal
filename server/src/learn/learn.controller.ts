@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AuthedRequest } from "../middleware/auth.middleware";
 import { Difficulty } from "../types";
 import * as learnService from "./learn.service";
+import { recordPractice } from "../today/practice.service";
 
 function notFound(res: Response, what = "Course not found") {
   res.status(404).json({ error: what });
@@ -127,7 +128,7 @@ async function answer(req: AuthedRequest, res: Response, body: { choice?: number
     res.status(400).json({ error: "That isn't the right kind of answer for this question" });
     return;
   }
-  res.status(201).json({ result });
+  res.status(201).json({ result, rewards: await recordPractice(req.userId!, "LEARN") });
 }
 
 export async function answerChoice(req: AuthedRequest, res: Response) {

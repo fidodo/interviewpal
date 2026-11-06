@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
@@ -85,6 +85,56 @@ function DeleteAccount({ hasPassword, email }: { hasPassword: boolean; email: st
   );
 }
 
+// The daily reminder email (sent by a daily cron job on days with no practice). Hidden when the server has no
+// email set up.
+function DailyReminder() {
+  const [state, setState] = useState<{ available: boolean; enabled: boolean; verified: boolean } | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api
+      .get<{ available: boolean; enabled: boolean; verified: boolean }>("/today/reminder")
+      .then(setState)
+      .catch(() => setState(null));
+  }, []);
+
+  if (!state?.available) return null;
+
+  async function toggle(enabled: boolean) {
+    setSaving(true);
+    setStatus(null);
+    // Show the change straight away; put it back if saving fails.
+    setState((s) => (s ? { ...s, enabled } : s));
+    try {
+      await api.put("/today/reminder", { enabled });
+      setStatus(enabled ? "Reminders are on." : "Reminders are off.");
+    } catch (err) {
+      setState((s) => (s ? { ...s, enabled: !enabled } : s));
+      setStatus(errorMessage(err, "Couldn't save that. Try again."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="card" aria-labelledby="reminder-title">
+      <h2 id="reminder-title" className="card-title">
+        Daily reminder
+      </h2>
+      <p className="helper-text">One short email in the evening (UTC) on days you haven't practised, with your streak and today's plan. Every email has a link to turn it off.</p>
+      <label className="checkbox-row">
+        <input type="checkbox" checked={state.enabled} disabled={saving || (!state.verified && !state.enabled)} onChange={(e) => toggle(e.target.checked)} />
+        <span>Email me a daily practice reminder</span>
+      </label>
+      {!state.verified && !state.enabled && <p className="helper-text">Confirm your email address first, then you can turn this on.</p>}
+      <p role="status" className="helper-text">
+        {status}
+      </p>
+    </section>
+  );
+}
+
 export function AccountPage() {
   const { user, logout } = useAuth();
   const { emailEnabled } = useAuthConfig();
@@ -143,6 +193,8 @@ export function AccountPage() {
           Log out on all devices
         </button>
       </section>
+
+      <DailyReminder />
 
       <DeleteAccount hasPassword={user.hasPassword} email={user.email} />
     </div>
