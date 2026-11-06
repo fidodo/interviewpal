@@ -160,7 +160,9 @@ export function SummaryPage() {
                   <span className="review-head">
                     <span className="review-label">
                       Question {q.order}
-                      {q.round && ` · ${ROUND_LABELS[q.round]}`} · {q.answer!.feedback!.score}/10
+                      {q.round && ` · ${ROUND_LABELS[q.round]}`}
+                      {q.followUpOf && " · Follow-up"} · {q.answer!.feedback!.score}/10
+                      {q.answer!.retakes.length > 0 && ` → retaken: ${q.answer!.retakes.map((r) => `${r.feedback.score}/10`).join(", ")}`}
                     </span>
                     <span className="review-question">{q.text}</span>
                   </span>
@@ -168,6 +170,9 @@ export function SummaryPage() {
                 <h3 className="feedback-list-title">Your answer</h3>
                 <p className="review-answer">{q.answer!.transcript}</p>
                 <FeedbackCard feedback={q.answer!.feedback!} fillerStats={q.answer!.fillerStats} />
+                <Link className="btn btn-secondary" to={`/sessions/${session.id}/questions/${q.id}/retake`}>
+                  {q.answer!.retakes.length ? "See retakes or retake again" : "Retake this answer"}
+                </Link>
               </details>
             ))}
         </section>

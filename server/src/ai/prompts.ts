@@ -47,8 +47,9 @@ export function questionPrompt(params: {
   priorQA: PriorQA[];
   role?: RoleContext;
   persona?: string;
+  followUp?: { question: string; answer: string };
 }): string {
-  const { topic, track, difficulty, priorQA, role } = params;
+  const { topic, track, difficulty, priorQA, role, followUp } = params;
   const persona = PERSONAS[personaOf(params.persona)];
   return [
     role
@@ -56,17 +57,34 @@ export function questionPrompt(params: {
       : `You are a technical interviewer conducting a ${formatTrack(track)} interview at ${difficulty.toLowerCase()} level on the topic "${topic}".`,
     `Ask one clear, focused question at a time. Build naturally on prior answers when relevant — ask follow-ups that probe depth if the candidate did well, or clarify fundamentals if they struggled.`,
     `Do not repeat a question already asked in this session.`,
-    `Decide the question's type based on what best tests this topic: use type "CODING" when the best way to test the candidate is to have them implement something — write a function, solve an algorithm, fix a bug in a snippet, write a query, etc. Use type "VERBAL" when the topic is best tested by an explanation — architecture, tradeoffs, design decisions, how something works conceptually. For topics centered on algorithms, data structures, or implementation (e.g. a topic literally about writing code), most or all questions should be "CODING". For topics centered on design/best-practices/conceptual understanding, most questions should be "VERBAL". Don't default to "VERBAL" just because it's safer — pick whichever type actually tests the candidate better for this specific question.`,
+    // A follow-up is always a short spoken question, so the type and code-spec guidance would only pull it towards
+    // a fresh task.
+    ...(followUp ? [] : [`Decide the question's type based on what best tests this topic: use type "CODING" when the best way to test the candidate is to have them implement something — write a function, solve an algorithm, fix a bug in a snippet, write a query, etc. Use type "VERBAL" when the topic is best tested by an explanation — architecture, tradeoffs, design decisions, how something works conceptually. For topics centered on algorithms, data structures, or implementation (e.g. a topic literally about writing code), most or all questions should be "CODING". For topics centered on design/best-practices/conceptual understanding, most questions should be "VERBAL". Don't default to "VERBAL" just because it's safer — pick whichever type actually tests the candidate better for this specific question.`]),
     ``,
     ...(role ? [``, ...roleInstructions(role)] : []),
     ...(persona.question ? [persona.question] : []),
-    CODE_SPEC_INSTRUCTIONS,
+    ...(followUp ? [] : [CODE_SPEC_INSTRUCTIONS]),
     ``,
     `Interview so far:`,
     formatHistory(priorQA),
     ``,
-    `Ask the next question. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING", ${role ? `"skills": string[], ` : ``}"code": { "functionName": string, "params": string[], "tests": [{ "args": any[], "expected": any }] } | null }`,
+    ...(followUp ? followUpInstructions(followUp) : []),
+    ``,
+    `${followUp ? "Ask the follow-up" : "Ask the next question"}. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING", ${role ? `"skills": string[], ` : ``}"code": { "functionName": string, "params": string[], "tests": [{ "args": any[], "expected": any }] } | null }`,
   ].join("\n");
+}
+
+const MAX_FOLLOW_UP_ANSWER_CHARS = 4000;
+
+// A real interviewer presses on an answer before moving on. These lines replace "ask the next question".
+function followUpInstructions(followUp: { question: string; answer: string }): string[] {
+  return [
+    ``,
+    `Don't ask a new question. Ask ONE follow-up on the candidate's answer to this question, the way a real interviewer presses before moving on:`,
+    `Question: ${followUp.question}`,
+    `Their answer: ${followUp.answer.slice(0, MAX_FOLLOW_UP_ANSWER_CHARS)}`,
+    `Pick ONE specific thing they said (or clearly left out) and press on it: why they chose it, a trade-off or risk they skipped, an edge case, what they'd do if a constraint changed, or (for a story) what exactly THEY did and what the result was. Start from their words, e.g. "You mentioned X. ...". Don't set a new task, don't ask them to write code, and don't change topic. One or two sentences, answerable out loud in a minute or two. Use type "VERBAL" and "code": null.`,
+  ];
 }
 
 export function gradingPrompt(params: {
@@ -77,8 +95,9 @@ export function gradingPrompt(params: {
   roundInstructions?: string;
   persona?: string;
   testResults?: { language: string; passed: number; total: number } | null;
+  previousAttempt?: { score: number; weaknesses: string[] };
 }): string {
-  const { question, transcript, difficulty, questionType, roundInstructions, testResults } = params;
+  const { question, transcript, difficulty, questionType, roundInstructions, testResults, previousAttempt } = params;
   const persona = PERSONAS[personaOf(params.persona)];
   const tests = testResults
     ? `The candidate ran this ${testResults.language} code against ${testResults.total} test cases in the browser and ${testResults.passed} passed. Weigh that heavily for correctness, but still judge approach, edge cases and readability.`
@@ -94,6 +113,13 @@ export function gradingPrompt(params: {
     ...(roundInstructions ? [roundInstructions] : []),
     ...(persona.grading ? [persona.grading] : []),
     ...(tests ? [tests] : []),
+    ...(previousAttempt
+      ? [
+          `This is a retake: the candidate is answering the same question again. Their previous attempt scored ${previousAttempt.score}/10${
+            previousAttempt.weaknesses.length ? `, with these weaknesses: ${previousAttempt.weaknesses.join("; ")}` : ""
+          }. Grade this answer on its own merits with the same rigour (don't inflate the score for trying again). Start "strengths" with what improved since the previous attempt, if anything did, and say in "weaknesses" if an earlier weakness is still there.`,
+        ]
+      : []),
     ``,
     `Question: ${question}`,
     `Candidate's answer: ${transcript}`,

@@ -4,7 +4,7 @@ import { Difficulty } from "../types";
 import { AuthedRequest } from "../middleware/auth.middleware";
 import * as sessionService from "../services/session.service";
 import * as summaryService from "../services/summary.service";
-import { MOCK_ROUNDS } from "../roles/mock";
+import { MOCK_PLAN } from "../roles/mock";
 import { PERSONA_KEYS } from "../ai/personas";
 import { CodeSpec } from "../ai/provider.interface";
 import { parseJsonObject } from "../utils/json";
@@ -102,6 +102,30 @@ export async function createSession(req: AuthedRequest, res: Response) {
   res.status(201).json({ session });
 }
 
+function serializeQuestion(question: { id: string; text: string; type: string; order: number; round: string | null; codeSpec: string | null; followUpOf: string | null }) {
+  return {
+    id: question.id,
+    text: question.text,
+    type: question.type,
+    order: question.order,
+    round: question.round,
+    codeSpec: parseCodeSpec(question.codeSpec),
+    followUpOf: question.followUpOf,
+  };
+}
+
+function serializeRetake(r: { number: number; transcript: string; fillerStats: string | null; testResults: string | null; score: number; feedback: string; createdAt: Date }) {
+  const feedback = sessionService.retakeFeedback(r.feedback);
+  return {
+    number: r.number,
+    transcript: r.transcript,
+    fillerStats: serializeFillerStats(r.fillerStats),
+    testResults: serializeFillerStats(r.testResults),
+    createdAt: r.createdAt,
+    feedback: { score: r.score, ...feedback },
+  };
+}
+
 export async function generateNextQuestion(req: AuthedRequest, res: Response) {
   const question = await sessionService.generateNextQuestion(req.params.id, req.userId!);
   if (question === "completed") {
@@ -112,9 +136,20 @@ export async function generateNextQuestion(req: AuthedRequest, res: Response) {
     res.status(409).json({ error: "That was the last question. Finish the interview to see your report." });
     return;
   }
-  res.status(201).json({
-    question: { id: question.id, text: question.text, type: question.type, order: question.order, round: question.round, codeSpec: parseCodeSpec(question.codeSpec) },
-  });
+  res.status(201).json({ question: serializeQuestion(question) });
+}
+
+export async function generateFollowUp(req: AuthedRequest, res: Response) {
+  const question = await sessionService.generateFollowUp(req.params.id, req.userId!);
+  if (!question) {
+    res.status(404).json({ error: "Question not found" });
+    return;
+  }
+  if (question === "completed" || question === "notAllowed") {
+    res.status(409).json({ error: question === "completed" ? "This interview has finished." : "A follow-up can only be asked on an answered question in a practice session." });
+    return;
+  }
+  res.status(201).json({ question: serializeQuestion(question) });
 }
 
 const submitAnswerSchema = z.object({
@@ -147,6 +182,31 @@ export async function submitAnswer(req: AuthedRequest, res: Response) {
     // Mock interviews hold all feedback until the report, like a real interview.
     feedback: mode === "MOCK" ? null : serializeFeedback(feedback),
   });
+}
+
+const RETAKE_ERRORS = {
+  notAnswered: "Answer the question first, then you can retake it.",
+  mockRunning: "Retakes open when the mock interview has finished.",
+  limit: `You've retaken this answer ${sessionService.MAX_RETAKES} times. Try a new question instead.`,
+  busy: "Your last retake is still being graded.",
+} as const;
+
+export async function submitRetake(req: AuthedRequest, res: Response) {
+  const parsed = submitAnswerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Answer is required and must be under 20,000 characters" });
+    return;
+  }
+  const result = await sessionService.submitRetake(req.params.id, req.userId!, parsed.data.transcript, parsed.data.testResults ?? null);
+  if (!result) {
+    res.status(404).json({ error: "Question not found" });
+    return;
+  }
+  if (typeof result === "string") {
+    res.status(409).json({ error: RETAKE_ERRORS[result] });
+    return;
+  }
+  res.status(201).json({ retake: serializeRetake(result) });
 }
 
 export async function endSession(req: AuthedRequest, res: Response) {
@@ -202,14 +262,9 @@ export async function getSessionDetail(req: AuthedRequest, res: Response) {
       endedAt: session.endedAt,
       mode: session.mode,
       persona: session.persona,
-      plannedRounds: session.mode === "MOCK" ? MOCK_ROUNDS.length : null,
+      plannedRounds: session.mode === "MOCK" ? MOCK_PLAN.length : null,
       questions: session.questions.map((q) => ({
-        id: q.id,
-        text: q.text,
-        type: q.type,
-        order: q.order,
-        round: q.round,
-        codeSpec: parseCodeSpec(q.codeSpec),
+        ...serializeQuestion(q),
         answer: q.answer
           ? {
               id: q.answer.id,
@@ -217,6 +272,7 @@ export async function getSessionDetail(req: AuthedRequest, res: Response) {
               fillerStats: serializeFillerStats(q.answer.fillerStats),
               // Hidden while a mock interview is still running.
               feedback: hideFeedback ? null : serializeFeedback(q.answer.feedback),
+              retakes: hideFeedback ? [] : q.answer.retakes.map(serializeRetake),
             }
           : null,
       })),

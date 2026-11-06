@@ -7,6 +7,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { InterviewSessionPage } from "./pages/InterviewSessionPage";
 import { SummaryPage } from "./pages/SummaryPage";
+import { RetakePage } from "./pages/RetakePage";
 import { AccountPage } from "./pages/AccountPage";
 import { RolesPage } from "./pages/RolesPage";
 import { RoleFormPage } from "./pages/RoleFormPage";
@@ -238,6 +239,14 @@ function InterviewRoutes() {
           element={
             <ProtectedRoute>
               <InterviewSessionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sessions/:id/questions/:questionId/retake"
+          element={
+            <ProtectedRoute>
+              <RetakePage />
             </ProtectedRoute>
           }
         />

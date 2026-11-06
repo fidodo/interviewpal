@@ -23,3 +23,6 @@ sessionsRouter.get("/:id/summary", asyncHandler(sessionsController.getSummary));
 export const questionsRouter = Router();
 questionsRouter.use(requireAuth);
 questionsRouter.post("/:id/answer", ...aiGuard, asyncHandler(sessionsController.submitAnswer));
+questionsRouter.post("/:id/follow-up", ...aiGuard, asyncHandler(sessionsController.generateFollowUp));
+// Practice: answer again and see what improved. The original answer and the session's report don't change.
+questionsRouter.post("/:id/retake", ...aiGuard, asyncHandler(sessionsController.submitRetake));

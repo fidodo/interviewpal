@@ -107,18 +107,40 @@ model Question {
   round       String?
   // CODING questions: JSON { functionName, params, tests: [{ args, expected }] } so answers can be run in the browser.
   codeSpec    String?
+  // Set when this question follows up on an earlier answer in the same session (the earlier question's id).
+  followUpOf  String?
 }
 
 model Answer {
-  id          String    @id @default(cuid())
-  questionId  String    @unique
-  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  questionId      String         @unique
+  question        Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  transcript      String
+  fillerStats     String?
+  // Runnable coding answers: JSON { language, passed, total } from the browser test run.
+  testResults     String?
+  submittedAt     DateTime       @default(now())
+  feedback        Feedback?
+  // Retakes are practice: the original answer and feedback above never change.
+  retakes         AnswerRetake[]
+  // Set while a retake is being graded, so a double submit can't pay for two gradings.
+  retakeGradingAt DateTime?
+}
+
+model AnswerRetake {
+  id          String   @id @default(cuid())
+  answerId    String
+  answer      Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  number      Int
   transcript  String
   fillerStats String?
-  // Runnable coding answers: JSON { language, passed, total } from the browser test run.
   testResults String?
-  submittedAt DateTime  @default(now())
-  feedback    Feedback?
+  score       Int
+  // JSON { breakdown, strengths, weaknesses, suggestions }.
+  feedback    String
+  createdAt   DateTime @default(now())
+
+  @@unique([answerId, number])
 }
 
 model Feedback {

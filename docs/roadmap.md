@@ -167,6 +167,15 @@ What was built:
 - spot-the-misuse exercises
 - Anki export
 
+## Practice loop (planned 2026-11-06)
+
+Four gaps found by comparing InterviewPal with Yoodli, Big Interview, Final Round AI, Speeko and STAR story-bank tools, built in this order:
+
+- **A. Retakes and follow-ups (built 2026-11-06).** Retake any marked answer up to 3 times and see "6 → 8"; the original answer and report don't change. "Answer a follow-up" presses on what you just said, and mock interviews ask one follow-up after each role-specific question.
+- **B. Story bank.** Save Speak stories tagged by competency, see which competencies have no story yet, a "which story fits?" drill, and mock reports that say which story you used or could have used.
+- **C. Hear yourself + trends.** Recordings kept only in your browser with playback, and a progress page charting score, fillers, pace and hedges by week.
+- **D. Daily plan, streak, rewards and reminder.** A 10-minute "Today" card; a streak with milestone badges, a weekly goal ring, personal bests and a freeze day; an optional daily reminder email from a Vercel Cron job.
+
 ## Version 2 (not scheduled)
 
 - **Monetisation.** A section on the home (login) page explaining what InterviewPal does, how it helps, and pricing tiers. Likely paired with a higher AI allowance for paid plans.

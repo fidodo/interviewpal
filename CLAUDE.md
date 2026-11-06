@@ -115,6 +115,11 @@ Full mock interview (`server/src/roles/mock.ts`, Phase 3): a session with `mode:
   - **Ending:** `endSession` builds the summary before marking the session completed, and a race between two end requests resolves to the first summary.
   - **Finished sessions are frozen:** they reject new questions and answers.
   - **Duplicate questions:** if two requests create the same question number, the later one is deleted.
+- **Rounds with follow-ups:** a mock asks `MOCK_PLAN` (7 questions): each ROLE question is followed by one follow-up on the answer.
+
+Retakes and follow-ups (practice loop, Phase A of the 2026-11-06 plan):
+- **Follow-ups** (`POST /questions/:id/follow-up`): one per answered question in a practice session, never on a follow-up. It becomes the next question with `Question.followUpOf` set, tests the parent's skill tags and is always `VERBAL`. `questionPrompt` with `followUp` drops the type/code-spec guidance and asks the model to press on something the candidate said. Asking twice returns the same follow-up.
+- **Retakes** (`POST /questions/:id/retake`, `RetakePage` at `/sessions/:id/questions/:questionId/retake`): answer again, up to `MAX_RETAKES` (3). They're stored in `AnswerRetake`; the original `Answer`/`Feedback`, the summary and skill ratings never change. Grading gets `previousAttempt` (the last attempt's score and weaknesses) so feedback says what improved. A retake claims the answer (`retakeGradingAt`, retaken after 2 minutes), so a double submit is graded once. Running mocks refuse retakes until the report.
 
 "Learn this" courses (`server/src/learn`, Phase 4): an adult course engine, separate from the kids tables, which belong to child profiles.
 - **Course:** a `LearnCourse` covers one role skill (`@@unique([userId, skillId])`, opened through the free `GET /learn/courses/for-skill/:id`) or any topic.

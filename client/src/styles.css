@@ -3025,3 +3025,45 @@ button.rl-path-btn:hover {
   min-height: 28px;
   padding: 4px 6px;
 }
+
+/* Retakes and follow-ups (interview answers) */
+.after-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.after-feedback .btn {
+  flex: 1 1 180px;
+}
+.retake-attempts {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: grid;
+  gap: 6px;
+}
+.retake-attempts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+.retake-score {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.retake-previous summary {
+  cursor: pointer;
+  min-height: 24px;
+}
+.retake-result {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.retake-result .feedback-title:focus {
+  outline: none;
+}

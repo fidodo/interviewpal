@@ -78,10 +78,23 @@ export interface Question {
   round?: MockRound | null;
   // CODING questions that can be run against tests in the browser.
   codeSpec?: CodeSpec | null;
+  // Set when this question follows up on an earlier one (that question's id).
+  followUpOf?: string | null;
 }
 
+// Answering a question again for practice. The original answer and the session report don't change.
+export interface Retake {
+  number: number;
+  transcript: string;
+  fillerStats: FillerStats | null;
+  createdAt: string;
+  feedback: Feedback;
+}
+
+export const MAX_RETAKES = 3;
+
 export interface QuestionWithAnswer extends Question {
-  answer: { id: string; transcript: string; fillerStats: FillerStats | null; feedback: Feedback | null } | null;
+  answer: { id: string; transcript: string; fillerStats: FillerStats | null; feedback: Feedback | null; retakes: Retake[] } | null;
 }
 
 export interface SessionDetail {

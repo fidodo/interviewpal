@@ -1,21 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { SessionDetail, Feedback, FillerStats, Question, ROUND_LABELS, PERSONA_LABELS } from "../types";
 import { RunLanguage, starterCode } from "../code/protocol";
 import { runTests } from "../code/runTests";
+import { saveLanguage, savedLanguage } from "../code/savedLanguage";
 
 // The code editor and test runner are a separate chunk (CodeMirror), only loaded for runnable coding questions.
 const CodeRunner = lazy(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
 
-const LANGUAGE_KEY = "code-lang";
-function savedLanguage(): RunLanguage {
-  try {
-    return localStorage.getItem(LANGUAGE_KEY) === "javascript" ? "javascript" : "python";
-  } catch {
-    return "python";
-  }
-}
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { MicButton } from "../components/MicButton";
 import { MicTestButton } from "../components/MicTestButton";
@@ -59,12 +52,13 @@ export function InterviewSessionPage() {
     }
   }
 
+  // The next question, or (followUpOf set) one follow-up on the answer just given.
   const loadNextQuestion = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, followUpOf?: string) => {
       setBusy("generating");
       setError(null);
       try {
-        const res = await api.post<{ question: Question }>(`/sessions/${sessionId}/questions`);
+        const res = await api.post<{ question: Question }>(followUpOf ? `/questions/${followUpOf}/follow-up` : `/sessions/${sessionId}/questions`);
         setCurrentQuestion(res.question);
         setQuestionCount((n) => n + 1);
         speech.resetTranscript();
@@ -202,6 +196,7 @@ export function InterviewSessionPage() {
               Question {currentQuestion.order}
               {currentQuestion.round && <span className="badge badge-primary" style={{ marginLeft: 8 }}>{ROUND_LABELS[currentQuestion.round]}</span>}
               {currentQuestion.type === "CODING" && <span className="badge" style={{ marginLeft: 8 }}>Coding</span>}
+              {currentQuestion.followUpOf && <span className="badge" style={{ marginLeft: 8 }}>Follow-up</span>}
             </h2>
             <button type="button" className="btn-link btn-link-inline" onClick={() => setGuideOpen(true)}>
               How you're graded
@@ -257,11 +252,7 @@ export function InterviewSessionPage() {
                       const next = e.target.value as RunLanguage;
                       if (codeAnswer.trim() && codeAnswer !== starterCode(language, currentQuestion.codeSpec!) && !window.confirm("Switch language? Your code will be replaced with a fresh starter.")) return;
                       setLanguage(next);
-                      try {
-                        localStorage.setItem(LANGUAGE_KEY, next);
-                      } catch {
-                        // Not remembered; nothing else breaks.
-                      }
+                      saveLanguage(next);
                     }}
                   >
                     <option value="python">Python</option>
@@ -323,12 +314,28 @@ export function InterviewSessionPage() {
         </div>
       )}
 
-      {feedback && (
+      {feedback && currentQuestion && (
         <>
           <FeedbackCard feedback={feedback} fillerStats={fillerStats} />
-          <button className="btn btn-primary btn-block" onClick={() => id && loadNextQuestion(id)} disabled={busy !== null}>
-            Next Question
-          </button>
+          {error && (
+            <p className="error-text" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="after-feedback">
+            <button className="btn btn-primary" onClick={() => id && loadNextQuestion(id)} disabled={busy !== null}>
+              Next Question
+            </button>
+            {!currentQuestion.followUpOf && (
+              <button className="btn btn-secondary" onClick={() => id && loadNextQuestion(id, currentQuestion.id)} disabled={busy !== null}>
+                Answer a follow-up
+              </button>
+            )}
+            <Link className="btn btn-secondary" to={`/sessions/${id}/questions/${currentQuestion.id}/retake`}>
+              Retake this answer
+            </Link>
+          </div>
+          <p className="helper-text">A follow-up presses on what you just said, like a real interviewer. A retake lets you answer this one again and compare.</p>
         </>
       )}
     </div>

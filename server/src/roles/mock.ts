@@ -8,6 +8,13 @@ import { levelLabel } from "./roles.prompts";
 export const MOCK_ROUNDS = ["BEHAVIOURAL", "BEHAVIOURAL", "ROLE", "ROLE", "CLOSING"] as const;
 export type MockRound = (typeof MOCK_ROUNDS)[number];
 
+// The questions in the order they're asked. Each role-specific question gets one follow-up on the answer before
+// moving on, like a real interviewer. A follow-up belongs to its question's round.
+export const MOCK_PLAN: { round: MockRound; followUp: boolean }[] = MOCK_ROUNDS.flatMap(
+  (round): { round: MockRound; followUp: boolean }[] =>
+    round === "ROLE" ? [{ round, followUp: false }, { round, followUp: true }] : [{ round, followUp: false }]
+);
+
 export const ROUND_LABELS: Record<MockRound, string> = {
   BEHAVIOURAL: "Behavioural",
   ROLE: "Role-specific",

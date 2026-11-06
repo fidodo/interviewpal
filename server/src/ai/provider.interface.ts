@@ -61,6 +61,8 @@ export interface GenerateQuestionParams {
   priorQA: PriorQA[];
   role?: RoleContext;
   persona?: string;
+  // Set to ask one follow-up on this earlier answer instead of a new question.
+  followUp?: { question: string; answer: string };
 }
 
 export interface GradeAnswerParams {
@@ -73,6 +75,8 @@ export interface GradeAnswerParams {
   persona?: string;
   // Runnable coding answers: the browser test run the candidate did before submitting.
   testResults?: { language: string; passed: number; total: number } | null;
+  // Retakes only: how the previous attempt at this question did.
+  previousAttempt?: { score: number; weaknesses: string[] };
 }
 
 export interface GenerateSummaryParams {
