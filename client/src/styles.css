@@ -3294,3 +3294,107 @@ button.rl-path-btn:hover {
 .table-scroll thead th:first-child {
   text-align: left;
 }
+
+/* Code diffs ("Show me the answer"): removed lines red with −, added lines green with +, changed words stronger. */
+:root {
+  --diff-add-bg: #e7f6ec;
+  --diff-add-strong: #b5e3c3;
+  --diff-del-bg: #fdecec;
+  --diff-del-strong: #f6c2c2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --diff-add-bg: rgba(74, 222, 128, 0.1);
+    --diff-add-strong: rgba(74, 222, 128, 0.32);
+    --diff-del-bg: rgba(248, 113, 113, 0.1);
+    --diff-del-strong: rgba(248, 113, 113, 0.32);
+  }
+}
+:root[data-theme="dark"] {
+  --diff-add-bg: rgba(74, 222, 128, 0.1);
+  --diff-add-strong: rgba(74, 222, 128, 0.32);
+  --diff-del-bg: rgba(248, 113, 113, 0.1);
+  --diff-del-strong: rgba(248, 113, 113, 0.32);
+}
+.code-diff-wrap {
+  margin: 14px 0;
+}
+.code-diff-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.code-diff-summary {
+  margin: 8px 0;
+}
+.code-diff-toggle {
+  margin-bottom: 8px;
+}
+.code-diff {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  padding: 6px 0;
+}
+.code-diff:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.diff-row {
+  display: grid;
+  grid-template-columns: 2.6em 2.6em 1.4em max-content;
+  min-width: 100%;
+  width: max-content;
+}
+.diff-no {
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 6px;
+  user-select: none;
+}
+.diff-mark {
+  text-align: center;
+  font-weight: 700;
+  user-select: none;
+}
+.diff-text {
+  white-space: pre;
+  padding-right: 12px;
+}
+.diff-add {
+  background: var(--diff-add-bg);
+}
+.diff-del {
+  background: var(--diff-del-bg);
+}
+.diff-word {
+  text-decoration: none;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.diff-add .diff-word {
+  background: var(--diff-add-strong);
+}
+.diff-del .diff-word {
+  background: var(--diff-del-strong);
+}
+.diff-fold {
+  padding: 2px 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  margin: 2px 0;
+}
+.debug-copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 4px 0 12px;
+}

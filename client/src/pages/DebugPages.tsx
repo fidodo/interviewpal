@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { ApiError } from "../api/client";
 import { debugApi } from "../api/debug";
 import { CopyButton } from "../components/CopyButton";
+import { CodeDiff } from "../code/CodeDiff";
 import { ScoreBadge } from "../components/ScoreBadge";
 import { runTests } from "../code/runTests";
 import { RunLanguage } from "../code/protocol";
@@ -399,27 +400,16 @@ export function DebugChallengePage() {
               </li>
             ))}
           </ol>
-          <div className="debug-compare">
-            <div>
-              <div className="code-header">
-                <h3 className="feedback-list-title">A fix</h3>
-                <CopyButton text={result.referenceFix} label="Copy the fix" />
-              </div>
-              <pre className="lesson-code" tabIndex={0} aria-label="Reference fix">
-                {result.referenceFix}
-              </pre>
-            </div>
-            <div>
-              <div className="code-header">
-                <h3 className="feedback-list-title">Your code when you stopped</h3>
-                <CopyButton text={result.submittedCode} label="Copy your code" />
-              </div>
-              <pre className="lesson-code" tabIndex={0} aria-label="Your code when you stopped">
-                {result.submittedCode}
-              </pre>
-            </div>
-          </div>
-          <div className="code-header">
+          <CodeDiff
+            title="What changed"
+            views={[
+              { key: "buggy", label: "Buggy code → fix", from: challenge.buggyCode, to: result.referenceFix, sameText: "The fix matches the original code." },
+              { key: "yours", label: "Your code → fix", from: result.submittedCode, to: result.referenceFix, sameText: "Your code already matches the fix." },
+            ]}
+          />
+          <div className="debug-copy-row">
+            <CopyButton text={result.referenceFix} label="Copy the fix" />
+            <CopyButton text={result.submittedCode} label="Copy your code" />
             <CopyButton text={challenge.buggyCode} label="Copy the original buggy code" />
           </div>
           {error && (
@@ -468,10 +458,16 @@ export function DebugChallengePage() {
                 <li key={i}>{b}</li>
               ))}
             </ol>
-            <h3 className="feedback-list-title">A reference fix</h3>
-            <pre className="lesson-code" tabIndex={0} aria-label="Reference fix">
-              {result.referenceFix}
-            </pre>
+            <CodeDiff
+              title="A reference fix: what changed"
+              views={[
+                { key: "buggy", label: "Buggy code → fix", from: challenge.buggyCode, to: result.referenceFix, sameText: "The fix matches the original code." },
+                { key: "yours", label: "Your fix → reference", from: result.submittedCode, to: result.referenceFix, sameText: "Your fix matches the reference fix." },
+              ]}
+            />
+            <div className="debug-copy-row">
+              <CopyButton text={result.referenceFix} label="Copy the reference fix" />
+            </div>
             <details>
               <summary>Your fix</summary>
               <pre className="lesson-code" tabIndex={0} aria-label="Your fix">
