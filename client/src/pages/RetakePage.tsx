@@ -12,6 +12,9 @@ import { TranscriptBox } from "../components/TranscriptBox";
 import { CodeAnswerBox } from "../components/CodeAnswerBox";
 import { FeedbackCard } from "../components/FeedbackCard";
 import { ScoreBadge } from "../components/ScoreBadge";
+import { RecordToggle, RecordingPlayer, keepRecordings } from "../components/Recording";
+import { useRecorder } from "../hooks/useRecorder";
+import { saveRecording } from "../audio/recordings";
 
 const CodeRunner = lazy(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
 
@@ -36,6 +39,9 @@ function changeText(before: number, after: number) {
 export function RetakePage() {
   const { id, questionId } = useParams<{ id: string; questionId: string }>();
   const speech = useSpeechRecognition();
+  const [keepAudio, setKeepAudio] = useState(keepRecordings);
+  const recorder = useRecorder(speech.isListening, keepAudio);
+  const pendingAudio = useRef<Blob | null>(null);
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [question, setQuestion] = useState<QuestionWithAnswer | null>(null);
   const [code, setCode] = useState("");
@@ -105,7 +111,10 @@ export function RetakePage() {
     try {
       const run = isCoding && question!.codeSpec ? await runTests(language, text, question!.codeSpec).catch(() => null) : null;
       const testResults = run && run.total > 0 && language !== "typescript" ? { language, passed: run.passed, total: run.total } : null;
+      if (!isCoding) pendingAudio.current = (await recorder.finish()) ?? pendingAudio.current;
       const res = await api.post<{ retake: Retake }>(`/questions/${questionId}/retake`, { transcript: text, testResults });
+      if (pendingAudio.current) await saveRecording(`retake:${questionId}:${res.retake.number}`, pendingAudio.current);
+      pendingAudio.current = null;
       setLatest({ retake: res.retake, before: previous.score });
       setQuestion((q) => (q && q.answer ? { ...q, answer: { ...q.answer, retakes: [...q.answer.retakes, res.retake] } } : q));
     } catch (err) {
@@ -117,6 +126,8 @@ export function RetakePage() {
 
   function again() {
     setLatest(null);
+    recorder.reset();
+    pendingAudio.current = null;
     speech.resetTranscript();
     if (isCoding) setCode(latest?.retake.transcript ?? code);
   }
@@ -168,6 +179,7 @@ export function RetakePage() {
               </p>
             </div>
           </div>
+          <RecordingPlayer recordingKey={`retake:${questionId}:${latest.retake.number}`} />
           <FeedbackCard feedback={latest.retake.feedback} fillerStats={latest.retake.fillerStats as FillerStats | null} />
         </>
       )}
@@ -219,6 +231,7 @@ export function RetakePage() {
                   {speech.error}
                 </p>
               )}
+              <RecordToggle value={keepAudio} onChange={setKeepAudio} />
               <MicTestButton />
               <TranscriptBox value={speech.transcript} onChange={speech.setTranscript} disabled={busy === "submitting"} />
             </>

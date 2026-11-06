@@ -148,6 +148,12 @@ export const ragGradeDailyLimiter = limiter("rag-grade-day", DAY, 80, "You've gr
 });
 
 // Terms review (server/src/terms): answering cards that aren't AI-marked is free, but still burst-limited.
+// The progress page (read-only aggregates).
+export const progressLimiter = limiter("progress", 60_000, 30, "Too many refreshes. Wait a minute and try again.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});
+
 // The story bank's free routes (listing, saving, editing, drill questions).
 export const bankLimiter = limiter("story-bank", 60_000, 60, "That's a lot of changes at once. Wait a minute and carry on.", {
   keyGenerator: byUserOrIp,

@@ -1,6 +1,9 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { SaveToBank } from "./BankPages";
+import { RecordToggle, RecordingPlayer, keepRecordings } from "../components/Recording";
+import { useRecorder } from "../hooks/useRecorder";
+import { saveRecording } from "../audio/recordings";
 import { ApiError } from "../api/client";
 import { storyApi } from "../api/story";
 import { MicButton } from "../components/MicButton";
@@ -186,6 +189,7 @@ function TakeResult({ take, previous, targetSeconds }: { take: StoryTake; previo
           {previous && <p className="helper-text">Take {previous.number} scored {previous.score}/10</p>}
         </div>
       </div>
+      <RecordingPlayer recordingKey={`take:${take.id}`} label={`Hear take ${take.number}`} />
       <ul className="design-breakdown">
         {DIMENSIONS.map((d) => (
           <li key={d.key}>
@@ -307,6 +311,11 @@ export function StoryPage() {
   // Recorded time: finished stretches in recordedMs, plus the current one since segmentStart.
   const [recordedMs, setRecordedMs] = useState(0);
   const segmentStart = useRef<number | null>(null);
+  // Audio of the take being told, kept only in this browser (see audio/recordings.ts).
+  const [keepAudio, setKeepAudio] = useState(keepRecordings);
+  const recorder = useRecorder(speech.isListening, keepAudio);
+  // A recording already finished for a submit that failed, so a retry still saves it.
+  const pendingAudio = useRef<Blob | null>(null);
   const [, setTick] = useState(0);
   const resultRef = useRef<HTMLElement>(null);
 
@@ -354,6 +363,8 @@ export function StoryPage() {
 
   function resetRecorder() {
     speech.stop();
+    recorder.reset();
+    pendingAudio.current = null;
     speech.resetTranscript();
     segmentStart.current = null;
     setRecordedMs(0);
@@ -368,7 +379,11 @@ export function StoryPage() {
     setSubmitting(true);
     setError(null);
     try {
+      pendingAudio.current = (await recorder.finish()) ?? pendingAudio.current;
       const res = await storyApi.submitTake(story.id, speech.transcript.trim(), seconds >= MIN_TIMED_SECONDS ? Math.min(600, seconds) : null);
+      const saved = res.story.takes[res.story.takes.length - 1];
+      if (pendingAudio.current && saved) await saveRecording(`take:${saved.id}`, pendingAudio.current);
+      pendingAudio.current = null;
       setStory(res.story);
       setShownTake(null);
       setRetelling(false);
@@ -488,6 +503,7 @@ export function StoryPage() {
           </p>
 
           <MicButton isListening={speech.isListening} isSupported={speech.isSupported} onStart={speech.start} onStop={speech.stop} disabled={submitting} />
+          <RecordToggle value={keepAudio} onChange={setKeepAudio} />
           <p className={`st-clock ${over ? "st-over" : ""}`} role="timer" aria-label="Time spoken">
             {clock(recordedSec)} / {clock(story.targetSeconds)}
             {over && ` (over by ${clock(recordedSec - story.targetSeconds)})`}

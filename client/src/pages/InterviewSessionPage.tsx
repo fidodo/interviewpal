@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { SessionDetail, Feedback, FillerStats, Question, ROUND_LABELS, PERSONA_LABELS } from "../types";
@@ -10,6 +10,9 @@ import { saveLanguage, savedLanguage } from "../code/savedLanguage";
 const CodeRunner = lazy(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
 
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { useRecorder } from "../hooks/useRecorder";
+import { saveRecording } from "../audio/recordings";
+import { RecordToggle, RecordingPlayer, keepRecordings } from "../components/Recording";
 import { MicButton } from "../components/MicButton";
 import { MicTestButton } from "../components/MicTestButton";
 import { TranscriptBox } from "../components/TranscriptBox";
@@ -21,6 +24,11 @@ export function InterviewSessionPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const speech = useSpeechRecognition();
+  // Audio of the spoken answer, kept only in this browser so it can be replayed with the feedback.
+  const [keepAudio, setKeepAudio] = useState(keepRecordings);
+  const recorder = useRecorder(speech.isListening, keepAudio);
+  const pendingAudio = useRef<Blob | null>(null);
+  const [answerId, setAnswerId] = useState<string | null>(null);
 
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
@@ -61,6 +69,9 @@ export function InterviewSessionPage() {
         const res = await api.post<{ question: Question }>(followUpOf ? `/questions/${followUpOf}/follow-up` : `/sessions/${sessionId}/questions`);
         setCurrentQuestion(res.question);
         setQuestionCount((n) => n + 1);
+        recorder.reset();
+        pendingAudio.current = null;
+        setAnswerId(null);
         speech.resetTranscript();
         setCodeAnswer("");
         setFeedback(null);
@@ -72,7 +83,7 @@ export function InterviewSessionPage() {
         setBusy(null);
       }
     },
-    [speech]
+    [speech, recorder]
   );
 
   useEffect(() => {
@@ -117,10 +128,14 @@ export function InterviewSessionPage() {
       // If the runner itself can't load (e.g. the Python CDN is blocked), submit without test results.
       const run = spec ? await runTests(language, answerText, spec).catch(() => null) : null;
       const testResults = run && run.total > 0 ? { language, passed: run.passed, total: run.total } : null;
-      const res = await api.post<{ answer: { fillerStats: FillerStats | null }; feedback: Feedback }>(
+      if (!isCoding) pendingAudio.current = (await recorder.finish()) ?? pendingAudio.current;
+      const res = await api.post<{ answer: { id: string; fillerStats: FillerStats | null }; feedback: Feedback }>(
         `/questions/${currentQuestion.id}/answer`,
         { transcript: answerText, testResults }
       );
+      if (pendingAudio.current) await saveRecording(`answer:${res.answer.id}`, pendingAudio.current);
+      pendingAudio.current = null;
+      setAnswerId(res.answer.id);
       if (res.feedback) {
         setFeedback(res.feedback);
         setFillerStats(res.answer.fillerStats);
@@ -288,6 +303,7 @@ export function InterviewSessionPage() {
                   {speech.error}
                 </p>
               )}
+              <RecordToggle value={keepAudio} onChange={setKeepAudio} />
               <MicTestButton />
               <TranscriptBox value={speech.transcript} onChange={speech.setTranscript} disabled={busy === "submitting"} />
             </>
@@ -317,6 +333,7 @@ export function InterviewSessionPage() {
       {feedback && currentQuestion && (
         <>
           <FeedbackCard feedback={feedback} fillerStats={fillerStats} />
+          {answerId && <RecordingPlayer recordingKey={`answer:${answerId}`} />}
           {error && (
             <p className="error-text" role="alert">
               {error}

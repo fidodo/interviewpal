@@ -4,6 +4,7 @@ import { api, ApiError } from "../api/client";
 import { ROUND_LABELS, SessionDetail, Summary, Verdict } from "../types";
 import { ScoreBadge } from "../components/ScoreBadge";
 import { FeedbackCard } from "../components/FeedbackCard";
+import { RecordingPlayer } from "../components/Recording";
 
 const VERDICTS: Record<Verdict, { label: string; note: string }> = {
   HIRE: { label: "Hire", note: "You'd likely get an offer at this level." },
@@ -190,6 +191,7 @@ export function SummaryPage() {
                 <h3 className="feedback-list-title">Your answer</h3>
                 <p className="review-answer">{q.answer!.transcript}</p>
                 <FeedbackCard feedback={q.answer!.feedback!} fillerStats={q.answer!.fillerStats} />
+                <RecordingPlayer recordingKey={`answer:${q.answer!.id}`} />
                 <Link className="btn btn-secondary" to={`/sessions/${session.id}/questions/${q.id}/retake`}>
                   {q.answer!.retakes.length ? "See retakes or retake again" : "Retake this answer"}
                 </Link>
