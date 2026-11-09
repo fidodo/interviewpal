@@ -14,7 +14,7 @@ function notFound(res: Response) {
 
 // The coaching notes (what a strong answer includes) stay hidden until the first take is graded, so the speaker
 // tells it their own way first.
-function serialize(s: Story) {
+function serialize(s: Story, bankEntryId: string | null = s.bankEntry?.id ?? null) {
   return {
     id: s.id,
     kind: s.kind,
@@ -30,7 +30,7 @@ function serialize(s: Story) {
     nextRoundId: s.nextRound?.id ?? null,
     maxTakes: storyService.MAX_TAKES,
     // Set once the story has been saved to the story bank.
-    bankEntryId: s.bankEntry?.id ?? null,
+    bankEntryId,
     takes: s.takes.map((t) => ({
       id: t.id,
       number: t.number,
@@ -80,7 +80,9 @@ export async function createStory(req: AuthedRequest, res: Response) {
 export async function getStory(req: AuthedRequest, res: Response) {
   const story = await storyService.findStory(req.userId!, req.params.id);
   if (!story) return notFound(res);
-  res.json({ story: serialize(story) });
+  // A story saved to the bank from any of its rounds counts as saved, so it isn't banked twice.
+  const banked = story.bankEntry ?? (story.round > 1 || story.nextRound ? await storyService.bankEntryForRounds(story.id) : null);
+  res.json({ story: serialize(story, banked?.id ?? null) });
 }
 
 export async function submitTake(req: AuthedRequest, res: Response) {
@@ -106,7 +108,8 @@ export async function submitTake(req: AuthedRequest, res: Response) {
     return;
   }
   const latest = result!.takes[result!.takes.length - 1];
-  res.status(201).json({ story: serialize(result!), rewards: await recordPractice(req.userId!, "SPEAK", latest?.score ?? null) });
+  const banked = result!.bankEntry ?? (result!.round > 1 ? await storyService.bankEntryForRounds(result!.id) : null);
+  res.status(201).json({ story: serialize(result!, banked?.id ?? null), rewards: await recordPractice(req.userId!, "SPEAK", latest?.score ?? null) });
 }
 
 export async function practiseAgain(req: AuthedRequest, res: Response) {

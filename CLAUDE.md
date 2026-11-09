@@ -195,9 +195,11 @@ Storytelling practice: the user tells a story or explains a topic out loud, gets
 - **Rounds:** after all 5 takes, "Practise this story again" (`POST /story/:id/again`, `practiseAgain`, no AI call) starts round N+1.
   - It copies the prompt, audience, length and coaching notes, with `round` and `continuesFromId` set.
   - `continuesFromId` is unique, so a double click returns the existing round.
-  - Round 2+ shows the coaching notes from the start, and its first take is graded against the previous round's last take.
+  - Round 2+ shows the coaching notes from the start, and its first take is graded against the previous round's last take (`fromPreviousRound` in the prompt, so it's never called "take 5").
+  - The Speak list shows only the latest round of each story; a round links back to the one before.
+  - One bank entry per story across all its rounds: `bankEntryForRounds` walks the chain, so saving another round returns 409.
   - After a round's last take, "What to work on next" (`client/src/story/nextFocus.ts`, computed in code) names the lowest dimension over the last 2 takes, with a fixed tip, and flags fillers or hedges above 3 per 100 words.
-- **Clean-up:** practice stories are temporary, and the story bank is what's kept. `cleanupStories` runs inside the daily cron handler, after the reminders. It deletes stories with no takes after 7 days, and stories whose last take is more than 90 days old, but never a story in the bank (`bankEntry: null`). The progress page only charts 84 days, and streaks, badges and personal bests live in their own tables.
+- **Clean-up:** practice stories are temporary, and the story bank is what's kept. `cleanupStories` runs inside the daily cron handler, after the reminders. It deletes stories with no takes after 7 days, and stories whose last take is more than 90 days old, but never a story in the bank (`bankEntry: null`) or one whose take is being marked (`gradingAt: null`). It runs even if the reminders fail. The progress page only charts 84 days, and streaks, badges and personal bests live in their own tables.
 - **Limits:** the AI routes use `requireVerified`, `aiLimiter` and `aiDailyLimiter`, so Speak shares the 50-a-day interview allowance.
 
 ### Story bank (`/speak/bank`, `server/src/story/bank.*`, `client/src/story/BankPages.tsx`)

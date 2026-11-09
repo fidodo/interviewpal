@@ -1,3 +1,4 @@
+import { bankEntryForRounds } from "./story.service";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { generateValidated } from "../ai/retry";
@@ -44,6 +45,8 @@ export async function createEntry(userId: string, input: { storyId?: string; tit
   if (input.storyId) {
     const story = await prisma.storyPractice.findFirst({ where: { id: input.storyId, userId }, include: { takes: { select: { score: true, transcript: true } } } });
     if (!story) return null;
+    // One entry per story, across all its rounds.
+    if (await bankEntryForRounds(story.id)) return "exists" as const;
     bestScore = bestTake(story)?.score ?? null;
   }
   try {

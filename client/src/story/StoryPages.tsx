@@ -137,7 +137,7 @@ export function SpeakHomePage() {
         {!stories && !error && <p className="helper-text">Loading…</p>}
         {stories?.length === 0 && <p className="helper-text">None yet.</p>}
         {stories && stories.length > 0 && (
-          <p className="helper-text">Practice stories are cleared 90 days after your last take unless you save them to your story bank.</p>
+          <p className="helper-text">Practice stories are cleared 90 days after your last take, and prompts you never tell after 7 days, unless you save them to your story bank.</p>
         )}
         {stories && stories.length > 0 && (
           <ul className="course-list">
@@ -308,7 +308,7 @@ function PractiseAgain({ story }: { story: Story }) {
   const [error, setError] = useState<string | null>(null);
 
   async function start() {
-    if (story.nextRoundId) return navigate(`/speak/${story.nextRoundId}`);
+    // Always ask the server: it returns the existing next round, or makes a new one if that was deleted.
     setStarting(true);
     setError(null);
     try {
@@ -500,6 +500,12 @@ export function StoryPage() {
     <div className="page">
       <p>
         <Link to="/speak">← All stories</Link>
+        {story.continuesFromId && (
+          <>
+            {" · "}
+            <Link to={`/speak/${story.continuesFromId}`}>Round {story.round - 1}</Link>
+          </>
+        )}
       </p>
       <h1 className="page-title">
         {KIND_LABELS[story.kind]}
@@ -628,6 +634,7 @@ export function StoryPage() {
               ))}
             </div>
           )}
+          {shownIndex === 0 && story.round > 1 && <p className="helper-text">This take was marked against your last take in round {story.round - 1}.</p>}
           <TakeResult take={takes[shownIndex]} previous={takes[shownIndex - 1]} targetSeconds={story.targetSeconds} />
           {!recording && (
             <div className="st-actions">

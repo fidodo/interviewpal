@@ -83,7 +83,13 @@ const dailyReminder = asyncHandler(async (req: Request, res: Response) => {
     res.status(401).json({ error: "Unauthorised" });
     return;
   }
-  const reminders = await sendDailyReminders();
+  let reminders: object;
+  try {
+    reminders = await sendDailyReminders();
+  } catch (err) {
+    console.error("Daily reminders failed:", err);
+    reminders = { error: true };
+  }
   // The daily housekeeping rides on the same cron (Hobby allows few cron jobs). A failure here never hides the
   // reminder result.
   let stories: unknown;

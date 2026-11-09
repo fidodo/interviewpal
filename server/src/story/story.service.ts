@@ -26,8 +26,9 @@ export async function createStory(userId: string, input: { kind: StoryKind; topi
 }
 
 export async function listStories(userId: string) {
+  // Only the latest round of each story; earlier rounds are linked from the round page.
   const stories = await prisma.storyPractice.findMany({
-    where: { userId },
+    where: { userId, nextRound: { is: null } },
     orderBy: { createdAt: "desc" },
     take: 30,
     select: { id: true, kind: true, prompt: true, targetSeconds: true, round: true, createdAt: true, takes: { select: { score: true } }, bankEntry: { select: { id: true } } },
@@ -37,6 +38,28 @@ export async function listStories(userId: string) {
 
 export function findStory(userId: string, id: string) {
   return prisma.storyPractice.findFirst({ where: { id, userId }, include: { takes: { orderBy: { number: "asc" } }, bankEntry: { select: { id: true } }, nextRound: { select: { id: true } } } });
+}
+
+// Every round of the same story (ids), following continuesFromId back and nextRound forward. Rounds are few.
+export async function roundIds(id: string) {
+  const ids = [id];
+  for (let cur = id; ; ) {
+    const s = await prisma.storyPractice.findUnique({ where: { id: cur }, select: { continuesFromId: true } });
+    if (!s?.continuesFromId || ids.includes(s.continuesFromId)) break;
+    ids.push((cur = s.continuesFromId));
+  }
+  for (let cur = id; ; ) {
+    const next = await prisma.storyPractice.findUnique({ where: { continuesFromId: cur }, select: { id: true } });
+    if (!next || ids.includes(next.id)) break;
+    ids.push((cur = next.id));
+  }
+  return ids;
+}
+
+// The story bank entry saved from any round of this story, if there is one.
+export async function bankEntryForRounds(id: string) {
+  const ids = await roundIds(id);
+  return prisma.storyBankEntry.findFirst({ where: { storyId: { in: ids } }, select: { id: true } });
 }
 
 export async function deleteStory(userId: string, id: string) {
@@ -94,6 +117,7 @@ export async function submitTake(userId: string, id: string, transcript: string,
         previous: last
           ? {
               number: last.number,
+              fromPreviousRound: takes.length === 0,
               breakdown: parseJsonObject<StoryGrade["breakdown"]>(last.breakdown)!,
               improvements: parseJsonObject<{ improvements: string[] }>(last.feedback)?.improvements ?? [],
             }
@@ -171,17 +195,14 @@ export function cleanupWhere(now = Date.now()) {
   const abandonedBefore = new Date(now - ABANDONED_DAYS * 86_400_000);
   const practisedBefore = new Date(now - PRACTICE_KEEP_DAYS * 86_400_000);
   return {
-    abandoned: { bankEntry: null, createdAt: { lt: abandonedBefore }, takes: { none: {} } },
-    old: { bankEntry: null, createdAt: { lt: practisedBefore }, takes: { some: {}, none: { createdAt: { gte: practisedBefore } } } },
+    // gradingAt: null leaves a story alone while a take is being marked (its first take may be about to be saved).
+    abandoned: { bankEntry: null, gradingAt: null, createdAt: { lt: abandonedBefore }, takes: { none: {} } },
+    old: { bankEntry: null, gradingAt: null, takes: { some: {}, none: { createdAt: { gte: practisedBefore } } } },
   } satisfies Record<string, Prisma.StoryPracticeWhereInput>;
 }
 
-export async function cleanupStories(dryRun = false) {
+export async function cleanupStories() {
   const where = cleanupWhere();
-  if (dryRun) {
-    const [abandoned, old] = await Promise.all([prisma.storyPractice.count({ where: where.abandoned }), prisma.storyPractice.count({ where: where.old })]);
-    return { abandoned, old, dryRun: true };
-  }
   const abandoned = await prisma.storyPractice.deleteMany({ where: where.abandoned });
   const old = await prisma.storyPractice.deleteMany({ where: where.old });
   return { abandoned: abandoned.count, old: old.count };
