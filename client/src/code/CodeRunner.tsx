@@ -14,29 +14,39 @@ interface CodeRunnerProps {
   disabled?: boolean;
   onCodeChange: (code: string) => void;
   onRun?: (run: TestRun) => void;
+  // Python is still downloading (started when the page opened), so the first run will wait for it.
+  preparing?: boolean;
 }
 
 const RUNNABLE: RunLanguage[] = ["python", "javascript", "typescript"];
 
 // A code editor with a "Run tests" button and results. Code-editing stacks that can't run in the browser just get
 // the editor.
-export function CodeRunner({ language, spec, initialCode, editorKey, labelledBy, disabled, onCodeChange, onRun }: CodeRunnerProps) {
+export function CodeRunner({ language, spec, initialCode, editorKey, labelledBy, disabled, onCodeChange, onRun, preparing }: CodeRunnerProps) {
   const [code, setCode] = useState(initialCode);
   const [run, setRun] = useState<TestRun | null>(null);
   const [running, setRunning] = useState(false);
+  // The runner itself failed (e.g. Python couldn't download), as opposed to the code failing its tests.
+  const [runError, setRunError] = useState<string | null>(null);
   const runnable = spec != null && (RUNNABLE as string[]).includes(language);
 
   // A new editor (language switch, reset) starts with no results; old ones would describe different code.
-  useEffect(() => setRun(null), [editorKey]);
+  useEffect(() => {
+    setRun(null);
+    setRunError(null);
+  }, [editorKey]);
 
   async function handleRun() {
     if (!spec) return;
     setRunning(true);
     setRun(null);
+    setRunError(null);
     try {
       const result = await runTests(language as RunLanguage, code, spec);
       setRun(result);
       onRun?.(result);
+    } catch (err) {
+      setRunError(err instanceof Error && err.message ? err.message : "Couldn't run the tests. Try again.");
     } finally {
       setRunning(false);
     }
@@ -59,8 +69,15 @@ export function CodeRunner({ language, spec, initialCode, editorKey, labelledBy,
           <button type="button" className="btn btn-secondary" onClick={handleRun} disabled={running || disabled}>
             <span aria-hidden="true">▶</span> {running ? (language === "python" ? "Running (Python may take a moment the first time)…" : "Running…") : "Run tests"}
           </button>
-          <span className="helper-text">{spec!.tests.length} test cases</span>
+          <span className="helper-text">
+            {spec!.tests.length} test cases{preparing && language === "python" && !running ? " · Loading Python…" : ""}
+          </span>
         </div>
+      )}
+      {runError && (
+        <p className="error-text" role="alert">
+          {runError}
+        </p>
       )}
       {run && spec && <TestResults run={run} spec={spec} />}
     </div>

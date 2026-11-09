@@ -1,13 +1,13 @@
 import { RunLanguage } from "./protocol";
 
-// The language the learner last picked for runnable interview answers.
+// The language the learner last picked for runnable interview answers. JavaScript until they pick Python.
 export const LANGUAGE_KEY = "code-lang";
 
 export function savedLanguage(): RunLanguage {
   try {
-    return localStorage.getItem(LANGUAGE_KEY) === "javascript" ? "javascript" : "python";
+    return localStorage.getItem(LANGUAGE_KEY) === "python" ? "python" : "javascript";
   } catch {
-    return "python";
+    return "javascript";
   }
 }
 

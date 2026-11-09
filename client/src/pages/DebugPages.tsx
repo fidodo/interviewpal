@@ -8,6 +8,7 @@ import { ScoreBadge } from "../components/ScoreBadge";
 import { runTests } from "../code/runTests";
 import { RunLanguage } from "../code/protocol";
 import { canFormat, FormatError, formatCode } from "../code/formatCode";
+import { useElapsed } from "../hooks/useElapsed";
 import { DEBUG_LANGUAGES, DebugChallenge, DebugSummary, Difficulty, LEVEL_LABELS } from "../types";
 
 // CodeMirror and the runners are a separate chunk.
@@ -34,6 +35,54 @@ function writeDraft(id: string, code: string | null, base?: string) {
   }
 }
 
+const isStack = (x: string | null): x is string => !!x && Object.prototype.hasOwnProperty.call(DEBUG_LANGUAGES, x);
+
+// The stack picked last time, so /debug opens on it. JavaScript the first time.
+const STACK_KEY = "debug-language";
+function savedStack() {
+  try {
+    const saved = localStorage.getItem(STACK_KEY);
+    return isStack(saved) ? saved : "javascript";
+  } catch {
+    return "javascript";
+  }
+}
+function saveStack(language: string) {
+  try {
+    localStorage.setItem(STACK_KEY, language);
+  } catch {
+    // Not remembered; nothing else breaks.
+  }
+}
+
+// Writing an exercise is several AI steps, and falls back to slower models when the fast one is busy.
+const WRITING_DETAIL =
+  "Writing a bug report, code with planted bugs, tests and a reference fix, then checking them. This usually takes 5-20 seconds, and up to a minute when the AI is busy.";
+// After this long, the busy note adds that it can take up to a minute.
+const SLOW_AFTER_SECONDS = 20;
+
+// Shown while an exercise is being written: what's happening and how long it's taken. Screen readers get the label
+// from the page's status region instead, so the ticking seconds aren't read out.
+function ProgressCard({ label, seconds, detail }: { label: string; seconds: number; detail: string }) {
+  return (
+    <div className="progress-card">
+      <p className="progress-card-title">
+        {label} <span className="helper-text">{seconds}s</span>
+      </p>
+      <div className="progress-bar" aria-hidden="true">
+        <span />
+      </div>
+      <p className="helper-text">{detail}</p>
+    </div>
+  );
+}
+
+// Resolves to null if the promise takes longer than ms, so a slow Python download never holds up grading.
+function within<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  let timer = 0;
+  return Promise.race([promise, new Promise<null>((resolve) => (timer = window.setTimeout(() => resolve(null), ms)))]).finally(() => window.clearTimeout(timer));
+}
+
 function readDraft(id: string, original: string) {
   try {
     const draft = localStorage.getItem(draftKey(id));
@@ -54,11 +103,15 @@ function readDraft(id: string, original: string) {
 export function DebugPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [language, setLanguage] = useState(params.get("language") ?? "python");
+  const [language, setLanguage] = useState(() => {
+    const fromLink = params.get("language");
+    return isStack(fromLink) ? fromLink : savedStack();
+  });
   const [level, setLevel] = useState<Difficulty>("INTERMEDIATE");
   const [history, setHistory] = useState<DebugSummary[] | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const seconds = useElapsed(creating);
 
   useEffect(() => {
     debugApi
@@ -90,7 +143,16 @@ export function DebugPage() {
       <form className="card" onSubmit={handleCreate}>
         <div className="field">
           <label htmlFor="debug-language">Stack</label>
-          <select id="debug-language" className="input" value={language} onChange={(e) => setLanguage(e.target.value)}>
+          <select
+            id="debug-language"
+            className="input"
+            value={language}
+            disabled={creating}
+            onChange={(e) => {
+              setLanguage(e.target.value);
+              saveStack(e.target.value);
+            }}
+          >
             {Object.entries(DEBUG_LANGUAGES).map(([key, { label, runnable }]) => (
               <option key={key} value={key}>
                 {label}
@@ -105,7 +167,14 @@ export function DebugPage() {
           </span>
           <div className="segmented" role="group" aria-labelledby="debug-level-label">
             {LEVELS.map((l) => (
-              <button key={l} type="button" className={`segmented-option ${level === l ? "active" : ""}`} aria-pressed={level === l} onClick={() => setLevel(l)}>
+              <button
+                key={l}
+                type="button"
+                className={`segmented-option ${level === l ? "active" : ""}`}
+                aria-pressed={level === l}
+                disabled={creating}
+                onClick={() => setLevel(l)}
+              >
                 {LEVEL_LABELS[l]}
               </button>
             ))}
@@ -120,6 +189,10 @@ export function DebugPage() {
         <button type="submit" className="btn btn-primary" disabled={creating}>
           {creating ? "Writing broken code…" : "Give me buggy code"}
         </button>
+        {creating && <ProgressCard label="Writing your buggy code…" seconds={seconds} detail={WRITING_DETAIL} />}
+        <p className="visually-hidden" role="status">
+          {creating ? "Writing your buggy code. This can take up to a minute." : ""}
+        </p>
       </form>
 
       <section aria-labelledby="debug-history-title">
@@ -148,6 +221,17 @@ export function DebugPage() {
   );
 }
 
+// Why the buttons are disabled right now, and for how long. After 20 seconds it says this can take up to a minute.
+function BusyNote({ label, seconds }: { label: string; seconds: number }) {
+  return (
+    <p className="helper-text debug-busy">
+      <span className="debug-busy-dot" aria-hidden="true" />
+      {label} {seconds}s
+      {seconds >= SLOW_AFTER_SECONDS && ". Still working; when the AI is busy this can take up to a minute."}
+    </p>
+  );
+}
+
 // /debug/:id: fix the code, optionally run tests and take hints, then submit for grading.
 export function DebugChallengePage() {
   const { id = "" } = useParams();
@@ -163,14 +247,67 @@ export function DebugChallengePage() {
   // Code to load into the editor on its next remount (after formatting), instead of the draft or the original.
   const [loadCode, setLoadCode] = useState<string | null>(null);
   const resultRef = useRef<HTMLElement>(null);
+  const noticeRef = useRef<HTMLParagraphElement>(null);
+  const seconds = useElapsed(busy !== null);
+  // A fix that's being graded (e.g. the page was reloaded mid-submit): the page checks back until it's done.
+  const status = challenge?.status;
+  const [gradingStuck, setGradingStuck] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const gradingSeconds = useElapsed(status === "GRADING" && !gradingStuck);
+  // Python downloads when the page opens, so the first "Run tests" doesn't wait as long.
+  const [preparingPython, setPreparingPython] = useState(false);
 
   useEffect(() => {
     setChallenge(null);
+    setGradingStuck(false);
+    setNotice(null);
     debugApi
       .get(id)
       .then((res) => setChallenge(res.challenge))
       .catch((err) => setError(errorMessage(err, "Couldn't load this challenge")));
   }, [id]);
+
+  useEffect(() => {
+    if (status !== "GRADING" || gradingStuck) return;
+    const started = Date.now();
+    const timer = window.setInterval(() => {
+      // The server lets a claim older than 2 minutes be retaken, so after that the learner can submit again.
+      if (Date.now() - started > 150_000) {
+        setGradingStuck(true);
+        setNotice("Grading is taking much longer than it should. Your code is still here, so submit it again.");
+        return;
+      }
+      debugApi
+        .get(id)
+        .then((res) => {
+          if (res.challenge.status === "GRADING") return;
+          if (res.challenge.status === "OPEN") setNotice("Grading didn't finish. Your code is still here, so submit it again.");
+          setChallenge(res.challenge);
+          // The grading card is gone; move focus to the result (or the notice) so it isn't lost.
+          requestAnimationFrame(() => (resultRef.current ?? noticeRef.current)?.focus());
+        })
+        .catch(() => {
+          // Try again on the next tick.
+        });
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [id, status, gradingStuck]);
+
+  const pythonToPrepare = !!challenge && challenge.runnable && challenge.language === "python" && challenge.status === "OPEN";
+  useEffect(() => {
+    if (!pythonToPrepare) return;
+    let cancelled = false;
+    setPreparingPython(true);
+    import("../kids/runner/runPython")
+      .then((m) => m.preparePython())
+      // A failed download shows up as an error when the learner presses "Run tests", which tries again.
+      .catch(() => undefined)
+      .finally(() => !cancelled && setPreparingPython(false));
+    return () => {
+      cancelled = true;
+      setPreparingPython(false);
+    };
+  }, [pythonToPrepare]);
 
   async function hint() {
     setBusy("hint");
@@ -192,17 +329,31 @@ export function DebugChallengePage() {
     if (!challenge) return;
     setBusy("submit");
     setError(null);
+    setNotice(null);
     try {
       // Re-run the tests on the exact code being submitted.
-      // If the runner itself can't load, the fix is still graded (by reading it).
-      const run = challenge.runnable && challenge.spec ? await runTests(challenge.language as RunLanguage, code, challenge.spec).catch(() => null) : null;
+      // If the runner can't load, or takes over 20 seconds (a slow Python download), the fix is graded by reading it.
+      const run =
+        challenge.runnable && challenge.spec ? await within(runTests(challenge.language as RunLanguage, code, challenge.spec), 20_000).catch(() => null) : null;
       const testResults = run && run.total > 0 ? { passed: run.passed, total: run.total } : null;
       const res = await debugApi.submit(id, { code, explanation: explanation.trim(), testResults });
       writeDraft(id, null);
       setChallenge(res.challenge);
+      setGradingStuck(false);
       requestAnimationFrame(() => resultRef.current?.focus());
     } catch (err) {
       setError(errorMessage(err, "Couldn't grade your fix. Try again."));
+      // Already being graded (a double submit, or another tab): show that and wait for the result.
+      if (err instanceof ApiError && err.status === 409) {
+        debugApi
+          .get(id)
+          .then((res) => {
+            setGradingStuck(false);
+            setChallenge(res.challenge);
+            if (res.challenge.status !== "OPEN") setError(null);
+          })
+          .catch(() => undefined);
+      }
     } finally {
       setBusy(null);
     }
@@ -276,7 +427,20 @@ export function DebugChallengePage() {
 
   const { result } = challenge;
   const languageLabel = DEBUG_LANGUAGES[challenge.language]?.label ?? challenge.language;
-  const open = challenge.status === "OPEN" || challenge.status === "GRADING";
+  // A grading claim that's stuck past the server's 2-minute limit can be submitted again.
+  const grading = challenge.status === "GRADING" && !gradingStuck;
+  const open = challenge.status === "OPEN" || (challenge.status === "GRADING" && gradingStuck);
+  // While stuck, the server still has the exercise as GRADING, so hints and "Show me the answer" are refused;
+  // only submitting again works.
+  const stuck = challenge.status === "GRADING" && gradingStuck;
+  const BUSY_LABELS: Record<NonNullable<typeof busy>, string> = {
+    hint: "Getting a hint…",
+    submit: challenge.runnable ? "Running the tests and grading your fix…" : "Grading your fix…",
+    reveal: "Checking your code…",
+    similar: "Writing a similar exercise…",
+    format: "Formatting…",
+  };
+  const busyLabel = busy && busy !== "format" ? BUSY_LABELS[busy] : null;
 
   return (
     <div className="page">
@@ -300,7 +464,23 @@ export function DebugChallengePage() {
         {!challenge.runnable && <p className="helper-text">{languageLabel} doesn't run in the browser, so your fix is reviewed by the AI.</p>}
       </section>
 
-      {open ? (
+      <p className="visually-hidden" role="status">
+        {busyLabel ? `${busyLabel} This can take up to a minute.` : grading ? "Your fix is being graded." : (notice ?? "")}
+      </p>
+
+      {grading ? (
+        <section className="card" aria-labelledby="debug-grading-title">
+          <h2 id="debug-grading-title" className="card-title">
+            Your fix is being graded…
+          </h2>
+          <div className="progress-bar" aria-hidden="true">
+            <span />
+          </div>
+          <p className="helper-text">
+            {gradingSeconds}s. This page updates by itself when the result is ready, usually within a minute.
+          </p>
+        </section>
+      ) : open ? (
         <>
           <section className="card" aria-labelledby="debug-code-label">
             <div className="code-header">
@@ -327,7 +507,10 @@ export function DebugChallengePage() {
                 initialCode={loadCode ?? ((editorKey === 0 && readDraft(id, challenge.buggyCode)) || challenge.buggyCode)}
                 editorKey={`${id}:${editorKey}`}
                 labelledBy="debug-code-label"
-                disabled={busy !== null}
+                // Tests run in the browser, so they stay usable during a hint; they wait while the code is being
+                // replaced (format) or sent (submit, reveal).
+                disabled={busy === "format" || busy === "submit" || busy === "reveal"}
+                preparing={preparingPython}
                 onCodeChange={(next) => {
                   setCode(next);
                   writeDraft(id, next === challenge.buggyCode ? null : next, challenge.buggyCode);
@@ -357,6 +540,8 @@ export function DebugChallengePage() {
                 {busy === "hint" ? "Getting a hint…" : `Get a hint (${challenge.hintsLeft} left)`}
               </button>
             )}
+            {stuck && <p className="helper-text">Hints come back once your fix is submitted again.</p>}
+            {busy === "hint" && <BusyNote label={BUSY_LABELS.hint} seconds={seconds} />}
           </section>
 
           <section className="card">
@@ -372,6 +557,11 @@ export function DebugChallengePage() {
                 onChange={(e) => setExplanation(e.target.value)}
               />
             </div>
+            {notice && (
+              <p ref={noticeRef} tabIndex={-1} className="helper-text">
+                {notice}
+              </p>
+            )}
             {error && (
               <p className="error-text" role="alert">
                 {error}
@@ -380,9 +570,12 @@ export function DebugChallengePage() {
             <button type="button" className="btn btn-primary btn-block" onClick={submit} disabled={busy !== null || !code.trim()}>
               {busy === "submit" ? (challenge.runnable ? "Running tests and grading…" : "Grading your fix…") : "Submit my fix"}
             </button>
-            <button type="button" className="btn btn-secondary btn-block debug-reveal" onClick={reveal} disabled={busy !== null}>
-              {busy === "reveal" ? "Checking your code…" : "Can't solve it? Show me the answer"}
-            </button>
+            {!stuck && (
+              <button type="button" className="btn btn-secondary btn-block debug-reveal" onClick={reveal} disabled={busy !== null}>
+                {busy === "reveal" ? BUSY_LABELS.reveal : "Can't solve it? Show me the answer"}
+              </button>
+            )}
+            {(busy === "submit" || busy === "reveal") && busyLabel && <BusyNote label={busyLabel} seconds={seconds} />}
           </section>
         </>
       ) : result?.revealed ? (
@@ -425,6 +618,7 @@ export function DebugChallengePage() {
               Try another
             </Link>
           </div>
+          {busy === "similar" && <ProgressCard label="Writing a similar exercise…" seconds={seconds} detail={WRITING_DETAIL} />}
         </section>
       ) : (
         result && (

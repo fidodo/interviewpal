@@ -3743,3 +3743,77 @@ button.rl-path-btn:hover {
 .badge-tile.earned .badge-tile-when {
   color: var(--success);
 }
+
+/* Progress while the AI writes or grades something slow (debug practice). */
+.progress-card {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--primary-soft);
+}
+
+.progress-card-title {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.progress-card .helper-text:last-child {
+  margin: 8px 0 0;
+}
+
+.progress-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+/* Indeterminate: a segment sliding across. With reduced motion it's a still, partly filled bar. */
+.progress-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 35%;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+.debug-busy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.debug-busy-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .progress-bar span {
+    animation: progress-slide 1.4s ease-in-out infinite;
+  }
+
+  .debug-busy-dot {
+    animation: busy-dot 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes busy-dot {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes progress-slide {
+  from {
+    left: -35%;
+  }
+  to {
+    left: 100%;
+  }
+}
