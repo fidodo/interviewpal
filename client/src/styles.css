@@ -2737,6 +2737,41 @@ button.rl-path-btn:hover {
   margin: 12px 0;
 }
 
+.st-again {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  flex-basis: 100%;
+}
+
+.st-again .helper-text {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.st-next {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 4px solid var(--primary);
+  background: var(--primary-soft);
+  border-radius: 8px;
+}
+
+.st-next p {
+  margin: 6px 0;
+}
+
+.st-banked {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--primary-text);
+  background: var(--primary-soft);
+}
+
 .st-clock {
   font-variant-numeric: tabular-nums;
   font-weight: 600;

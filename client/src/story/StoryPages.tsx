@@ -11,6 +11,7 @@ import { MicTestButton } from "../components/MicTestButton";
 import { ScoreBadge } from "../components/ScoreBadge";
 import { TranscriptBox } from "../components/TranscriptBox";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { nextFocus } from "./nextFocus";
 import { DIMENSIONS, KIND_LABELS, STORY_KINDS, Story, StoryKind, StorySummary, StoryTake, TARGETS } from "./types";
 
 const PLAN_SECONDS = 60;
@@ -136,6 +137,9 @@ export function SpeakHomePage() {
         {!stories && !error && <p className="helper-text">Loading…</p>}
         {stories?.length === 0 && <p className="helper-text">None yet.</p>}
         {stories && stories.length > 0 && (
+          <p className="helper-text">Practice stories are cleared 90 days after your last take unless you save them to your story bank.</p>
+        )}
+        {stories && stories.length > 0 && (
           <ul className="course-list">
             {stories.map((s) => (
               <li key={s.id}>
@@ -143,8 +147,10 @@ export function SpeakHomePage() {
                   <span className="course-item-title">{s.prompt}</span>
                   <span className="helper-text">
                     {KIND_LABELS[s.kind]} · {minutes(s.targetSeconds)} ·{" "}
+                    {s.round > 1 && `Round ${s.round} · `}
                     {s.takes === 0 ? "not told yet" : `${s.takes} take${s.takes === 1 ? "" : "s"}, best ${s.bestScore}/10`}
                   </span>
+                  {s.banked && <span className="st-banked">Saved to story bank</span>}
                 </Link>
               </li>
             ))}
@@ -248,7 +254,8 @@ function TakeResult({ take, previous, targetSeconds }: { take: StoryTake; previo
 
 function CompareTakes({ takes }: { takes: StoryTake[] }) {
   return (
-    <div className="rl-table-wrap">
+    // Focusable so keyboard users can scroll it sideways on a phone.
+    <div className="rl-table-wrap" tabIndex={0} role="region" aria-label="Scores for each take">
       <table className="rl-table">
         <caption className="visually-hidden">Scores for each take</caption>
         <thead>
@@ -291,6 +298,65 @@ function CompareTakes({ takes }: { takes: StoryTake[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+// After the last take of a round: the next round of the same story (same prompt and notes, fresh takes).
+function PractiseAgain({ story }: { story: Story }) {
+  const navigate = useNavigate();
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function start() {
+    if (story.nextRoundId) return navigate(`/speak/${story.nextRoundId}`);
+    setStarting(true);
+    setError(null);
+    try {
+      const res = await storyApi.again(story.id);
+      navigate(`/speak/${res.story.id}`);
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't start the next round. Try again."));
+      setStarting(false);
+    }
+  }
+
+  return (
+    <div className="st-again">
+      <p className="helper-text">You've used all {story.maxTakes} takes in this round. Keep going with the same story, or try a new one.</p>
+      <button type="button" className="btn btn-primary" onClick={start} disabled={starting}>
+        {story.nextRoundId ? `Go to round ${story.round + 1}` : starting ? "Starting…" : "Practise this story again"}
+      </button>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function WorkOnNext({ takes }: { takes: StoryTake[] }) {
+  const focus = nextFocus(takes);
+  if (!focus) return null;
+  return (
+    <section className="st-next" aria-labelledby="st-next-title">
+      <h3 id="st-next-title" className="feedback-list-title">
+        What to work on next
+      </h3>
+      <p>
+        <strong>{focus.label}</strong> is your lowest score lately ({focus.average}/10). {focus.tip}
+      </p>
+      {focus.notes.length > 0 && (
+        <ul className="feedback-list">
+          {focus.notes.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
+      <p className="helper-text">
+        Also try the <Link to="/speak/bank/drill">"Which story fits?" drill</Link>, or see your trend on the <Link to="/progress">progress page</Link>.
+      </p>
+    </section>
   );
 }
 
@@ -435,7 +501,10 @@ export function StoryPage() {
       <p>
         <Link to="/speak">← All stories</Link>
       </p>
-      <h1 className="page-title">{KIND_LABELS[story.kind]}</h1>
+      <h1 className="page-title">
+        {KIND_LABELS[story.kind]}
+        {story.round > 1 && `: round ${story.round}`}
+      </h1>
 
       <section className="card" aria-labelledby="st-prompt-title">
         <h2 id="st-prompt-title" className="card-title">
@@ -466,7 +535,7 @@ export function StoryPage() {
       {recording && (
         <section className="card" aria-labelledby="st-record-title">
           <h2 id="st-record-title" className="card-title">
-            {takes.length === 0 ? "Tell it" : `Retell it: take ${takes.length + 1} of ${story.maxTakes}`}
+            {takes.length === 0 && story.round === 1 ? "Tell it" : `${takes.length === 0 ? "Tell it again" : "Retell it"}: take ${takes.length + 1} of ${story.maxTakes}`}
           </h2>
           {latest && (
             <>
@@ -575,13 +644,14 @@ export function StoryPage() {
                   Retell it
                 </button>
               ) : (
-                <p className="helper-text">You've used all {story.maxTakes} takes for this story.</p>
+                <PractiseAgain story={story} />
               )}
               <Link to="/speak" className="btn btn-secondary">
                 New story
               </Link>
             </div>
           )}
+          {!recording && !canRetell && <WorkOnNext takes={takes} />}
           {!recording && <SaveToBank storyId={story.id} bankEntryId={story.bankEntryId} onSaved={(id) => setStory((s) => (s ? { ...s, bankEntryId: id } : s))} />}
         </section>
       )}

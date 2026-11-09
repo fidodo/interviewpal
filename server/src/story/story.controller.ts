@@ -23,7 +23,11 @@ function serialize(s: Story) {
     targetSeconds: s.targetSeconds,
     prompt: s.prompt,
     shape: SHAPES[s.kind as StoryKind] ?? SHAPES.OWN,
-    coachingNotes: s.takes.length ? parseJsonArray<string>(s.coachingNotes) : null,
+    // From round 2 the speaker has already told it, so the notes show from the start.
+    coachingNotes: s.takes.length || s.round > 1 ? parseJsonArray<string>(s.coachingNotes) : null,
+    round: s.round,
+    continuesFromId: s.continuesFromId,
+    nextRoundId: s.nextRound?.id ?? null,
     maxTakes: storyService.MAX_TAKES,
     // Set once the story has been saved to the story bank.
     bankEntryId: s.bankEntry?.id ?? null,
@@ -103,6 +107,16 @@ export async function submitTake(req: AuthedRequest, res: Response) {
   }
   const latest = result!.takes[result!.takes.length - 1];
   res.status(201).json({ story: serialize(result!), rewards: await recordPractice(req.userId!, "SPEAK", latest?.score ?? null) });
+}
+
+export async function practiseAgain(req: AuthedRequest, res: Response) {
+  const result = await storyService.practiseAgain(req.userId!, req.params.id);
+  if (!result) return notFound(res);
+  if (result === "not-full") {
+    res.status(409).json({ error: `Use all ${storyService.MAX_TAKES} takes first, then start the next round.` });
+    return;
+  }
+  res.status(201).json({ story: { id: result.id } });
 }
 
 export async function deleteStory(req: AuthedRequest, res: Response) {

@@ -529,22 +529,27 @@ model EmbeddingCache {
 
 // Speak: storytelling practice (server/src/story). One prompt, retold over up to 5 graded takes.
 model StoryPractice {
-  id            String          @id @default(cuid())
-  userId        String
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   // EXPERIENCE | EXPLAIN | PITCH | OWN
-  kind          String
-  topic         String?
-  audience      String?
-  targetSeconds Int
-  prompt        String
+  kind            String
+  topic           String?
+  audience        String?
+  targetSeconds   Int
+  prompt          String
   // JSON string[]: what a strong answer includes. Shown after the first take; used for marking.
-  coachingNotes String
+  coachingNotes   String
   // Set while a take is being graded, so a double submit can't grade twice.
-  gradingAt     DateTime?
-  createdAt     DateTime        @default(now())
-  takes         StoryTake[]
-  bankEntry     StoryBankEntry?
+  gradingAt       DateTime?
+  // "Practise this story again": round 2+ copies the story and points at the round before it.
+  round           Int             @default(1)
+  continuesFromId String?         @unique
+  continuesFrom   StoryPractice?  @relation("StoryRounds", fields: [continuesFromId], references: [id], onDelete: SetNull)
+  nextRound       StoryPractice?  @relation("StoryRounds")
+  createdAt       DateTime        @default(now())
+  takes           StoryTake[]
+  bankEntry       StoryBankEntry?
 
   @@index([userId, createdAt])
 }

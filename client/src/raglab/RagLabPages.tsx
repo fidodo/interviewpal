@@ -179,7 +179,7 @@ export function RagLabHomePage() {
 
 function ChecksTable({ checks, caption }: { checks: CheckResult[]; caption: string }) {
   return (
-    <div className="rl-table-wrap">
+    <div className="rl-table-wrap" tabIndex={0} role="region" aria-label={caption}>
       <table className="rl-table">
         <caption className="visually-hidden">{caption}</caption>
         <thead>

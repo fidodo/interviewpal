@@ -15,4 +15,6 @@ storyRouter.get("/", asyncHandler(storyController.listStories));
 storyRouter.post("/", ...aiGuard, asyncHandler(storyController.createStory));
 storyRouter.get("/:id", asyncHandler(storyController.getStory));
 storyRouter.post("/:id/takes", ...aiGuard, asyncHandler(storyController.submitTake));
+// No AI call; aiLimiter only guards against row spam, and it doesn't use the daily allowance.
+storyRouter.post("/:id/again", aiLimiter, asyncHandler(storyController.practiseAgain));
 storyRouter.delete("/:id", asyncHandler(storyController.deleteStory));

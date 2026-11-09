@@ -28,6 +28,9 @@ export interface StorySummary {
   targetSeconds: number;
   takes: number;
   bestScore: number | null;
+  round: number;
+  // In the story bank, so it's never cleared.
+  banked: boolean;
   createdAt: string;
 }
 
@@ -68,6 +71,10 @@ export interface Story {
   maxTakes: number;
   // Set once the story has been saved to the story bank.
   bankEntryId: string | null;
+  // "Practise this story again": 1 for a new story, 2+ for later rounds of the same story.
+  round: number;
+  continuesFromId: string | null;
+  nextRoundId: string | null;
   takes: StoryTake[];
   createdAt: string;
 }

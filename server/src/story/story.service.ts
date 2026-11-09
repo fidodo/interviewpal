@@ -30,13 +30,13 @@ export async function listStories(userId: string) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: 30,
-    select: { id: true, kind: true, prompt: true, targetSeconds: true, createdAt: true, takes: { select: { score: true } } },
+    select: { id: true, kind: true, prompt: true, targetSeconds: true, round: true, createdAt: true, takes: { select: { score: true } }, bankEntry: { select: { id: true } } },
   });
-  return stories.map(({ takes, ...s }) => ({ ...s, takes: takes.length, bestScore: takes.length ? Math.max(...takes.map((t) => t.score)) : null }));
+  return stories.map(({ takes, bankEntry, ...s }) => ({ ...s, banked: !!bankEntry, takes: takes.length, bestScore: takes.length ? Math.max(...takes.map((t) => t.score)) : null }));
 }
 
 export function findStory(userId: string, id: string) {
-  return prisma.storyPractice.findFirst({ where: { id, userId }, include: { takes: { orderBy: { number: "asc" } }, bankEntry: { select: { id: true } } } });
+  return prisma.storyPractice.findFirst({ where: { id, userId }, include: { takes: { orderBy: { number: "asc" } }, bankEntry: { select: { id: true } }, nextRound: { select: { id: true } } } });
 }
 
 export async function deleteStory(userId: string, id: string) {
@@ -77,7 +77,10 @@ export async function submitTake(userId: string, id: string, transcript: string,
     // Re-read after the claim: another take may have been saved just before it.
     const takes = await prisma.storyTake.findMany({ where: { storyId: id }, orderBy: { number: "asc" } });
     if (takes.length >= MAX_TAKES) return "full" as const;
-    const last = takes[takes.length - 1];
+    // A new round's first take is compared with the last take of the round before it.
+    const last =
+      takes[takes.length - 1] ??
+      (story.continuesFromId ? await prisma.storyTake.findFirst({ where: { storyId: story.continuesFromId }, orderBy: { number: "desc" } }) : null);
     const stats = deliveryStats(transcript, recordedSec);
     const grade: StoryGrade = await generateValidated(
       storyGradePrompt({
@@ -101,7 +104,7 @@ export async function submitTake(userId: string, id: string, transcript: string,
     await prisma.storyTake.create({
       data: {
         storyId: id,
-        number: (last?.number ?? 0) + 1,
+        number: takes.length + 1,
         transcript,
         durationSec: stats.durationSec,
         stats: JSON.stringify(stats),
@@ -123,4 +126,63 @@ export async function submitTake(userId: string, id: string, transcript: string,
   } finally {
     await prisma.storyPractice.updateMany({ where: { id, gradingAt: claimedAt }, data: { gradingAt: null } });
   }
+}
+
+// "Practise this story again": once every take is used, start the next round of the same story (same prompt,
+// audience, length and coaching notes) with fresh takes. No AI call. continuesFromId is unique, so a double click
+// returns the round that already exists instead of making a second one.
+export async function practiseAgain(userId: string, id: string) {
+  const story = await findStory(userId, id);
+  if (!story) return null;
+  if (story.nextRound) return { id: story.nextRound.id };
+  if (story.takes.length < MAX_TAKES) return "not-full" as const;
+  try {
+    const next = await prisma.storyPractice.create({
+      data: {
+        userId,
+        kind: story.kind,
+        topic: story.topic,
+        audience: story.audience,
+        targetSeconds: story.targetSeconds,
+        prompt: story.prompt,
+        coachingNotes: story.coachingNotes,
+        round: story.round + 1,
+        continuesFromId: story.id,
+      },
+      select: { id: true },
+    });
+    return next;
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const existing = await prisma.storyPractice.findUnique({ where: { continuesFromId: story.id }, select: { id: true } });
+      if (existing) return existing;
+    }
+    throw err;
+  }
+}
+
+// Practice stories are temporary; the story bank is what's kept. Run daily by the cron (today.routes.ts).
+// Never touches a story that's in the bank. Takes go with their story (cascade); streaks, badges and personal
+// bests live in their own tables. 90 days is past the 12 weeks the progress page charts.
+export const ABANDONED_DAYS = 7;
+export const PRACTICE_KEEP_DAYS = 90;
+
+export function cleanupWhere(now = Date.now()) {
+  const abandonedBefore = new Date(now - ABANDONED_DAYS * 86_400_000);
+  const practisedBefore = new Date(now - PRACTICE_KEEP_DAYS * 86_400_000);
+  return {
+    abandoned: { bankEntry: null, createdAt: { lt: abandonedBefore }, takes: { none: {} } },
+    old: { bankEntry: null, createdAt: { lt: practisedBefore }, takes: { some: {}, none: { createdAt: { gte: practisedBefore } } } },
+  } satisfies Record<string, Prisma.StoryPracticeWhereInput>;
+}
+
+export async function cleanupStories(dryRun = false) {
+  const where = cleanupWhere();
+  if (dryRun) {
+    const [abandoned, old] = await Promise.all([prisma.storyPractice.count({ where: where.abandoned }), prisma.storyPractice.count({ where: where.old })]);
+    return { abandoned, old, dryRun: true };
+  }
+  const abandoned = await prisma.storyPractice.deleteMany({ where: where.abandoned });
+  const old = await prisma.storyPractice.deleteMany({ where: where.old });
+  return { abandoned: abandoned.count, old: old.count };
 }

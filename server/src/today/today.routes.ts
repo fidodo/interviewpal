@@ -8,6 +8,7 @@ import { emailEnabled, env } from "../config/env";
 import { prisma } from "../db/prisma";
 import { getToday, setReminder } from "./today.service";
 import { sendDailyReminders, unsubscribe } from "./reminder.service";
+import { cleanupStories } from "../story/story.service";
 
 // /today: the daily plan, streak, weekly goal and badges. No AI.
 export const todayRouter = Router();
@@ -82,7 +83,18 @@ const dailyReminder = asyncHandler(async (req: Request, res: Response) => {
     res.status(401).json({ error: "Unauthorised" });
     return;
   }
-  res.json(await sendDailyReminders());
+  const reminders = await sendDailyReminders();
+  // The daily housekeeping rides on the same cron (Hobby allows few cron jobs). A failure here never hides the
+  // reminder result.
+  let stories: unknown;
+  try {
+    stories = await cleanupStories();
+    console.log("Story clean-up:", JSON.stringify(stories));
+  } catch (err) {
+    console.error("Story clean-up failed:", err);
+    stories = { error: true };
+  }
+  res.json({ ...reminders, stories });
 });
 cronRouter.get("/daily-reminder", dailyReminder);
 cronRouter.post("/daily-reminder", dailyReminder);
