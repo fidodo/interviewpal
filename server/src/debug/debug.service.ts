@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { generateValidated } from "../ai/retry";
 import { parseJsonArray } from "../utils/json";
@@ -74,13 +75,35 @@ export async function createChallenge(userId: string, language: DebugLanguage, l
   });
 }
 
-export function listChallenges(userId: string) {
-  return prisma.debugChallenge.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    take: 30,
+// "To finish" is anything not yet closed (being marked counts); "done" is scored or answer shown.
+export const LIST_FILTERS = { all: undefined, open: ["OPEN", "GRADING"], done: ["SUBMITTED", "REVEALED"] } as const;
+export type ListFilter = keyof typeof LIST_FILTERS;
+
+// One page of "Your challenges", newest first. `before` is the id of the last challenge already shown: the page
+// continues after it (by createdAt, then id), so a challenge created while paging can't shift or repeat rows. The
+// cursor is looked up within the user's own challenges, so someone else's id gives an empty page.
+export async function listChallenges(userId: string, opts: { filter: ListFilter; before?: string; limit: number }) {
+  const statuses = LIST_FILTERS[opts.filter];
+  const where: Prisma.DebugChallengeWhereInput = { userId, ...(statuses ? { status: { in: [...statuses] } } : {}) };
+  if (opts.before) {
+    const cursor = await prisma.debugChallenge.findFirst({ where: { id: opts.before, userId }, select: { id: true, createdAt: true } });
+    if (!cursor) return { challenges: [], hasMore: false };
+    where.OR = [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }];
+  }
+  const rows = await prisma.debugChallenge.findMany({
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: opts.limit + 1,
     select: { id: true, title: true, language: true, level: true, status: true, score: true, createdAt: true },
   });
+  return { challenges: rows.slice(0, opts.limit), hasMore: rows.length > opts.limit };
+}
+
+// How many challenges each filter holds, for the filter buttons.
+export async function challengeCounts(userId: string) {
+  const groups = await prisma.debugChallenge.groupBy({ by: ["status"], where: { userId }, _count: { _all: true } });
+  const count = (statuses: readonly string[]) => groups.filter((g) => statuses.includes(g.status)).reduce((n, g) => n + g._count._all, 0);
+  return { all: groups.reduce((n, g) => n + g._count._all, 0), open: count(LIST_FILTERS.open), done: count(LIST_FILTERS.done) };
 }
 
 export async function findChallenge(userId: string, id: string) {

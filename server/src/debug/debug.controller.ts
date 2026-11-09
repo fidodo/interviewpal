@@ -66,8 +66,20 @@ function serialize(c: Challenge) {
   };
 }
 
+// ?status=all|open|done&before=<id>&limit=1-30. Anything unrecognised falls back to the defaults.
+const listQuerySchema = z.object({
+  status: z.enum(["all", "open", "done"]).catch("all"),
+  before: z.string().trim().min(1).max(64).optional().catch(undefined),
+  limit: z.coerce.number().int().min(1).max(30).catch(10),
+});
+
 export async function listChallenges(req: AuthedRequest, res: Response) {
-  res.json({ challenges: await debugService.listChallenges(req.userId!) });
+  const q = listQuerySchema.parse({ status: req.query.status ?? "all", before: req.query.before, limit: req.query.limit ?? 10 });
+  const [page, counts] = await Promise.all([
+    debugService.listChallenges(req.userId!, { filter: q.status, before: q.before, limit: q.limit }),
+    debugService.challengeCounts(req.userId!),
+  ]);
+  res.json({ ...page, counts });
 }
 
 export async function createChallenge(req: AuthedRequest, res: Response) {

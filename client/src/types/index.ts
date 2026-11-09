@@ -281,6 +281,15 @@ export interface DebugSummary {
   createdAt: string;
 }
 
+// "Your challenges" filter: open = not submitted yet (including being marked), done = scored or answer shown.
+export type DebugListFilter = "all" | "open" | "done";
+
+export interface DebugListResponse {
+  challenges: DebugSummary[];
+  hasMore: boolean;
+  counts: Record<DebugListFilter, number>;
+}
+
 export interface DebugChallenge {
   id: string;
   title: string;

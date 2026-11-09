@@ -3869,3 +3869,17 @@ button.rl-path-btn:hover {
   background: var(--primary);
   color: #fff;
 }
+
+/* Debug practice: "Your challenges" filter and "Show more". */
+.debug-history-filter {
+  margin-bottom: 12px;
+}
+
+.debug-history-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
