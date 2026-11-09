@@ -20,3 +20,7 @@ app.use(express.json());
 app.use("/api", apiRouter);
 
 app.use(errorHandler);
+
+// Vercel's Express preset also picks up this file as an entry point (it serves the bare "/"), and needs a
+// default export there. Everything else comes in through api/index.ts.
+export default app;
