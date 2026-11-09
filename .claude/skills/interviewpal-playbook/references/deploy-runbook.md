@@ -2,7 +2,7 @@
 
 Context this runbook assumes: deploying to Vercel (or another platform with an ephemeral/serverless filesystem), and Google sign-in left open to anyone with a Google account (no email allowlist). If either of those assumptions no longer holds, some items here don't apply — re-check before blindly executing.
 
-**Status as of 2026-10-27: all 8 items done and verified. The app is live in production.** One open operational issue: `server`'s git-triggered auto-deploy has stopped firing for pushes that touch `server/src/**` (see the "Unresolved" note below) — `client` deploys fine via git on every push. Verify this status against the actual repo state before trusting it; it'll drift as work continues.
+**Status as of 2026-10-27: all 8 items done and verified. The app is live in production.** One open operational issue: `server`'s git-triggered auto-deploy has stopped firing for pushes that touch `server/src/**` (see the "Unresolved" note below) — `client` usually deploys via git, but on 2026-11-09 a git build of an older commit (`f2da377`) finished late and replaced a newer production client, and the next push triggered no build. After a push, check that the live client is the commit you pushed (`vercel inspect <deployment> --logs` shows the commit it cloned). If it isn't, deploy the client with the CLI the same way as the server, copying `client/.vercel/project.json` to `.vercel/` at the repo root. Verify this status against the actual repo state before trusting it; it'll drift as work continues.
 
 **Live URLs:**
 - Client (what users visit): `https://client-beige-mu-26.vercel.app`
