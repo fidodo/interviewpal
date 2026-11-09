@@ -56,7 +56,19 @@ export interface StoryTake {
   cameAcross: string;
   strongerVersion: string;
   outline: string[];
+  // Length and fillers against the targets, worked out on the server the same way as for the marker.
+  delivery: { lengthPercent: number; length: "short" | "on" | "long"; fillersPer100: number; fillersOk: boolean } | null;
+  // Why each dimension got its score, from the marker. Null for takes marked before this was added.
+  reasons: Partial<Record<Dimension, string>> | null;
   createdAt: string;
+}
+
+// What each score means: the same guide the marker uses (server/src/story/story.rubric.ts).
+export interface ScoreGuideData {
+  bands: { min: number; max: number; label: string }[];
+  dimensions: { key: Dimension; label: string; bands: string[] }[];
+  overall: string;
+  deliveryTargets: { wpm: [number, number]; lengthShare: [number, number]; fillersPer100: number };
 }
 
 export interface Story {
@@ -76,6 +88,7 @@ export interface Story {
   continuesFromId: string | null;
   nextRoundId: string | null;
   takes: StoryTake[];
+  guide: ScoreGuideData;
   createdAt: string;
 }
 

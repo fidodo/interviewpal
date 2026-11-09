@@ -140,6 +140,8 @@ export async function submitTake(userId: string, id: string, transcript: string,
           cameAcross: grade.cameAcross,
           strongerVersion: grade.strongerVersion,
           outline: grade.outline,
+          // Why each dimension got its score (takes marked before this was added have none).
+          reasons: grade.reasons ?? null,
         }),
       },
     });

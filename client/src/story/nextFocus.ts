@@ -1,7 +1,7 @@
 import { DIMENSIONS, Dimension, StoryTake } from "./types";
 
 // "What to work on next", worked out in code from the scores (no AI): the weakest area over the last two takes,
-// with one concrete tip, plus a note on fillers or hedges when they're frequent.
+// with one concrete tip, plus a note on fillers and hedges when, together, they're over the limit the marker uses.
 const TIPS: Record<Dimension, string> = {
   structure: "Say your point in the first sentence, then give the steps in order and end by saying what happened because of it. Write those 3 beats down before you start.",
   clarity: "Swap jargon for plain words, keep one idea per sentence, and say why each detail matters to this audience.",
@@ -9,8 +9,6 @@ const TIPS: Record<Dimension, string> = {
   presence: "Say \"I\", not \"we\", for what you did, and state decisions plainly. Drop \"I think\" and \"sort of\" before your main points.",
   delivery: "Pause instead of saying \"um\", and aim for the target length: time a practice run and trim the longest part.",
 };
-
-const PER_100_LIMIT = 3;
 
 export interface NextFocus {
   dimension: Dimension;
@@ -20,7 +18,7 @@ export interface NextFocus {
   notes: string[];
 }
 
-export function nextFocus(takes: StoryTake[]): NextFocus | null {
+export function nextFocus(takes: StoryTake[], fillersLimit: number): NextFocus | null {
   const recent = takes.slice(-2);
   if (recent.length === 0) return null;
   const averages = DIMENSIONS.map((d) => ({ ...d, average: recent.reduce((n, t) => n + (t.breakdown?.[d.key] ?? 0), 0) / recent.length }));
@@ -28,12 +26,11 @@ export function nextFocus(takes: StoryTake[]): NextFocus | null {
 
   const notes: string[] = [];
   const last = recent[recent.length - 1];
-  const words = last.stats?.wordCount ?? 0;
-  if (words > 0) {
-    const fillers = (last.stats.fillers.count / words) * 100;
-    const hedges = (last.stats.hedges.count / words) * 100;
-    if (fillers > PER_100_LIMIT) notes.push(`${last.stats.fillers.count} filler words in your last take (${fillers.toFixed(1)} per 100 words). Try a short pause instead.`);
-    if (hedges > PER_100_LIMIT) notes.push(`${last.stats.hedges.count} hedges like "I think" or "maybe" (${hedges.toFixed(1)} per 100 words). Say your main points plainly.`);
+  if (last.delivery && !last.delivery.fillersOk) {
+    const { fillers, hedges } = last.stats;
+    notes.push(`${last.delivery.fillersPer100.toFixed(1)} fillers and hedges per 100 words in your last take, over the limit of ${fillersLimit}.`);
+    if (fillers.count > 0) notes.push(`${fillers.count} filler word${fillers.count === 1 ? "" : "s"}: try a short pause instead.`);
+    if (hedges.count > 0) notes.push(`${hedges.count} hedge${hedges.count === 1 ? "" : "s"} like "I think" or "maybe": say your main points plainly.`);
   }
   return { dimension: weakest.key, label: weakest.label, average: Math.round(weakest.average * 10) / 10, tip: TIPS[weakest.key], notes };
 }

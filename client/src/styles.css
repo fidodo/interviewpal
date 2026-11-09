@@ -3817,3 +3817,55 @@ button.rl-path-btn:hover {
     left: 100%;
   }
 }
+
+/* Speak: "What a good score looks like". */
+.st-guide {
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.st-guide:last-of-type {
+  border-bottom: 1px solid var(--border);
+}
+
+.st-guide summary {
+  cursor: pointer;
+  min-height: 24px;
+}
+
+.st-guide-bands {
+  list-style: none;
+  margin: 10px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.st-guide-bands li {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* The band the latest take is in: marked with text ("You're here") as well as the highlight. */
+.st-guide-current {
+  border-color: var(--primary) !important;
+  background: var(--primary-soft);
+}
+
+.st-guide-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.st-guide-here {
+  font-size: 13px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+}

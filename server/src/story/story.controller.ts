@@ -4,6 +4,7 @@ import { AuthedRequest } from "../middleware/auth.middleware";
 import { parseJsonArray, parseJsonObject } from "../utils/json";
 import { SHAPES, STORY_KINDS, StoryKind, TARGET_SECONDS } from "./story.prompts";
 import * as storyService from "./story.service";
+import { SCORE_GUIDE, deliveryCheck } from "./story.rubric";
 import { recordPractice } from "../today/practice.service";
 
 type Story = NonNullable<Awaited<ReturnType<typeof storyService.findStory>>>;
@@ -31,17 +32,25 @@ function serialize(s: Story, bankEntryId: string | null = s.bankEntry?.id ?? nul
     maxTakes: storyService.MAX_TAKES,
     // Set once the story has been saved to the story bank.
     bankEntryId,
-    takes: s.takes.map((t) => ({
-      id: t.id,
-      number: t.number,
-      transcript: t.transcript,
-      durationSec: t.durationSec,
-      score: t.score,
-      stats: parseJsonObject(t.stats),
-      breakdown: parseJsonObject(t.breakdown),
-      ...(parseJsonObject<Record<string, unknown>>(t.feedback) ?? {}),
-      createdAt: t.createdAt,
-    })),
+    takes: s.takes.map((t) => {
+      const stats = parseJsonObject<Parameters<typeof deliveryCheck>[0]>(t.stats);
+      return {
+        id: t.id,
+        number: t.number,
+        transcript: t.transcript,
+        durationSec: t.durationSec,
+        score: t.score,
+        stats,
+        // Length and fillers against the targets, worked out the same way as for the marker.
+        delivery: stats ? deliveryCheck(stats, s.targetSeconds) : null,
+        breakdown: parseJsonObject(t.breakdown),
+        reasons: null,
+        ...(parseJsonObject<Record<string, unknown>>(t.feedback) ?? {}),
+        createdAt: t.createdAt,
+      };
+    }),
+    // What each score means, for the "What a good score looks like" guide (the marker uses the same text).
+    guide: SCORE_GUIDE,
     createdAt: s.createdAt,
   };
 }

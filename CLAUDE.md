@@ -191,6 +191,7 @@ Storytelling practice: the user tells a story or explains a topic out loud, gets
   - **Typed takes:** the client sends `durationSec` only for a recorded take of at least 5 seconds. A typed take gets an estimated length and `wpm: null`, so it never reports a fake pace.
   - **The stronger version** uses only facts from the transcript. Missing details become bracketed questions, so the AI never invents the user's experiences.
   - **Retells** pass the previous take's scores and improvements to the grader.
+- **Scoring guide** (`story/story.rubric.ts`): one source for what each 1-3/4-6/7-8/9-10 band means per dimension. The marker gets it in `storyGradePrompt`, and the story response sends it as `guide` for the "What a good score looks like" card. `deliveryCheck` works out length (aim 80-110% of target) and fillers plus hedges per 100 words (under 3) in code, for both the prompt and each take's `delivery`; a timed take that meets both gets delivery 7 or more, and typed takes are capped at 6. The marker also returns `reasons` (one sentence per dimension, stored in `feedback`; null on older takes).
 - **One grading at a time:** a take claims the story (`gradingAt`, retaken after 2 minutes) before the AI call, so a double submit is refused before a second call. `@@unique([storyId, number])` backs this up.
 - **Rounds:** after all 5 takes, "Practise this story again" (`POST /story/:id/again`, `practiseAgain`, no AI call) starts round N+1.
   - It copies the prompt, audience, length and coaching notes, with `round` and `continuesFromId` set.

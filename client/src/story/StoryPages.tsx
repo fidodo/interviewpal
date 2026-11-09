@@ -12,7 +12,7 @@ import { ScoreBadge } from "../components/ScoreBadge";
 import { TranscriptBox } from "../components/TranscriptBox";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { nextFocus } from "./nextFocus";
-import { DIMENSIONS, KIND_LABELS, STORY_KINDS, Story, StoryKind, StorySummary, StoryTake, TARGETS } from "./types";
+import { DIMENSIONS, Dimension, KIND_LABELS, STORY_KINDS, ScoreGuideData, Story, StoryKind, StorySummary, StoryTake, TARGETS } from "./types";
 
 const PLAN_SECONDS = 60;
 // Below this, the recording is treated as missing and the take as typed (no pace is measured).
@@ -181,7 +181,7 @@ function delta(now: number, before: number | undefined) {
   return d === 0 ? "no change" : d > 0 ? `up ${d}` : `down ${-d}`;
 }
 
-function TakeResult({ take, previous, targetSeconds }: { take: StoryTake; previous?: StoryTake; targetSeconds: number }) {
+function TakeResult({ take, previous, targetSeconds, wpm }: { take: StoryTake; previous?: StoryTake; targetSeconds: number; wpm: [number, number] }) {
   const { stats } = take;
   const hedges = Object.entries(stats.hedges.phrases);
   return (
@@ -209,7 +209,7 @@ function TakeResult({ take, previous, targetSeconds }: { take: StoryTake; previo
         <li>
           {stats.timed ? `Spoke for ${clock(stats.durationSec)}` : `Typed, about ${clock(stats.durationSec)} spoken`} (target {clock(targetSeconds)})
         </li>
-        <li>{stats.wpm === null ? "Pace not measured (typed)" : `${stats.wpm} words a minute (130–160 is comfortable)`}</li>
+        <li>{stats.wpm === null ? "Pace not measured (typed)" : `${stats.wpm} words a minute (${wpm[0]}–${wpm[1]} is comfortable)`}</li>
         <li>
           {stats.fillers.count} filler word{stats.fillers.count === 1 ? "" : "s"}
           {stats.fillers.count > 0 && `: ${Object.entries(stats.fillers.words).map(([w, n]) => `"${w}" ×${n}`).join(", ")}`}
@@ -252,7 +252,7 @@ function TakeResult({ take, previous, targetSeconds }: { take: StoryTake; previo
   );
 }
 
-function CompareTakes({ takes }: { takes: StoryTake[] }) {
+function CompareTakes({ takes, onOpenGuide }: { takes: StoryTake[]; onOpenGuide: (d: Dimension) => void }) {
   return (
     // Focusable so keyboard users can scroll it sideways on a phone.
     <div className="rl-table-wrap" tabIndex={0} role="region" aria-label="Scores for each take">
@@ -277,7 +277,12 @@ function CompareTakes({ takes }: { takes: StoryTake[] }) {
           </tr>
           {DIMENSIONS.map((d) => (
             <tr key={d.key}>
-              <th scope="row">{d.label}</th>
+              <th scope="row">
+                {/* Opens this dimension in "What a good score looks like" below. */}
+                <a href={`#guide-${d.key}`} onClick={() => onOpenGuide(d.key)}>
+                  {d.label}
+                </a>
+              </th>
               {takes.map((t) => (
                 <td key={t.id}>{t.breakdown[d.key]}</td>
               ))}
@@ -298,6 +303,98 @@ function CompareTakes({ takes }: { takes: StoryTake[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+// "What a good score looks like": for each dimension, what every score band means (the same guide the marker uses),
+// where the latest take sits, why the marker gave it that score, and for delivery the measured numbers against
+// the targets.
+function ScoreGuide({
+  guide,
+  take,
+  targetSeconds,
+  openKeys,
+  onToggle,
+}: {
+  guide: ScoreGuideData;
+  take: StoryTake;
+  targetSeconds: number;
+  openKeys: Set<Dimension>;
+  onToggle: (d: Dimension, open: boolean) => void;
+}) {
+  const { stats, delivery } = take;
+  const t = guide.deliveryTargets;
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  const verdict = { short: "too short", on: "on target", long: "too long" };
+  return (
+    <>
+      <p className="helper-text">
+        Each dimension is marked 1-10 against the guide below; the marker reads the same text. Your scores are from take {take.number}, your latest.{" "}
+        {guide.overall}
+      </p>
+      {guide.dimensions.map((d) => {
+        const score = take.breakdown?.[d.key];
+        // -1 when there's no score (shouldn't happen): no band is marked rather than showing a fake low one.
+        const band = typeof score === "number" ? guide.bands.findIndex((b) => score >= b.min && score <= b.max) : -1;
+        const next = band >= 0 && band < guide.bands.length - 1 ? band + 1 : null;
+        const reason = take.reasons?.[d.key];
+        return (
+          <details
+            key={d.key}
+            id={`guide-${d.key}`}
+            className="st-guide"
+            open={openKeys.has(d.key)}
+            onToggle={(e) => onToggle(d.key, (e.currentTarget as HTMLDetailsElement).open)}
+          >
+            <summary>
+              <strong>{d.label}</strong>: {band >= 0 ? `your last take ${score}/10, ${guide.bands[band].label}` : "not scored"}
+            </summary>
+            {reason && (
+              <p>
+                <strong>Why {score}:</strong> {reason}
+              </p>
+            )}
+            <ol className="st-guide-bands">
+              {guide.bands.map((b, i) => (
+                <li key={b.label} className={i === band ? "st-guide-current" : undefined}>
+                  <span className="st-guide-range">
+                    {b.min}-{b.max} {b.label}
+                    {i === band && <span className="st-guide-here">You're here</span>}
+                  </span>
+                  {d.bands[i]}
+                </li>
+              ))}
+            </ol>
+            {next !== null && (
+              <p>
+                <strong>To reach {guide.bands[next].min}:</strong> {d.bands[next]}
+              </p>
+            )}
+            {d.key === "delivery" && delivery && (
+              <>
+                <h4 className="feedback-list-title">Your take {take.number}, measured</h4>
+                <ul className="feedback-list">
+                  <li>
+                    Length: {delivery.lengthPercent}% of the {targetSeconds}s target (aim for {pct(t.lengthShare[0])}-{pct(t.lengthShare[1])}),{" "}
+                    {verdict[delivery.length]}
+                    {!stats.timed && " (estimated from your word count, because this take was typed)"}
+                  </li>
+                  <li>
+                    {stats.wpm === null
+                      ? "Pace: not measured, because this take was typed"
+                      : `Pace: ${stats.wpm} words a minute (comfortable is ${t.wpm[0]}-${t.wpm[1]}). It's counted from the transcript, so words the browser missed make it look slower.`}
+                  </li>
+                  <li>
+                    Fillers and hedges together: {delivery.fillersPer100.toFixed(1)} per 100 words (aim for under {t.fillersPer100}),{" "}
+                    {delivery.fillersOk ? "on target" : "too many"}
+                  </li>
+                </ul>
+              </>
+            )}
+          </details>
+        );
+      })}
+    </>
   );
 }
 
@@ -335,8 +432,8 @@ function PractiseAgain({ story }: { story: Story }) {
   );
 }
 
-function WorkOnNext({ takes }: { takes: StoryTake[] }) {
-  const focus = nextFocus(takes);
+function WorkOnNext({ takes, fillersLimit }: { takes: StoryTake[]; fillersLimit: number }) {
+  const focus = nextFocus(takes, fillersLimit);
   if (!focus) return null;
   return (
     <section className="st-next" aria-labelledby="st-next-title">
@@ -366,6 +463,16 @@ export function StoryPage() {
   const navigate = useNavigate();
   const speech = useSpeechRecognition();
   const [story, setStory] = useState<Story | null>(null);
+  // Which rows of "What a good score looks like" are open (the score table's links open them too).
+  const [guideOpen, setGuideOpen] = useState<Set<Dimension>>(() => new Set());
+  const toggleGuide = (d: Dimension, open: boolean) =>
+    setGuideOpen((prev) => {
+      if (prev.has(d) === open) return prev;
+      const next = new Set(prev);
+      if (open) next.add(d);
+      else next.delete(d);
+      return next;
+    });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -635,7 +742,7 @@ export function StoryPage() {
             </div>
           )}
           {shownIndex === 0 && story.round > 1 && <p className="helper-text">This take was marked against your last take in round {story.round - 1}.</p>}
-          <TakeResult take={takes[shownIndex]} previous={takes[shownIndex - 1]} targetSeconds={story.targetSeconds} />
+          <TakeResult take={takes[shownIndex]} previous={takes[shownIndex - 1]} targetSeconds={story.targetSeconds} wpm={story.guide.deliveryTargets.wpm} />
           {!recording && (
             <div className="st-actions">
               {canRetell ? (
@@ -658,7 +765,7 @@ export function StoryPage() {
               </Link>
             </div>
           )}
-          {!recording && !canRetell && <WorkOnNext takes={takes} />}
+          {!recording && !canRetell && <WorkOnNext takes={takes} fillersLimit={story.guide.deliveryTargets.fillersPer100} />}
           {!recording && <SaveToBank storyId={story.id} bankEntryId={story.bankEntryId} onSaved={(id) => setStory((s) => (s ? { ...s, bankEntryId: id } : s))} />}
         </section>
       )}
@@ -668,7 +775,16 @@ export function StoryPage() {
           <h2 id="st-compare-title" className="card-title">
             How your takes compare
           </h2>
-          <CompareTakes takes={takes} />
+          <CompareTakes takes={takes} onOpenGuide={(d) => toggleGuide(d, true)} />
+        </section>
+      )}
+
+      {takes.length > 0 && (
+        <section className="card" aria-labelledby="st-guide-title">
+          <h2 id="st-guide-title" className="card-title">
+            What a good score looks like
+          </h2>
+          <ScoreGuide guide={story.guide} take={takes[takes.length - 1]} targetSeconds={story.targetSeconds} openKeys={guideOpen} onToggle={toggleGuide} />
         </section>
       )}
 
