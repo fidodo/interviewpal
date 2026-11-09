@@ -44,7 +44,19 @@ There are no lint or test scripts in either package.
 ### AI provider abstraction
 `server/src/ai/provider.interface.ts` defines `AIProvider` with three methods: `generateQuestion`, `gradeAnswer`, `generateSummary`. `server/src/ai/provider.factory.ts` picks an implementation at startup based on `AI_PROVIDER` env var: `"gemini"` → `gemini.provider.ts` (`@google/genai`), `"grok"` → `grok.provider.ts` (xAI, via the `openai` SDK pointed at `https://api.x.ai/v1` — this is xAI's Grok model, unrelated to Groq the company), `"groq"` → `groq.provider.ts` (Groq, via the `openai` SDK pointed at `https://api.groq.com/openai/v1`). All three share the same prompt builders in `server/src/ai/prompts.ts` and validate the model's JSON response against zod schemas in `server/src/ai/schemas.ts`. To add another provider, implement `AIProvider` and add a case in the factory — nothing else needs to change.
 
-Currently active: Groq (`openai/gpt-oss-120b`), set via `AI_PROVIDER` in `server/.env`. Gemini is also configured but was hitting transient 503 "high demand" errors on `gemini-3.8-flash` at the time of setup — worth retrying if switching back.
+A fourth provider, `"mistral"` → `mistral.provider.ts` (Mistral's OpenAI-compatible API; it rejects `max_completion_tokens`, so it doesn't use the shared `openaiChat`), was added on 2026-11-09.
+
+**Fallback chain.** `AI_PROVIDERS="groq,gemini,mistral"` makes the factory build a `FallbackProvider` (`fallback.provider.ts`) from the providers in that list that have a key. Each call moves to the next provider only when the current one can't answer at all: 401/403/408/429/5xx, timeouts or network errors (`canFailOver`). Bad output (zod failure, malformed JSON, Groq's `json_validate_failed`) is thrown straight out, so `retryOnInvalid` retries on the same provider. Providers before the last one in the chain get SDK `maxRetries: 0`, so a rate limit fails over instead of waiting. With `AI_PROVIDERS` unset, the single `AI_PROVIDER` works as before.
+
+**Model choice (2026-11-09).** `server/scripts/compare-models.ts` (run with `npx tsx`, not deployed, writes nothing to the database) runs the real prompt builders against candidate models and prints the schema pass rate, speed and whether grading ranks a strong, a weak and an off-topic answer correctly.
+- **Groq `openai/gpt-oss-120b`:** 8/8, about 1 second a call, ranked correctly. It's the primary model, and it's the best model Groq offers.
+- **Groq `qwen/qwen3.8-27b`:** unusable on the free plan (1,000 output tokens a minute).
+- **Gemma 4 on the Gemini API:** slow (about 22 seconds a call), often returns 503, and sometimes returns broken JSON. Not used.
+- **Gemini `gemini-3.5-flash-lite`:** fast, with occasional 503s. Use it as the fallback after Groq, set with `GEMINI_MODEL`. `gemini-3.8-flash` allows only about 20 free calls a day.
+- **Mistral `mistral-large-4`:** 8/8, ranked correctly, and writes runnable `codeSpec`s. But it always reasons first, so a call takes about 20 seconds (`reasoning_effort: "low"` barely helps, and `"none"` is refused). It's the last, slow-but-reliable fallback.
+  - **Free mode is per model:** Large 4 gets 50 requests and 20,000 tokens a minute; Ministral/Codestral get 2 requests a minute; Small, Medium and Magistral get 0 (an immediate 429). Read the `x-ratelimit-*` headers to check.
+  - **Response format:** reasoning replies come back as content chunks (`thinking` + `text`), which `textOf` in `mistral.provider.ts` unwraps.
+  - **Recommended production order:** `AI_PROVIDERS="groq,gemini,mistral"`.
 
 Prompts are history-aware: `session.service.ts`'s `loadPriorQA` reassembles the full prior Q&A (+ per-answer score) for a session and passes it into every prompt, capped at the last 20 exchanges (`MAX_PRIOR_QA` in `prompts.ts`). This is how question generation adapts to the candidate's running performance and avoids repeating questions.
 
