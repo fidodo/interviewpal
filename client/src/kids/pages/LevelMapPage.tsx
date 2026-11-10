@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { OnboardingTour } from "../../components/OnboardingTour";
+import { MAP_TOUR, markTourSeen, tourSeen } from "../kidTours";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { kidsApi } from "../api";
 import { Stars } from "../components/bits";
@@ -16,6 +18,16 @@ export function LevelMapPage() {
   const [progress, setProgress] = useState<CourseProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [touring, setTouring] = useState(false);
+  const closeTour = useCallback(() => {
+    setTouring(false);
+    if (childId) markTourSeen(childId, "map");
+  }, [childId]);
+
+  // The first time this child sees the map, show them how it works.
+  useEffect(() => {
+    if (progress && childId && !tourSeen(childId, "map")) setTouring(true);
+  }, [progress, childId]);
 
   useEffect(() => {
     if (!childId || !slug) return;
@@ -44,9 +56,17 @@ export function LevelMapPage() {
 
   return (
     <div className="kids-page">
-      <Link to={`/kids/learn/${childId}`} className="btn-link kids-back">
-        ← All courses
-      </Link>
+      <div className="kids-top-row">
+        <Link to={`/kids/learn/${childId}`} className="btn-link kids-back">
+          ← All courses
+        </Link>
+        {progress && (
+          <button type="button" className="btn btn-secondary kids-howto" onClick={() => setTouring(true)}>
+            How to play
+          </button>
+        )}
+      </div>
+      {touring && <OnboardingTour steps={MAP_TOUR} onClose={closeTour} />}
       {progress && (
         <>
           <h1 className="kids-title">{progress.course.title}</h1>
@@ -60,11 +80,16 @@ export function LevelMapPage() {
       )}
       {!progress && !error && <p className="helper-text">Loading…</p>}
       {progress && (
-        <ol className="level-path" aria-label="Levels">
+        <ol className="level-path" aria-label="Levels" data-tour="kids-path">
           {progress.levels.map((level) => {
             const state = levelState(level, progress.enrollment.currentLevel);
             return (
-              <li key={level.order} className={`level-node level-${state}`} aria-current={state === "current" ? "step" : undefined}>
+              <li
+                key={level.order}
+                className={`level-node level-${state}`}
+                aria-current={state === "current" ? "step" : undefined}
+                data-tour={state === "current" ? "kids-here" : undefined}
+              >
                 <span className="level-number" aria-hidden="true">
                   {state === "locked" ? "🔒" : level.order}
                 </span>
@@ -74,10 +99,10 @@ export function LevelMapPage() {
                     {level.title}
                   </h2>
                   <p className="level-meta">
-                    <span className={`editor-badge editor-${level.editor.toLowerCase()}`}>{level.editor === "BLOCKS" ? "Blocks" : "Python"}</span>
+                    <span className={`editor-badge editor-${level.editor.toLowerCase()}`} data-tour={state === "current" ? "kids-badge" : undefined}>{level.editor === "BLOCKS" ? "Blocks" : "Python"}</span>
                     {state === "done" && <Stars count={Math.min(3, Math.round(level.stars / Math.max(1, level.passedCount)))} label={`${level.stars} stars earned`} />}
                     {state === "current" && (
-                      <span>
+                      <span data-tour="kids-progress">
                         {Math.min(progress.enrollment.passedAtLevel, level.challengesToPass)} of {level.challengesToPass} challenges done
                       </span>
                     )}
@@ -90,7 +115,7 @@ export function LevelMapPage() {
                   )}
                 </div>
                 {state === "current" && (
-                  <button type="button" className="btn btn-primary kids-play" onClick={play} disabled={starting}>
+                  <button type="button" className="btn btn-primary kids-play" onClick={play} disabled={starting} data-tour="kids-play">
                     {starting ? "Pal is making your challenge…" : progress.openChallengeId ? "Keep going" : "Play"}
                   </button>
                 )}

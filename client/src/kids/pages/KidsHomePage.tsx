@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { kidsApi } from "../api";
-import { kidHomePath, setKidLock } from "../kidMode";
+import { confirmNoPin, kidHomePath, markKidsStarted, setKidLock } from "../kidMode";
 import { AvatarIcon } from "../components/bits";
 import { Child } from "../types";
 
@@ -10,19 +10,27 @@ export function KidsHomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [children, setChildren] = useState<Child[] | null>(null);
+  const [hasPin, setHasPin] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     kidsApi
       .listChildren()
-      .then((res) => setChildren(res.children))
+      .then((res) => {
+        setChildren(res.children);
+        setHasPin(res.hasPin);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Couldn't load learners"));
   }, []);
 
   if (children && children.length === 0) return <Navigate to="/kids/parent" replace />;
 
   function start(child: Child) {
-    if (user) setKidLock(user.id, child.id);
+    if (!confirmNoPin(hasPin)) return;
+    if (user) {
+      setKidLock(user.id, child.id);
+      markKidsStarted(user.id);
+    }
     navigate(kidHomePath(child.id));
   }
 
@@ -48,7 +56,7 @@ export function KidsHomePage() {
         </ul>
       )}
       <p className="kids-footnote">
-        Picking a learner turns on kid mode. A grown-up's PIN is needed to leave it. <Link to="/kids/parent">Manage learners</Link>
+        Picking a learner turns on kid mode on this device. A grown-up's PIN is needed to leave it. <Link to="/kids/parent">Manage learners</Link>
       </p>
     </div>
   );

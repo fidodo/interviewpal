@@ -30,3 +30,26 @@ export function clearKidLock(userId: string) {
 export function kidHomePath(childId: string) {
   return `/kids/learn/${childId}`;
 }
+
+// Before turning on kid mode without a PIN: the child could leave it and reach the grown-up's account. Shared by the
+// learner picker and "Start learning". True to carry on.
+export function confirmNoPin(hasPin: boolean) {
+  return hasPin || window.confirm("You haven't set a kid-mode PIN yet, so your child could leave kid mode and reach your account. Start anyway?");
+}
+
+// Whether kid mode has been started in this browser, for the Grown-ups "Getting started" checklist.
+const startedKey = (userId: string) => `kids-started:${userId}`;
+export function markKidsStarted(userId: string) {
+  try {
+    localStorage.setItem(startedKey(userId), "1");
+  } catch {
+    // Not remembered; the checklist just won't tick.
+  }
+}
+export function kidsStarted(userId: string) {
+  try {
+    return localStorage.getItem(startedKey(userId)) === "1";
+  } catch {
+    return false;
+  }
+}

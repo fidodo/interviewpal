@@ -260,6 +260,7 @@ A learning area for a parent's children, kept separate from the interview app.
   - Pal stores `Challenge.sampleInput` alongside `expectedOutput`. The exact-output check only applies when the learner's answers match those samples; otherwise Pal judges the logic.
   - A 5-second timeout kills and restarts the worker.
   - Blockly, CodeMirror and the runner are each separate lazy chunks.
+- **Guides:** the Grown-ups page opens with a "Getting started" checklist (learner added, PIN set, kid mode started: `kids-started:<userId>`), an unconfirmed-email warning and "How it works". The level map and challenge page run a "How to play" tour for children (`kids/kidTours.ts` on `OnboardingTour`, `data-tour="kids-*"` targets), once per child (`kids-tour:<childId>:map|challenge`) and again from "How to play". `confirmNoPin` (kidMode.ts) warns before kid mode starts without a PIN, from both the picker and "Start learning".
 - **Kid mode:** a `localStorage` lock (`kids-lock:<userId>`). While it's set, interview pages and the Grown-ups area redirect to the learner's pages. Leaving kid mode needs the parent PIN. A forgotten PIN is reset with the account password or a fresh Google sign-in, never just by logging in again.
 
 ### Reviews

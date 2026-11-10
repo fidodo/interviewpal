@@ -821,3 +821,76 @@ a.course-card:hover {
   0%, 100% { box-shadow: 0 0 0 0 var(--kid-accent-soft); }
   50% { box-shadow: 0 0 0 10px var(--kid-accent-soft); }
 }
+
+/* Grown-ups: "Getting started" checklist and "How it works". */
+.kids-shell .setup-steps {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kids-shell .setup-steps li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.kids-shell .setup-mark {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--kid-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.kids-shell .setup-steps li.is-done .setup-mark {
+  background: var(--kid-accent);
+  color: #fff;
+}
+
+.kids-shell .kids-warning {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border-left: 4px solid var(--warning, #b45309);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.kids-shell .how-it-works > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 700;
+}
+
+.kids-shell .how-it-works ul {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Kids pages: the back link and "How to play" on one row. */
+.kids-shell .kids-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.kids-shell .kids-run-hint {
+  margin: 8px 0 0;
+}

@@ -6,6 +6,8 @@ import { kidsApi } from "../api";
 import { getKidLock, kidHomePath } from "../kidMode";
 import { EMPTY_DRAWING } from "../runner/protocol";
 import { AskPal } from "../components/AskPal";
+import { OnboardingTour } from "../../components/OnboardingTour";
+import { challengeTour, markTourSeen, tourSeen } from "../kidTours";
 import { Stars } from "../components/bits";
 import { TurtleCanvas } from "../runner/TurtleCanvas";
 import { describeDrawing, preparePython, RunResult, runPython } from "../runner/runPython";
@@ -70,6 +72,7 @@ export function ChallengePage() {
   const [code, setCode] = useState("");
   const codeRef = useRef("");
   const [answers, setAnswers] = useState("");
+  const [touring, setTouring] = useState(false);
 
   useEffect(() => {
     setDetail(null);
@@ -203,19 +206,30 @@ export function ChallengePage() {
 
   const { challenge, level, child, course } = detail;
   const isBlocks = level.editor === "BLOCKS";
+  const closeTour = () => {
+    setTouring(false);
+    markTourSeen(child.id, "challenge");
+  };
   const passed = challenge.status === "PASSED";
   const busy = running || checking;
   const showCanvas = challenge.kind === "DRAW" || (run?.drawing.lines.length ?? 0) > 0;
 
   return (
     <div className="kids-page kids-page-wide">
-      <Link to={`/kids/learn/${child.id}/${course.slug}`} className="btn-link kids-back">
-        ← Level map
-      </Link>
+      <div className="kids-top-row">
+        <Link to={`/kids/learn/${child.id}/${course.slug}`} className="btn-link kids-back">
+          ← Level map
+        </Link>
+        <button type="button" className="btn btn-secondary kids-howto" onClick={() => setTouring(true)}>
+          How to play
+        </button>
+      </div>
+      {touring && <OnboardingTour steps={challengeTour(isBlocks)} onClose={closeTour} />}
+      <FirstVisitTour childId={child.id} onOpen={() => setTouring(true)} />
 
       <div className="challenge-layout">
         <div className="challenge-main">
-          <section className="kids-card challenge-brief" aria-labelledby="challenge-title">
+          <section className="kids-card challenge-brief" aria-labelledby="challenge-title" data-tour="kids-brief">
             <p className="challenge-level">
               Level {level.order}: {level.title}{" "}
               <span className={`editor-badge editor-${level.editor.toLowerCase()}`}>{isBlocks ? "Blocks" : "Python"}</span>
@@ -228,7 +242,7 @@ export function ChallengePage() {
             <p className="challenge-instructions">{challenge.instructions}</p>
           </section>
 
-          <section className="kids-card" aria-labelledby="editor-title">
+          <section className="kids-card" aria-labelledby="editor-title" data-tour="kids-editor">
             <div className="editor-toolbar">
               <h2 id="editor-title" className="kids-card-title">
                 {isBlocks ? "Your blocks" : "Your code"}
@@ -268,7 +282,7 @@ export function ChallengePage() {
             )}
 
             {!isBlocks && (
-              <div className="field answers-field">
+              <div className="field answers-field" data-tour="kids-answers">
                 <label htmlFor="program-answers">Answers for input()</label>
                 <p id="program-answers-help" className="helper-text">
                   When your program asks a question with input(), it uses these answers, one line each, from the top.
@@ -291,10 +305,10 @@ export function ChallengePage() {
             )}
 
             <div className="run-bar">
-              <button type="button" className="btn btn-secondary kids-run" onClick={execute} disabled={busy || pythonState === "loading"}>
+              <button type="button" className="btn btn-secondary kids-run" onClick={execute} disabled={busy || pythonState === "loading"} data-tour="kids-run">
                 <span aria-hidden="true">▶</span> {running && !checking ? "Running…" : "Run"}
               </button>
-              <button type="button" className="btn btn-primary kids-check" onClick={check} disabled={busy || pythonState === "loading"}>
+              <button type="button" className="btn btn-primary kids-check" onClick={check} disabled={busy || pythonState === "loading"} data-tour="kids-check">
                 {checking ? "Pal is checking…" : "I'm done, check it!"}
               </button>
               <span className="helper-text" role="status">
@@ -305,6 +319,7 @@ export function ChallengePage() {
                     : ""}
               </span>
             </div>
+            <p className="helper-text kids-run-hint">Run it to try it out. Check it when you're happy with it.</p>
           </section>
 
           {run && (
@@ -369,9 +384,22 @@ export function ChallengePage() {
             )}
           </div>
 
+          <div data-tour="kids-pal">
           <AskPal key={id} challengeId={id} getCode={() => codeRef.current} initialMessages={detail.messages} childName={child.displayName} />
+          </div>
         </aside>
       </div>
     </div>
   );
+}
+
+// Opens the "How to play" tour the first time a child reaches a challenge (once the page has drawn its targets).
+function FirstVisitTour({ childId, onOpen }: { childId: string; onOpen: () => void }) {
+  useEffect(() => {
+    if (tourSeen(childId, "challenge")) return;
+    const timer = window.setTimeout(onOpen, 300);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId]);
+  return null;
 }
