@@ -10,6 +10,8 @@ export const generatedChallengeSchema = z.object({
   starterCode: z.string().max(3000).default(""),
   expectedOutput: z.string().max(3000).nullish(),
   sampleInput: z.string().max(1000).nullish(),
+  // Pal's own solution, used only to check the challenge's size (challengeBudget.ts); never stored or shown.
+  plan: z.string().max(3000).nullish(),
 });
 export type GeneratedChallenge = z.infer<typeof generatedChallengeSchema>;
 

@@ -72,7 +72,16 @@ function truncate(text: string): string {
   return text.length > MAX_OUTPUT_CHARS ? `${text.slice(0, MAX_OUTPUT_CHARS)}\n…(truncated)` : text;
 }
 
-export function challengePrompt(params: { child: ChildContext; level: LevelContext; passedAtLevel: number; history: PastChallenge[] }): string {
+export function challengePrompt(params: {
+  child: ChildContext;
+  level: LevelContext;
+  passedAtLevel: number;
+  history: PastChallenge[];
+  // From challengeBudget.ts: the most statements the solution may take, and the most words in the goal.
+  budget: { statements: number; words: number };
+  // Why the previous attempt was rejected (checkChallenge), for a retry.
+  rejected?: string[];
+}): string {
   const { child, level, passedAtLevel, history } = params;
   const recent = history.slice(-MAX_HISTORY);
   const recentFails = recent.slice(-2).filter((c) => !c.passed).length;
@@ -97,14 +106,22 @@ export function challengePrompt(params: { child: ChildContext; level: LevelConte
     recent.length ? recent.map((c) => `- ${c.title} (${c.passed ? "passed" : "not passed yet"})`).join("\n") : "(none yet)",
     ``,
     `Create ONE fun, bite-sized coding challenge that can be finished in 5–15 minutes.`,
-    `- "title": a short catchy name. "story": 1–2 playful sentences that set the scene. "instructions": clear numbered steps (use \\n between steps) saying exactly what the program should do.`,
+    `Size: the intended solution must take at most ${params.budget.statements} ${level.editor === LevelEditor.BLOCKS ? "blocks" : "lines of code"}${
+      level.editor === LevelEditor.BLOCKS ? ", using only the blocks listed above" : ""
+    }. Pick a goal small enough to fit: for example, at a level without a repeat block, a short path, an L shape or a square, never a star or a many-sided shape.`,
+    `- "title": a short catchy name. "story": 1–2 playful sentences that set the scene.`,
+    `- "instructions": the GOAL, not the steps: what the finished program should draw or print, in at most ${params.budget.words} words and at most 3 short lines (use \\n between lines). Never list the blocks or lines of code to use, and never give the solution; working out the steps is the challenge. Numbers the goal depends on (a side length, a colour, the text to print) are fine.`,
+    `- "plan": your own solution, written as the Python ${level.editor === LevelEditor.BLOCKS ? "the blocks would make (turtle.forward(50), turtle.right(90), and \"for count in range(4):\" for a repeat block)" : "a learner at this level would write"}. It is only used to check the size and is never shown to ${child.name}.`,
     `- "kind": "DRAW" if the program draws with the turtle, "TEXT" if it prints.`,
     `- "expectedOutput": for a TEXT challenge whose output is always the same, the exact text it should print (lines separated by \\n). Use null for DRAW challenges or when output is random.`,
     `- "sampleInput": only if the program should use input(): the answers to type in the Answers box, one per line (separated by \\n). "expectedOutput" must be worked out with exactly these answers, including the echoed question and answer lines. Otherwise null. Never use input() on block levels.`,
     `- ${starter}`,
     ``,
-    `Respond ONLY with JSON of the shape: { "title": string, "story": string, "instructions": string, "kind": "DRAW" | "TEXT", "starterCode": string, "expectedOutput": string | null, "sampleInput": string | null }`,
-  ].join("\n");
+    params.rejected ? `\nYour last challenge was rejected because ${params.rejected.join("; ")}. Write a new, smaller one that fits.` : ``,
+    `Respond ONLY with JSON of the shape: { "title": string, "story": string, "instructions": string, "kind": "DRAW" | "TEXT", "starterCode": string, "expectedOutput": string | null, "sampleInput": string | null, "plan": string }`,
+  ]
+    .filter((line, i, all) => line !== `` || all[i - 1] !== ``)
+    .join("\n");
 }
 
 export function reviewPrompt(params: {

@@ -2,8 +2,9 @@ import bcrypt from "bcrypt";
 import { prisma } from "../db/prisma";
 import { generateValidated } from "../ai/retry";
 import { verifyGoogleEmail } from "../services/auth.service";
-import { challengePrompt, helpPrompt, reviewPrompt, ChildContext, LevelContext } from "./kids.prompts";
-import { generatedChallengeSchema, helpReplySchema, reviewResultSchema } from "./kids.schemas";
+import { challengePrompt, helpPrompt, reviewPrompt, ChildContext, LevelContext, PastChallenge } from "./kids.prompts";
+import { GeneratedChallenge, generatedChallengeSchema, helpReplySchema, reviewResultSchema } from "./kids.schemas";
+import { checkChallenge, solutionBudget, wordBudget } from "./challengeBudget";
 import { ChallengeKind, ChallengeStatus, HelpRole, LevelEditor } from "./types";
 
 const MAX_CHILDREN = 6;
@@ -192,6 +193,29 @@ export async function setLevel(parentId: string, childId: string, slug: string, 
 
 // ---- Challenges ----
 
+const CHALLENGE_ATTEMPTS = 3;
+
+// Asks Pal for a challenge and checks it in code (challengeBudget.ts): a short goal, and a hidden plan that fits the
+// level's size and blocks. A rejected challenge is retried with the reasons, up to CHALLENGE_ATTEMPTS. If none
+// passes, the one with the fewest problems is used, as long as its goal is short enough to read; otherwise it fails
+// and the child sees "Pal couldn't make a challenge. Try again."
+export async function generateChallenge(params: { child: ChildContext; level: LevelContext; passedAtLevel: number; history: PastChallenge[] }) {
+  const budget = { statements: solutionBudget(params.level, params.child.age), words: wordBudget(params.child.age) };
+  let best: { challenge: GeneratedChallenge; problems: string[] } | null = null;
+  let rejected: string[] | undefined;
+  for (let attempt = 1; attempt <= CHALLENGE_ATTEMPTS; attempt++) {
+    const challenge = await generateValidated(challengePrompt({ ...params, budget, rejected }), generatedChallengeSchema);
+    const problems = checkChallenge(challenge, params.level, params.child.age);
+    if (problems.length === 0) return { challenge, attempts: attempt, problems };
+    if (!best || problems.length < best.problems.length) best = { challenge, problems };
+    rejected = problems;
+  }
+  const readable = best && best.challenge.instructions.split(/\s+/).filter(Boolean).length <= budget.words;
+  console.warn(`Kids challenge kept problems after ${CHALLENGE_ATTEMPTS} attempts (level ${params.level.order}): ${best?.problems.join("; ")}${readable ? "" : " (too long to use)"}`);
+  if (!best || !readable) throw new Error("No usable kids challenge");
+  return { challenge: best.challenge, attempts: CHALLENGE_ATTEMPTS, problems: best.problems };
+}
+
 export async function nextChallenge(parentId: string, childId: string, slug: string, fresh: boolean) {
   const loaded = await loadEnrollment(parentId, childId, slug);
   if (!loaded) return null;
@@ -215,15 +239,12 @@ export async function nextChallenge(parentId: string, childId: string, slug: str
   });
 
   const levelContext = toLevelContext(level);
-  const generated = await generateValidated(
-    challengePrompt({
-      child: toChildContext(child),
-      level: levelContext,
-      passedAtLevel: enrollment.passedAtLevel,
-      history: history.reverse().map((c) => ({ title: c.title, passed: c.status === ChallengeStatus.PASSED })),
-    }),
-    generatedChallengeSchema
-  );
+  const { challenge: generated } = await generateChallenge({
+    child: toChildContext(child),
+    level: levelContext,
+    passedAtLevel: enrollment.passedAtLevel,
+    history: history.reverse().map((c) => ({ title: c.title, passed: c.status === ChallengeStatus.PASSED })),
+  });
 
   return prisma.challenge.create({
     data: {
