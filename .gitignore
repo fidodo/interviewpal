@@ -9,3 +9,4 @@ dist/
 
 .vercel
 server/scripts/compare-models.out.json
+server/scripts/kids-challenges.*.json
