@@ -2,6 +2,8 @@ import { prisma } from "../db/prisma";
 import { emailEnabled } from "../config/env";
 import { summary as termsSummary } from "../terms/terms.service";
 import { coverage, listEntries } from "../story/bank.service";
+import { DRILLS, DRILL_FOR } from "../story/story.drills";
+import { parseJsonObject } from "../utils/json";
 import { BADGES } from "./badges";
 import { practiceDays } from "./practice.service";
 import { dayNumber, isoDay, streakStats, weekStart, WEEKLY_GOAL } from "./streak";
@@ -20,13 +22,33 @@ export interface TodayItem {
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+// The Speak item suggests a 1-minute drill once there are this many takes in the window.
+const DRILL_TAKES = 2;
+const DRILL_WINDOW_DAYS = 30;
+const DIMENSION_ORDER = ["structure", "clarity", "specifics", "presence", "delivery"] as const;
+
+// The drill for the lowest-scoring dimension over the latest takes (ties go to the earlier dimension), or null
+// without enough takes.
+export function weakDrill(takes: { breakdown: string }[]) {
+  const breakdowns = takes.map((t) => parseJsonObject<Record<string, number>>(t.breakdown)).filter((b): b is Record<string, number> => !!b);
+  if (breakdowns.length < DRILL_TAKES) return null;
+  let best: { dimension: (typeof DIMENSION_ORDER)[number]; average: number } | null = null;
+  for (const dimension of DIMENSION_ORDER) {
+    const scores = breakdowns.map((b) => b[dimension]).filter((n): n is number => typeof n === "number");
+    if (scores.length === 0) continue;
+    const average = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10;
+    if (!best || average < best.average) best = { dimension, average };
+  }
+  return best ? { ...best, kind: DRILL_FOR[best.dimension] } : null;
+}
 const speakLink = (topic: string) => `/speak?kind=EXPERIENCE&topic=${encodeURIComponent(topic)}`;
 
 // About 10 minutes of practice for today, built from what's due and what's weakest. No AI. An item ticks off when
 // it's done today; items with nothing to do and nothing done are left out.
 async function plan(userId: string, doneToday: Set<string>): Promise<TodayItem[]> {
   const now = new Date();
-  const [terms, learnDue, weak, entries] = await Promise.all([
+  const [terms, learnDue, weak, entries, recentTakes] = await Promise.all([
     termsSummary(userId),
     prisma.reviewItem.count({ where: { userId, dueAt: { lte: now } } }),
     prisma.answer.findFirst({
@@ -41,6 +63,12 @@ async function plan(userId: string, doneToday: Set<string>): Promise<TodayItem[]
       select: { questionId: true, feedback: { select: { score: true } }, question: { select: { text: true, sessionId: true } } },
     }),
     listEntries(userId),
+    prisma.storyTake.findMany({
+      where: { story: { userId }, createdAt: { gte: new Date(now.getTime() - DRILL_WINDOW_DAYS * 86_400_000) } },
+      orderBy: { createdAt: "desc" },
+      take: DRILL_TAKES,
+      select: { breakdown: true },
+    }),
   ]);
   const items: TodayItem[] = [];
 
@@ -92,7 +120,18 @@ async function plan(userId: string, doneToday: Set<string>): Promise<TodayItem[]
 
   const gap = coverage(entries).find((c) => c.count === 0);
   const speakDone = doneToday.has("SPEAK") || doneToday.has("DRILL");
-  if (entries.length === 0) {
+  const drill = weakDrill(recentTakes);
+  if (drill) {
+    // Enough recent takes to know what to work on: the 1-minute drill for the weakest dimension.
+    items.push({
+      key: "speak",
+      title: `1-minute drill: ${DRILLS[drill.kind].label}`,
+      detail: speakDone ? "Done: you practised in Speak today." : `Your ${drill.dimension} averaged ${drill.average}/10 over your last takes. ${DRILLS[drill.kind].description}`,
+      link: `/speak?drill=${drill.kind}#drills`,
+      minutes: 2,
+      done: speakDone,
+    });
+  } else if (entries.length === 0) {
     items.push({
       key: "speak",
       title: "Tell a story out loud",

@@ -1,5 +1,6 @@
 import { bankEntryForRounds } from "./story.service";
 import { Prisma } from "@prisma/client";
+import { DRILL_KINDS } from "./story.drills";
 import { prisma } from "../db/prisma";
 import { generateValidated } from "../ai/retry";
 import { parseJsonArray } from "../utils/json";
@@ -26,11 +27,14 @@ function bestTake(story: { takes: { score: number; transcript: string }[] }) {
   return [...story.takes].sort((a, b) => b.score - a.score)[0] ?? null;
 }
 
+// Drills and conversations practise skills rather than a personal story told whole, so they can't be banked.
+const NOT_BANKABLE: string[] = [...DRILL_KINDS, "CONVERSATION"];
+
 // The AI suggests a title, summary and tags, from a Speak story's best take or typed text. Nothing is saved.
 export async function suggest(userId: string, input: { storyId?: string; text?: string }) {
   let text = input.text ?? "";
   if (input.storyId) {
-    const story = await prisma.storyPractice.findFirst({ where: { id: input.storyId, userId }, include: { takes: { select: { score: true, transcript: true } } } });
+    const story = await prisma.storyPractice.findFirst({ where: { id: input.storyId, userId, kind: { notIn: NOT_BANKABLE } }, include: { takes: { select: { score: true, transcript: true } } } });
     if (!story) return null;
     const best = bestTake(story);
     if (!best) return "noTakes" as const;
@@ -43,7 +47,7 @@ export async function createEntry(userId: string, input: { storyId?: string; tit
   if ((await prisma.storyBankEntry.count({ where: { userId } })) >= MAX_BANK_ENTRIES) return "full" as const;
   let bestScore: number | null = null;
   if (input.storyId) {
-    const story = await prisma.storyPractice.findFirst({ where: { id: input.storyId, userId }, include: { takes: { select: { score: true, transcript: true } } } });
+    const story = await prisma.storyPractice.findFirst({ where: { id: input.storyId, userId, kind: { notIn: NOT_BANKABLE } }, include: { takes: { select: { score: true, transcript: true } } } });
     if (!story) return null;
     // One entry per story, across all its rounds.
     if (await bankEntryForRounds(story.id)) return "exists" as const;

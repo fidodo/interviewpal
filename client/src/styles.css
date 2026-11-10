@@ -3883,3 +3883,95 @@ button.rl-path-btn:hover {
   gap: 12px;
   margin-top: 12px;
 }
+
+/* Speak: framework cheat sheets ("How to shape it" and /speak/frameworks). */
+.st-shape > summary,
+.st-framework > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.st-framework {
+  margin-bottom: 12px;
+}
+
+/* Linked cards (/speak/frameworks#KEY, #guide-<dimension>) stop below the sticky header instead of under it. */
+.st-framework,
+.st-guide {
+  scroll-margin-top: 140px;
+}
+
+.st-template {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  border: 1px dashed var(--border-strong);
+}
+
+.st-example {
+  margin: 0 0 12px;
+  padding: 4px 0 4px 12px;
+  border-left: 3px solid var(--primary);
+  color: var(--text);
+}
+
+/* Speak: 1-minute drills. */
+.st-drills {
+  scroll-margin-top: 140px;
+}
+
+.st-drill-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.st-drill-list .st-kind {
+  width: 100%;
+  height: 100%;
+}
+
+.st-focus {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  border-left: 3px solid var(--primary);
+}
+
+/* Speak: conversations. "Them" on the left, "You" on the right; the speaker label is text, so it isn't colour alone. */
+.st-chat {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.st-chat li {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.st-chat .st-chat-you {
+  align-self: flex-end;
+  border-color: var(--primary);
+}
+
+.st-chat-who {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}

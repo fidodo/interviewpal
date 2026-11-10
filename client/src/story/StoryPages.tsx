@@ -4,6 +4,7 @@ import { SaveToBank } from "./BankPages";
 import { RecordToggle, RecordingPlayer, keepRecordings } from "../components/Recording";
 import { useRecorder } from "../hooks/useRecorder";
 import { saveRecording } from "../audio/recordings";
+import { analyzeVoice } from "../audio/analyzeVoice";
 import { ApiError } from "../api/client";
 import { storyApi } from "../api/story";
 import { MicButton } from "../components/MicButton";
@@ -12,7 +13,22 @@ import { ScoreBadge } from "../components/ScoreBadge";
 import { TranscriptBox } from "../components/TranscriptBox";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { nextFocus } from "./nextFocus";
-import { DIMENSIONS, Dimension, KIND_LABELS, STORY_KINDS, ScoreGuideData, Story, StoryKind, StorySummary, StoryTake, TARGETS } from "./types";
+import { FrameworkBody } from "./Frameworks";
+import { CONVERSATION_SCENARIOS, DIMENSIONS, Dimension, DrillInfo, DrillKind, KIND_LABELS, Turn, STORY_KINDS, ScoreGuideData, Story, StoryKind, StorySummary, StoryTake, TARGETS, VoiceStats, VoiceTargets } from "./types";
+
+// "Read their replies aloud" in conversations, remembered per browser.
+const READ_ALOUD_KEY = "speak-read-aloud";
+function speakAloud(text: string) {
+  if (!("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+function stopSpeaking() {
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+}
+
+// Takes per drill (the server's MAX_TAKES, shared with stories).
+const MAX_DRILL_TAKES = 5;
 
 const PLAN_SECONDS = 60;
 // Below this, the recording is treated as missing and the take as typed (no pace is measured).
@@ -31,20 +47,43 @@ export function SpeakHomePage() {
   const [audience, setAudience] = useState("");
   const [target, setTarget] = useState<number>(120);
   const [stories, setStories] = useState<StorySummary[] | null>(null);
+  const [drills, setDrills] = useState<DrillInfo[]>([]);
   const [creating, setCreating] = useState(false);
+  const [startingDrill, setStartingDrill] = useState<DrillKind | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // ?drill= from the Today card: that drill is marked "Suggested for you".
+  const suggested = params.get("drill");
 
   useEffect(() => {
     storyApi
       .list()
-      .then((res) => setStories(res.stories))
+      .then((res) => {
+        setStories(res.stories);
+        setDrills(res.drills);
+      })
       .catch((err) => setError(errorMessage(err, "Couldn't load your stories")));
   }, []);
 
+  async function startDrill(kind: DrillKind) {
+    setStartingDrill(kind);
+    setError(null);
+    try {
+      const { story } = await storyApi.createDrill(kind);
+      navigate(`/speak/${story.id}`);
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't start the drill. Try again."));
+      setStartingDrill(null);
+    }
+  }
+
+  const drillKinds = new Set<string>(drills.map((d) => d.kind));
+  const storyList = stories?.filter((s) => !drillKinds.has(s.kind)) ?? null;
+  const recentDrills = stories?.filter((s) => drillKinds.has(s.kind)).slice(0, 5) ?? [];
+
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
-    if (kind === "OWN" && !topic.trim()) {
-      setError("Type the topic you want to talk about.");
+    if ((kind === "OWN" || kind === "CONVERSATION") && !topic.trim()) {
+      setError(kind === "OWN" ? "Type the topic you want to talk about." : "Pick a conversation, or describe your own.");
       return;
     }
     setCreating(true);
@@ -68,6 +107,48 @@ export function SpeakHomePage() {
       <p className="bank-callout">
         <Link to="/speak/bank">Your story bank</Link>: keep your best stories, see which competencies have no story yet, and practise picking the right one for a question.
       </p>
+      <p className="bank-callout">
+        <Link to="/speak/frameworks">Speaking frameworks</Link>: STAR, PREP, answer first and other shapes, each with a fill-in template and an example.
+      </p>
+
+      {drills.length > 0 && (
+        <section id="drills" className="card st-drills" aria-labelledby="st-drills-title">
+          <h2 id="st-drills-title" className="card-title">
+            1-minute drills
+          </h2>
+          <p className="helper-text">One skill at a time, on a ready-made prompt. Up to {MAX_DRILL_TAKES} takes each, so you can try it again straight away.</p>
+          <ul className="st-drill-list">
+            {drills.map((d) => (
+              <li key={d.kind}>
+                <button type="button" className={`st-kind ${suggested === d.kind ? "active" : ""}`} onClick={() => startDrill(d.kind)} disabled={startingDrill !== null}>
+                  <span className="st-kind-title">
+                    {d.label}
+                    {suggested === d.kind && <span className="st-banked">Suggested for you</span>}
+                  </span>
+                  <span className="helper-text">{d.description}</span>
+                  <span className="helper-text">
+                    {d.targetSeconds} seconds · trains {d.focus}
+                    {startingDrill === d.kind && " · starting…"}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {recentDrills.length > 0 && (
+            <p className="helper-text">
+              Recent drills:{" "}
+              {recentDrills.map((s, i) => (
+                <span key={s.id}>
+                  {i > 0 && " · "}
+                  <Link to={`/speak/${s.id}`}>
+                    {KIND_LABELS[s.kind].replace(/^Drill: /, "")} ({s.takes === 0 ? "not done" : `best ${s.bestScore}/10`})
+                  </Link>
+                </span>
+              ))}
+            </p>
+          )}
+        </section>
+      )}
 
       <form className="card" onSubmit={handleCreate}>
         <fieldset className="st-kinds">
@@ -79,26 +160,52 @@ export function SpeakHomePage() {
             </button>
           ))}
         </fieldset>
+        {kind === "CONVERSATION" && (
+          <div className="field">
+            <span className="field-label" id="st-scenario-label">
+              Who are you talking to?
+            </span>
+            <div className="segmented" role="group" aria-labelledby="st-scenario-label">
+              {CONVERSATION_SCENARIOS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={`segmented-option ${topic === c.topic ? "active" : ""}`}
+                  aria-pressed={topic === c.topic}
+                  onClick={() => {
+                    setTopic(c.topic);
+                    setAudience(c.audience);
+                  }}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <p className="helper-text">Or describe your own conversation and who it's with below. The AI replies to what you actually say.</p>
+          </div>
+        )}
         <div className="field">
-          <label htmlFor="st-topic">{kind === "OWN" ? "Your topic" : "Topic (optional)"}</label>
+          <label htmlFor="st-topic">{kind === "OWN" ? "Your topic" : kind === "CONVERSATION" ? "The conversation" : "Topic (optional)"}</label>
           <input
             id="st-topic"
             className="input"
             maxLength={200}
-            required={kind === "OWN"}
+            required={kind === "OWN" || kind === "CONVERSATION"}
             placeholder={
               kind === "EXPERIENCE"
                 ? "e.g. a conflict with a teammate, a project that failed. Leave blank for a surprise."
                 : kind === "OWN"
                   ? "e.g. why I'm moving from full-stack into AI engineering"
-                  : "e.g. how RAG works, why we should adopt TypeScript. Leave blank for a surprise."
+                  : kind === "CONVERSATION"
+                    ? "e.g. asking my manager for a raise, a coffee chat with a recruiter"
+                    : "e.g. how RAG works, why we should adopt TypeScript. Leave blank for a surprise."
             }
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
           />
         </div>
         <div className="field">
-          <label htmlFor="st-audience">Audience (optional)</label>
+          <label htmlFor="st-audience">{kind === "CONVERSATION" ? "Who they are (optional)" : "Audience (optional)"}</label>
           <input
             id="st-audience"
             className="input"
@@ -134,14 +241,14 @@ export function SpeakHomePage() {
         <h2 id="st-history-title" className="card-title">
           Your stories
         </h2>
-        {!stories && !error && <p className="helper-text">Loading…</p>}
-        {stories?.length === 0 && <p className="helper-text">None yet.</p>}
-        {stories && stories.length > 0 && (
+        {!storyList && !error && <p className="helper-text">Loading…</p>}
+        {storyList?.length === 0 && <p className="helper-text">None yet.</p>}
+        {storyList && storyList.length > 0 && (
           <p className="helper-text">Practice stories are cleared 90 days after your last take, and prompts you never tell after 7 days, unless you save them to your story bank.</p>
         )}
-        {stories && stories.length > 0 && (
+        {storyList && storyList.length > 0 && (
           <ul className="course-list">
-            {stories.map((s) => (
+            {storyList.map((s) => (
               <li key={s.id}>
                 <Link to={`/speak/${s.id}`} className="card course-item">
                   <span className="course-item-title">{s.prompt}</span>
@@ -165,7 +272,8 @@ function Paragraphs({ text }: { text: string }) {
   return (
     <>
       {text
-        .split(/\n\s*\n/)
+        // Blank lines split paragraphs; a conversation's stronger version has one "You:" line per turn.
+        .split(/\n\s*\n|\n(?=You:)/)
         .map((p) => p.trim())
         .filter(Boolean)
         .map((p, i) => (
@@ -181,9 +289,25 @@ function delta(now: number, before: number | undefined) {
   return d === 0 ? "no change" : d > 0 ? `up ${d}` : `down ${-d}`;
 }
 
-function TakeResult({ take, previous, targetSeconds, wpm }: { take: StoryTake; previous?: StoryTake; targetSeconds: number; wpm: [number, number] }) {
+function TakeResult({
+  take,
+  previous,
+  targetSeconds,
+  wpm,
+  focus,
+  voiceTargets,
+}: {
+  take: StoryTake;
+  previous?: StoryTake;
+  targetSeconds: number;
+  wpm: [number, number];
+  // A drill's dimension: shown first, with the marker's reason.
+  focus?: Dimension;
+  voiceTargets: VoiceTargets;
+}) {
   const { stats } = take;
   const hedges = Object.entries(stats.hedges.phrases);
+  const focusLabel = focus && DIMENSIONS.find((d) => d.key === focus)?.label;
   return (
     <>
       <div className="debug-result-head">
@@ -195,6 +319,15 @@ function TakeResult({ take, previous, targetSeconds, wpm }: { take: StoryTake; p
           {previous && <p className="helper-text">Take {previous.number} scored {previous.score}/10</p>}
         </div>
       </div>
+      {focus && (
+        <p className="st-focus">
+          <strong>
+            This drill trains {focusLabel?.toLowerCase()}: {take.breakdown[focus]}/10
+            {previous && ` (${delta(take.breakdown[focus], previous.breakdown[focus])})`}.
+          </strong>{" "}
+          {take.reasons?.[focus]}
+        </p>
+      )}
       <RecordingPlayer recordingKey={`take:${take.id}`} label={`Hear take ${take.number}`} />
       <ul className="design-breakdown">
         {DIMENSIONS.map((d) => (
@@ -219,6 +352,7 @@ function TakeResult({ take, previous, targetSeconds, wpm }: { take: StoryTake; p
           {hedges.length > 0 && `: ${hedges.map(([w, n]) => `"${w}" ×${n}`).join(", ")}`}
         </li>
       </ul>
+      {stats.voice && <VoiceResult voice={stats.voice} targets={voiceTargets} />}
       <h4 className="feedback-list-title">How you came across</h4>
       <p>{take.cameAcross}</p>
       <h4 className="feedback-list-title">What worked</h4>
@@ -388,12 +522,95 @@ function ScoreGuide({
                     Fillers and hedges together: {delivery.fillersPer100.toFixed(1)} per 100 words (aim for under {t.fillersPer100}),{" "}
                     {delivery.fillersOk ? "on target" : "too many"}
                   </li>
+                  {stats.voice && (
+                    <li>
+                      Voice, from the recording: {stats.voice.pauses.count} pause{stats.voice.pauses.count === 1 ? "" : "s"}
+                      {stats.voice.pitchRangeSemitones !== null && `, pitch range ${stats.voice.pitchRangeSemitones} semitones`}. These shape the marker's comments, not
+                      the delivery score.
+                    </li>
+                  )}
                 </ul>
               </>
             )}
           </details>
         );
       })}
+    </>
+  );
+}
+
+// "Your voice": pauses, pitch range and trail-off from the recording, each with what it means and a tip.
+function VoiceResult({ voice, targets }: { voice: VoiceStats; targets: VoiceTargets }) {
+  const { pauses, pitchRangeSemitones: range, trailOffShare: trail } = voice;
+  const rows: { figure: string; tip: string | null }[] = [];
+  rows.push({
+    figure: `${pauses.count} pause${pauses.count === 1 ? "" : "s"} (about ${pauses.perMinute} a minute${pauses.count ? `, longest ${pauses.longestSec}s` : ""})`,
+    tip:
+      pauses.count === 0 && voice.speakingSec >= 20
+        ? "No real pauses: you may be rushing. Stop for a second after each point; it gives the listener time to keep up."
+        : pauses.longCount > 0
+          ? `${pauses.longCount} pause${pauses.longCount === 1 ? " was" : "s were"} over ${targets.longPauseSec} seconds. If you lost your place, a 60-second plan first helps.`
+          : null,
+  });
+  if (range !== null)
+    rows.push({
+      figure: `Pitch range: ${range} semitones (${range < targets.flatBelowSemitones ? "flat" : range >= targets.livelyFromSemitones ? "lively" : "some variety"})`,
+      tip: range < targets.flatBelowSemitones ? "Your voice stayed on much the same note, which can sound flat. Lift your voice on the key word of each point." : null,
+    });
+  if (trail !== null)
+    rows.push({
+      figure: `Volume dropped at the end of ${Math.round(trail * 100)}% of phrases`,
+      tip: trail >= targets.trailOffShare ? "Keep your voice up through the last word: the end of a sentence is usually the point." : null,
+    });
+  return (
+    <>
+      <h4 className="feedback-list-title">Your voice (measured from the recording, approximate)</h4>
+      <ul className="feedback-list">
+        {rows.map((r) => (
+          <li key={r.figure}>
+            {r.figure}
+            {r.tip && (
+              <>
+                . <span className="st-voice-tip">{r.tip}</span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+// A fresh prompt for the same drill (no AI call).
+function AnotherDrill({ kind }: { kind: DrillKind }) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="btn btn-secondary"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            const { story } = await storyApi.createDrill(kind);
+            navigate(`/speak/${story.id}`);
+          } catch (err) {
+            setError(errorMessage(err, "Couldn't start another drill. Try again."));
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? "Starting…" : "Another prompt"}
+      </button>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
     </>
   );
 }
@@ -486,7 +703,20 @@ export function StoryPage() {
   const segmentStart = useRef<number | null>(null);
   // Audio of the take being told, kept only in this browser (see audio/recordings.ts).
   const [keepAudio, setKeepAudio] = useState(keepRecordings);
-  const recorder = useRecorder(speech.isListening, keepAudio);
+  // Always recorded while the mic is on, so the voice can be measured; "keep a recording" only decides whether the
+  // audio is saved afterwards.
+  const recorder = useRecorder(speech.isListening, true);
+  // A conversation in progress: your turns and the other person's replies (kept here until you submit).
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [replying, setReplying] = useState(false);
+  const [turnsLeft, setTurnsLeft] = useState<number | null>(null);
+  const [readAloud, setReadAloud] = useState(() => {
+    try {
+      return localStorage.getItem(READ_ALOUD_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   // A recording already finished for a submit that failed, so a retry still saves it.
   const pendingAudio = useRef<Blob | null>(null);
   const [, setTick] = useState(0);
@@ -504,6 +734,9 @@ export function StoryPage() {
       cancelled = true;
     };
   }, [id]);
+
+  // Read-aloud stops when you leave the page.
+  useEffect(() => stopSpeaking, []);
 
   // Counts recording time while the mic is on; the 1-second tick only refreshes the clock on screen.
   useEffect(() => {
@@ -535,6 +768,9 @@ export function StoryPage() {
   const recordedSec = Math.floor((recordedMs + (segmentStart.current !== null ? performance.now() - segmentStart.current : 0)) / 1000);
 
   function resetRecorder() {
+    stopSpeaking();
+    setTurns([]);
+    setTurnsLeft(null);
     speech.stop();
     recorder.reset();
     pendingAudio.current = null;
@@ -545,17 +781,53 @@ export function StoryPage() {
     setError(null);
   }
 
+  // Sends your line and gets the other person's reply. On failure your line goes back in the box to try again.
+  async function sendTurn() {
+    if (!story) return;
+    const text = speech.transcript.trim();
+    if (!text) return;
+    speech.stop();
+    const before = turns;
+    const next: Turn[] = [...turns, { role: "you", text }];
+    setTurns(next);
+    speech.resetTranscript();
+    setReplying(true);
+    setError(null);
+    try {
+      const res = await storyApi.reply(story.id, next);
+      setTurns([...next, { role: "them", text: res.reply }]);
+      setTurnsLeft(res.turnsLeft);
+      setAnnouncement(`They say: ${res.reply}`);
+      if (readAloud) speakAloud(res.reply);
+    } catch (err) {
+      setTurns(before);
+      speech.setTranscript(text);
+      setError(errorMessage(err, "Couldn't get their reply. Your words are still here; try again."));
+    } finally {
+      setReplying(false);
+    }
+  }
+
   async function submit() {
     if (!story) return;
+    stopSpeaking();
     speech.stop();
+    // A conversation is sent as its turns, including a last line you haven't sent for a reply.
+    const pending = speech.transcript.trim();
+    // A conversation that has used every turn ignores anything typed after it ended (the server would refuse it).
+    const canAdd = !!story.conversation && turns.filter((t) => t.role === "you").length < story.conversation.maxTurns;
+    const conversationTurns: Turn[] | null = story.conversation ? (pending && canAdd ? [...turns, { role: "you", text: pending }] : turns) : null;
     const seconds = recordedSec;
     setSubmitting(true);
     setError(null);
     try {
       pendingAudio.current = (await recorder.finish()) ?? pendingAudio.current;
-      const res = await storyApi.submitTake(story.id, speech.transcript.trim(), seconds >= MIN_TIMED_SECONDS ? Math.min(600, seconds) : null);
+      const timed = seconds >= MIN_TIMED_SECONDS;
+      // Measured here; only the numbers are sent.
+      const voice = timed && pendingAudio.current ? await analyzeVoice(pendingAudio.current) : null;
+      const res = await storyApi.submitTake(story.id, conversationTurns ? null : speech.transcript.trim(), timed ? Math.min(600, seconds) : null, voice, conversationTurns);
       const saved = res.story.takes[res.story.takes.length - 1];
-      if (pendingAudio.current && saved) await saveRecording(`take:${saved.id}`, pendingAudio.current);
+      if (keepAudio && pendingAudio.current && saved) await saveRecording(`take:${saved.id}`, pendingAudio.current);
       pendingAudio.current = null;
       setStory(res.story);
       setShownTake(null);
@@ -602,11 +874,13 @@ export function StoryPage() {
   const recording = takes.length === 0 || retelling;
   const canRetell = takes.length < story.maxTakes;
   const over = recordedSec > story.targetSeconds;
+  const yourTurns = turns.filter((t) => t.role === "you").length;
+  const conversationOver = !!story.conversation && (turnsLeft === 0 || yourTurns >= story.conversation.maxTurns);
 
   return (
     <div className="page">
       <p>
-        <Link to="/speak">← All stories</Link>
+        <Link to={story.drill ? "/speak#drills" : "/speak"}>{story.drill ? "← All drills" : "← All stories"}</Link>
         {story.continuesFromId && (
           <>
             {" · "}
@@ -621,18 +895,37 @@ export function StoryPage() {
 
       <section className="card" aria-labelledby="st-prompt-title">
         <h2 id="st-prompt-title" className="card-title">
-          Your prompt
+          {story.conversation ? "The conversation" : "Your prompt"}
         </h2>
-        <p className="st-prompt">{story.prompt}</p>
+        {story.conversation && <p className="helper-text">{story.topic}</p>}
+        <p className="st-prompt">{story.conversation ? `They start: "${story.prompt}"` : story.prompt}</p>
         <p className="helper-text">
-          Audience: {story.audience ?? "anyone"} · Aim for about {minutes(story.targetSeconds)}
+          {story.conversation
+            ? `You're talking to ${story.audience ?? "someone new"} · Up to ${story.conversation.maxTurns} turns, about ${minutes(story.targetSeconds)} of your speaking in all`
+            : `Audience: ${story.audience ?? "anyone"} · Aim for about ${minutes(story.targetSeconds)}`}
         </p>
-        <h3 className="feedback-list-title">A shape that works</h3>
-        <ol className="feedback-list">
-          {story.shape.map((s, i) => (
-            <li key={i}>{s}</li>
-          ))}
-        </ol>
+        {/* The full cheat sheet before the first take; folded away once you've told it. */}
+        <details className="st-shape" open={takes.length === 0}>
+          <summary>
+            <strong>How to shape it: {story.framework.main.name}</strong>
+          </summary>
+          <FrameworkBody framework={story.framework.main} />
+          <p className="helper-text">
+            {story.framework.also.length > 0 && (
+              <>
+                Also works for this:{" "}
+                {story.framework.also.map((f, i) => (
+                  <span key={f.key}>
+                    {i > 0 && ", "}
+                    <Link to={`/speak/frameworks#${f.key}`}>{f.name}</Link>
+                  </span>
+                ))}
+                .{" "}
+              </>
+            )}
+            <Link to="/speak/frameworks">All speaking frameworks</Link>
+          </p>
+        </details>
         {story.coachingNotes && (
           <>
             <h3 className="feedback-list-title">What a strong answer includes</h3>
@@ -650,7 +943,47 @@ export function StoryPage() {
           <h2 id="st-record-title" className="card-title">
             {takes.length === 0 && story.round === 1 ? "Tell it" : `${takes.length === 0 ? "Tell it again" : "Retell it"}: take ${takes.length + 1} of ${story.maxTakes}`}
           </h2>
-          {latest && (
+          {story.conversation && (
+            <>
+              <ol className="st-chat" aria-label="The conversation so far">
+                <li className="st-chat-them">
+                  <span className="st-chat-who">Them</span>
+                  {story.prompt}
+                </li>
+                {turns.map((t, i) => (
+                  <li key={i} className={t.role === "you" ? "st-chat-you" : "st-chat-them"}>
+                    <span className="st-chat-who">{t.role === "you" ? "You" : "Them"}</span>
+                    {t.text}
+                  </li>
+                ))}
+                {replying && (
+                  <li className="st-chat-them">
+                    <span className="st-chat-who">Them</span>
+                    <span className="helper-text">Thinking about what you said…</span>
+                  </li>
+                )}
+              </ol>
+              {"speechSynthesis" in window && (
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={readAloud}
+                    onChange={(e) => {
+                      setReadAloud(e.target.checked);
+                      if (!e.target.checked) stopSpeaking();
+                      try {
+                        localStorage.setItem(READ_ALOUD_KEY, e.target.checked ? "1" : "0");
+                      } catch {
+                        // Not remembered.
+                      }
+                    }}
+                  />
+                  <span>Read their replies aloud</span>
+                </label>
+              )}
+            </>
+          )}
+          {latest && !story.conversation && (
             <>
               <h3 className="feedback-list-title">Retell from your outline</h3>
               <ol className="feedback-list">
@@ -660,6 +993,8 @@ export function StoryPage() {
               </ol>
             </>
           )}
+          {!story.conversation && (
+          <>
           <div className="field">
             <label htmlFor="st-notes">Plan (optional, not marked or saved)</label>
             <textarea id="st-notes" className="input" rows={3} maxLength={2000} placeholder="Jot down your opening, three points and your ending" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -680,12 +1015,31 @@ export function StoryPage() {
               </>
             )}
           </div>
+          </>
+          )}
           <p className="visually-hidden" aria-live="polite">
             {announcement}
           </p>
 
-          <MicButton isListening={speech.isListening} isSupported={speech.isSupported} onStart={speech.start} onStop={speech.stop} disabled={submitting} />
+          {story.conversation && (
+            <p className="helper-text">
+              {conversationOver
+                ? "That's the end of the conversation. Get your feedback below."
+                : `Your turn ${yourTurns + 1} of ${story.conversation.maxTurns}: answer, add one detail, then ask something back.`}
+            </p>
+          )}
+          <MicButton
+            isListening={speech.isListening}
+            isSupported={speech.isSupported}
+            onStart={() => {
+              stopSpeaking();
+              speech.start();
+            }}
+            onStop={speech.stop}
+            disabled={submitting || replying || conversationOver}
+          />
           <RecordToggle value={keepAudio} onChange={setKeepAudio} />
+          <p className="helper-text">Your pauses, pitch and volume are measured from the recording in this browser. Only the numbers are sent, never the audio.</p>
           <p className={`st-clock ${over ? "st-over" : ""}`} role="timer" aria-label="Time spoken">
             {clock(recordedSec)} / {clock(story.targetSeconds)}
             {over && ` (over by ${clock(recordedSec - story.targetSeconds)})`}
@@ -707,8 +1061,18 @@ export function StoryPage() {
             </p>
           )}
           <div className="st-actions">
-            <button type="button" className="btn btn-primary" onClick={submit} disabled={!speech.transcript.trim() || submitting}>
-              {submitting ? "Marking your take…" : "Get feedback"}
+            {story.conversation && !conversationOver && (
+              <button type="button" className="btn btn-primary" onClick={sendTurn} disabled={!speech.transcript.trim() || replying || submitting}>
+                {replying ? "Waiting for their reply…" : "Send"}
+              </button>
+            )}
+            <button
+              type="button"
+              className={`btn ${story.conversation && !conversationOver ? "btn-secondary" : "btn-primary"}`}
+              onClick={submit}
+              disabled={submitting || replying || (story.conversation ? yourTurns + (speech.transcript.trim() ? 1 : 0) < story.conversation.minTurns : !speech.transcript.trim())}
+            >
+              {submitting ? "Marking your take…" : story.conversation ? "Finish and get feedback" : "Get feedback"}
             </button>
             {retelling && (
               <button
@@ -742,7 +1106,7 @@ export function StoryPage() {
             </div>
           )}
           {shownIndex === 0 && story.round > 1 && <p className="helper-text">This take was marked against your last take in round {story.round - 1}.</p>}
-          <TakeResult take={takes[shownIndex]} previous={takes[shownIndex - 1]} targetSeconds={story.targetSeconds} wpm={story.guide.deliveryTargets.wpm} />
+          <TakeResult take={takes[shownIndex]} previous={takes[shownIndex - 1]} targetSeconds={story.targetSeconds} wpm={story.guide.deliveryTargets.wpm} focus={story.drill?.focus} voiceTargets={story.voiceTargets} />
           {!recording && (
             <div className="st-actions">
               {canRetell ? (
@@ -757,16 +1121,20 @@ export function StoryPage() {
                 >
                   Retell it
                 </button>
-              ) : (
+              ) : story.drill ? null : (
                 <PractiseAgain story={story} />
               )}
-              <Link to="/speak" className="btn btn-secondary">
-                New story
-              </Link>
+              {story.drill ? (
+                <AnotherDrill kind={story.kind as DrillKind} />
+              ) : (
+                <Link to="/speak" className="btn btn-secondary">
+                  New story
+                </Link>
+              )}
             </div>
           )}
           {!recording && !canRetell && <WorkOnNext takes={takes} fillersLimit={story.guide.deliveryTargets.fillersPer100} />}
-          {!recording && <SaveToBank storyId={story.id} bankEntryId={story.bankEntryId} onSaved={(id) => setStory((s) => (s ? { ...s, bankEntryId: id } : s))} />}
+          {!recording && !story.drill && <SaveToBank storyId={story.id} bankEntryId={story.bankEntryId} onSaved={(id) => setStory((s) => (s ? { ...s, bankEntryId: id } : s))} />}
         </section>
       )}
 

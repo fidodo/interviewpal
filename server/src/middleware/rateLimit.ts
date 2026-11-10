@@ -160,6 +160,19 @@ export const bankLimiter = limiter("story-bank", 60_000, 60, "That's a lot of ch
   skip: isAdmin,
 });
 
+// Starting a Speak 1-minute drill: no AI call (fixed prompts), but each one is a row.
+export const drillLimiter = limiter("speak-drill", 60_000, 20, "That's a lot of drills at once. Wait a minute and try again.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});
+
+// Speak conversations: the other person's replies (one AI call each). A daily budget of its own, separate from the
+// interview allowance; marking the finished conversation still uses that allowance.
+export const conversationLimiter = limiter("speak-reply", 24 * 60 * 60_000, 80, "You've reached today's limit for conversation replies. Try again tomorrow.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});
+
 // The daily plan and reminder settings: read-only and cheap, but each load runs several queries.
 export const todayLimiter = limiter("today", 60_000, 30, "Too many refreshes. Wait a minute and try again.", {
   keyGenerator: byUserOrIp,

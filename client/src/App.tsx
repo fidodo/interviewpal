@@ -30,6 +30,7 @@ const StoryPage = lazy(() => import("./story/StoryPages").then((m) => ({ default
 const ProgressPage = lazy(() => import("./progress/ProgressPage").then((m) => ({ default: m.ProgressPage })));
 const StoryBankPage = lazy(() => import("./story/BankPages").then((m) => ({ default: m.StoryBankPage })));
 const StoryDrillPage = lazy(() => import("./story/BankPages").then((m) => ({ default: m.StoryDrillPage })));
+const FrameworksPage = lazy(() => import("./story/Frameworks").then((m) => ({ default: m.FrameworksPage })));
 const RagLabProjectPage = lazy(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabProjectPage })));
 
 function Loading() {
@@ -201,6 +202,16 @@ function InterviewRoutes() {
             <ProtectedRoute>
               <Suspense fallback={<Loading />}>
                 <StoryBankPage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/speak/frameworks"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<Loading />}>
+                <FrameworksPage />
               </Suspense>
             </ProtectedRoute>
           }
