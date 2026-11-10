@@ -1,4 +1,5 @@
-import { lazy, ReactElement, Suspense } from "react";
+import { ReactElement, Suspense } from "react";
+import { lazyWithReload } from "./lazyWithReload";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { Layout } from "./components/Layout";
@@ -20,18 +21,18 @@ import { getKidLock, kidHomePath } from "./kids/kidMode";
 import { UnsubscribePage } from "./today/UnsubscribePage";
 
 // The kids section is its own lazy chunk (Blockly, CodeMirror, the Python runner) with its own layout.
-const KidsApp = lazy(() => import("./kids/KidsApp"));
+const KidsApp = lazyWithReload(() => import("./kids/KidsApp"));
 // RAG Lab pulls in CodeMirror and the bot runtimes, so it's its own chunk too.
-const RagLabHomePage = lazy(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabHomePage })));
-const TermsHomePage = lazy(() => import("./terms/TermsPages").then((m) => ({ default: m.TermsHomePage })));
-const TermReviewPage = lazy(() => import("./terms/TermsPages").then((m) => ({ default: m.TermReviewPage })));
-const SpeakHomePage = lazy(() => import("./story/StoryPages").then((m) => ({ default: m.SpeakHomePage })));
-const StoryPage = lazy(() => import("./story/StoryPages").then((m) => ({ default: m.StoryPage })));
-const ProgressPage = lazy(() => import("./progress/ProgressPage").then((m) => ({ default: m.ProgressPage })));
-const StoryBankPage = lazy(() => import("./story/BankPages").then((m) => ({ default: m.StoryBankPage })));
-const StoryDrillPage = lazy(() => import("./story/BankPages").then((m) => ({ default: m.StoryDrillPage })));
-const FrameworksPage = lazy(() => import("./story/Frameworks").then((m) => ({ default: m.FrameworksPage })));
-const RagLabProjectPage = lazy(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabProjectPage })));
+const RagLabHomePage = lazyWithReload(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabHomePage })));
+const TermsHomePage = lazyWithReload(() => import("./terms/TermsPages").then((m) => ({ default: m.TermsHomePage })));
+const TermReviewPage = lazyWithReload(() => import("./terms/TermsPages").then((m) => ({ default: m.TermReviewPage })));
+const SpeakHomePage = lazyWithReload(() => import("./story/StoryPages").then((m) => ({ default: m.SpeakHomePage })));
+const StoryPage = lazyWithReload(() => import("./story/StoryPages").then((m) => ({ default: m.StoryPage })));
+const ProgressPage = lazyWithReload(() => import("./progress/ProgressPage").then((m) => ({ default: m.ProgressPage })));
+const StoryBankPage = lazyWithReload(() => import("./story/BankPages").then((m) => ({ default: m.StoryBankPage })));
+const StoryDrillPage = lazyWithReload(() => import("./story/BankPages").then((m) => ({ default: m.StoryDrillPage })));
+const FrameworksPage = lazyWithReload(() => import("./story/Frameworks").then((m) => ({ default: m.FrameworksPage })));
+const RagLabProjectPage = lazyWithReload(() => import("./raglab/RagLabPages").then((m) => ({ default: m.RagLabProjectPage })));
 
 function Loading() {
   return (

@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { lazyWithReload } from "../lazyWithReload";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { Feedback, FillerStats, MAX_RETAKES, QuestionWithAnswer, Retake, ROUND_LABELS, SessionDetail } from "../types";
@@ -16,7 +17,7 @@ import { RecordToggle, RecordingPlayer, keepRecordings } from "../components/Rec
 import { useRecorder } from "../hooks/useRecorder";
 import { saveRecording } from "../audio/recordings";
 
-const CodeRunner = lazy(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
+const CodeRunner = lazyWithReload(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
 
 interface Attempt {
   label: string;

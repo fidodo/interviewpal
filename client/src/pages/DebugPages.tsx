@@ -1,4 +1,5 @@
-import { FormEvent, lazy, Suspense, useEffect, useRef, useState } from "react";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { lazyWithReload } from "../lazyWithReload";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { debugApi } from "../api/debug";
@@ -12,7 +13,7 @@ import { useElapsed } from "../hooks/useElapsed";
 import { DEBUG_LANGUAGES, DebugChallenge, DebugListFilter, DebugSummary, Difficulty, LEVEL_LABELS } from "../types";
 
 // CodeMirror and the runners are a separate chunk.
-const CodeRunner = lazy(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
+const CodeRunner = lazyWithReload(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
 
 const LEVELS: Difficulty[] = ["JUNIOR", "INTERMEDIATE", "SENIOR"];
 const errorMessage = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);

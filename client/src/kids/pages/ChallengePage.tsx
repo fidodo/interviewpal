@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazyWithReload } from "../../lazyWithReload";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { kidsApi } from "../api";
@@ -11,8 +12,8 @@ import { describeDrawing, preparePython, RunResult, runPython } from "../runner/
 import { Attempt, ChallengeDetail } from "../types";
 
 // Each editor is its own chunk: Blockly is large and only needed on block levels, CodeMirror only on Python ones.
-const BlocksEditor = lazy(() => import("../editors/BlocksEditor").then((m) => ({ default: m.BlocksEditor })));
-const PythonEditor = lazy(() => import("../editors/PythonEditor").then((m) => ({ default: m.PythonEditor })));
+const BlocksEditor = lazyWithReload(() => import("../editors/BlocksEditor").then((m) => ({ default: m.BlocksEditor })));
+const PythonEditor = lazyWithReload(() => import("../editors/PythonEditor").then((m) => ({ default: m.PythonEditor })));
 
 type PythonState = "loading" | "ready" | "error";
 

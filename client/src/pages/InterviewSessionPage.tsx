@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazyWithReload } from "../lazyWithReload";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { SessionDetail, Feedback, FillerStats, Question, ROUND_LABELS, PERSONA_LABELS } from "../types";
@@ -7,7 +8,7 @@ import { runTests } from "../code/runTests";
 import { saveLanguage, savedLanguage } from "../code/savedLanguage";
 
 // The code editor and test runner are a separate chunk (CodeMirror), only loaded for runnable coding questions.
-const CodeRunner = lazy(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
+const CodeRunner = lazyWithReload(() => import("../code/CodeRunner").then((m) => ({ default: m.CodeRunner })));
 
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { useRecorder } from "../hooks/useRecorder";
