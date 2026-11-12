@@ -1,4 +1,4 @@
-import { RequestHandler, Response } from "express";
+import { Response } from "express";
 import { z } from "zod";
 import { AuthedRequest, requireVerified } from "../middleware/auth.middleware";
 import { aiDailyLimiter, aiLimiter } from "../middleware/rateLimit";
@@ -6,6 +6,7 @@ import { Difficulty } from "../types";
 import { parseJsonArray, parseJsonObject as parseObject } from "../utils/json";
 import { DEBUG_LANGUAGE_KEYS, DEBUG_LANGUAGES, DebugLanguage } from "./debug.prompts";
 import * as debugService from "./debug.service";
+import { passes } from "../middleware/runMiddleware";
 import { recordPractice } from "../today/practice.service";
 
 type Challenge = NonNullable<Awaited<ReturnType<typeof debugService.findChallenge>>>;
@@ -112,28 +113,6 @@ export async function getChallenge(req: AuthedRequest, res: Response) {
   const challenge = await debugService.findChallenge(req.userId!, req.params.id);
   if (!challenge) return notFound(res);
   res.json({ challenge: serialize(challenge) });
-}
-
-// Runs middleware (e.g. rate limiters) from inside a handler. Resolves false when the middleware answered the
-// request itself (e.g. a 429), so the handler must stop.
-function passes(req: AuthedRequest, res: Response, middleware: RequestHandler[]): Promise<boolean> {
-  return middleware.reduce<Promise<boolean>>(
-    (prev, mw) =>
-      prev.then(
-        (ok) =>
-          ok &&
-          new Promise<boolean>((resolve, reject) => {
-            const onFinish = () => resolve(false);
-            res.once("finish", onFinish);
-            mw(req, res, (err?: unknown) => {
-              res.off("finish", onFinish);
-              if (err) reject(err);
-              else resolve(true);
-            });
-          })
-      ),
-    Promise.resolve(true)
-  );
 }
 
 // A hint for a bug that's still in the learner's current code. The snippet check is free; only when it can't tell
