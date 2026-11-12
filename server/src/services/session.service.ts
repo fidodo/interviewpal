@@ -8,14 +8,11 @@ import { visibleTopics } from "./topic.service";
 import { Persona } from "../ai/personas";
 import { applyEvidence, roleContextForSession } from "../roles/roles.service";
 import { MOCK_PLAN, MockRound, roundGradingInstructions, roundQuestionInstructions } from "../roles/mock";
+import { parseJsonArray } from "../utils/json";
+import { isUniqueViolation } from "../utils/prismaErrors";
 
-export function parseSkillTags(value: string): string[] {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return [];
-  }
-}
+// A question's skill tags (a JSON array of skill names).
+export const parseSkillTags = (value: string) => parseJsonArray<string>(value);
 
 async function loadPriorQA(sessionId: string): Promise<PriorQA[]> {
   const questions = await prisma.question.findMany({
@@ -185,26 +182,33 @@ export async function submitAnswer(
     })
   );
 
-  const answer = await prisma.answer.create({
-    data: {
-      questionId,
-      transcript,
-      fillerStats: fillerStats ? JSON.stringify(fillerStats) : null,
-      testResults: question.type === "CODING" && testResults ? JSON.stringify(testResults) : null,
-      feedback: {
-        create: {
-          score: grading.score,
-          correctnessScore: grading.breakdown.correctness,
-          clarityScore: grading.breakdown.clarity,
-          depthScore: grading.breakdown.depth,
-          strengths: JSON.stringify(grading.strengths),
-          weaknesses: JSON.stringify(grading.weaknesses),
-          suggestions: JSON.stringify(grading.suggestions),
+  let answer;
+  try {
+    answer = await prisma.answer.create({
+      data: {
+        questionId,
+        transcript,
+        fillerStats: fillerStats ? JSON.stringify(fillerStats) : null,
+        testResults: question.type === "CODING" && testResults ? JSON.stringify(testResults) : null,
+        feedback: {
+          create: {
+            score: grading.score,
+            correctnessScore: grading.breakdown.correctness,
+            clarityScore: grading.breakdown.clarity,
+            depthScore: grading.breakdown.depth,
+            strengths: JSON.stringify(grading.strengths),
+            weaknesses: JSON.stringify(grading.weaknesses),
+            suggestions: JSON.stringify(grading.suggestions),
+          },
         },
       },
-    },
-    include: { feedback: true },
-  });
+      include: { feedback: true },
+    });
+  } catch (err) {
+    // Another submit of the same question was saved first (a double click): one answer per question.
+    if (isUniqueViolation(err)) return "answered" as const;
+    throw err;
+  }
 
   // Skill ratings are a side effect: if updating them fails, the user still gets their graded answer. The closing
   // round grades the questions the candidate asks, not a skill, so it doesn't count as evidence.
@@ -220,14 +224,7 @@ export async function submitAnswer(
 export const MAX_RETAKES = 3;
 const STALE_RETAKE_MS = 2 * 60 * 1000;
 
-function parseList(value: string): string[] {
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map(String) : [];
-  } catch {
-    return [];
-  }
-}
+const parseList = (value: string) => parseJsonArray<unknown>(value).map(String);
 
 export interface RetakeFeedback {
   breakdown: { correctness: number; clarity: number; depth: number } | null;
@@ -314,6 +311,9 @@ export async function submitRetake(
         }),
       },
     });
+  } catch (err) {
+    if (isUniqueViolation(err)) return "busy" as const;
+    throw err;
   } finally {
     await prisma.answer.updateMany({ where: { id: answer.id, retakeGradingAt: claimedAt }, data: { retakeGradingAt: null } });
   }
