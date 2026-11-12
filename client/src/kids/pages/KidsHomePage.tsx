@@ -5,6 +5,7 @@ import { kidsApi } from "../api";
 import { confirmNoPin, kidHomePath, markKidsStarted, setKidLock } from "../kidMode";
 import { AvatarIcon } from "../components/bits";
 import { Child } from "../types";
+import { errorMessage } from "../errorMessage";
 
 export function KidsHomePage() {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ export function KidsHomePage() {
         setChildren(res.children);
         setHasPin(res.hasPin);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Couldn't load learners"));
+      .catch((err) => setError(errorMessage(err, "Couldn't load learners")));
   }, []);
 
   if (children && children.length === 0) return <Navigate to="/kids/parent" replace />;

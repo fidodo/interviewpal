@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { kidsApi } from "../api";
+import { errorMessage } from "../errorMessage";
 
 interface GoogleIdentityServices {
   accounts: {
@@ -39,7 +40,7 @@ export function PinResetForm({ method, onDone, idPrefix }: PinResetFormProps) {
       await kidsApi.resetPin(pinRef.current, proof);
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't reset the PIN");
+      setError(errorMessage(err, "Couldn't reset the PIN"));
     } finally {
       setSaving(false);
     }

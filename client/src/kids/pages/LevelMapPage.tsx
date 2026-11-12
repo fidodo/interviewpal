@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { kidsApi } from "../api";
 import { Stars } from "../components/bits";
 import { CourseProgress, LevelProgress } from "../types";
+import { errorMessage } from "../errorMessage";
 
 function levelState(level: LevelProgress, current: number) {
   if (level.order < current) return "done";
@@ -34,7 +35,7 @@ export function LevelMapPage() {
     kidsApi
       .progress(childId, slug)
       .then(setProgress)
-      .catch((err) => setError(err instanceof Error ? err.message : "Couldn't load this course"));
+      .catch((err) => setError(errorMessage(err, "Couldn't load this course")));
   }, [childId, slug]);
 
   async function play() {
@@ -49,7 +50,7 @@ export function LevelMapPage() {
       const { challenge } = await kidsApi.nextChallenge(childId, slug);
       navigate(`/kids/challenge/${challenge.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pal couldn't make a challenge. Try again.");
+      setError(errorMessage(err, "Pal couldn't make a challenge. Try again."));
       setStarting(false);
     }
   }

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { kidsApi } from "../api";
 import { AvatarIcon } from "../components/bits";
 import { Child, Course } from "../types";
+import { errorMessage } from "../errorMessage";
 
 // Shown so learners (and parents) can see the section will grow; real courses come from the server.
 const COMING_SOON = [
@@ -26,7 +27,7 @@ export function CoursesPage() {
         setChild(found);
         setCourses(list.courses);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Couldn't load courses"));
+      .catch((err) => setError(errorMessage(err, "Couldn't load courses")));
   }, [childId]);
 
   return (

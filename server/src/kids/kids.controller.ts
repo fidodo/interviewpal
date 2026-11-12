@@ -1,10 +1,11 @@
 import { Response } from "express";
 import { z } from "zod";
 import { AuthedRequest } from "../middleware/auth.middleware";
+import { parseJsonArray } from "../utils/json";
 import * as kidsService from "./kids.service";
-import { parseJsonArray } from "./kids.service";
+import * as pinService from "./kids.pin.service";
+import * as challengeService from "./kids.challenges.service";
 import { AVATARS } from "./types";
-
 
 function notFound(res: Response, what = "Not found") {
   res.status(404).json({ error: what });
@@ -57,7 +58,7 @@ const childSchema = z.object({
 });
 
 export async function listChildren(req: AuthedRequest, res: Response) {
-  const [children, pin] = await Promise.all([kidsService.listChildren(req.userId!), kidsService.getPinInfo(req.userId!)]);
+  const [children, pin] = await Promise.all([kidsService.listChildren(req.userId!), pinService.getPinInfo(req.userId!)]);
   res.json({ children: children.map(serializeChild), hasPin: pin.hasPin, pinResetMethod: pin.resetMethod });
 }
 
@@ -116,7 +117,7 @@ export async function setPin(req: AuthedRequest, res: Response) {
     res.status(400).json({ error: "The PIN must be exactly 4 digits" });
     return;
   }
-  const ok = await kidsService.setPin(req.userId!, parsed.data.pin, parsed.data.currentPin);
+  const ok = await pinService.setPin(req.userId!, parsed.data.pin, parsed.data.currentPin);
   if (!ok) {
     res.status(403).json({ error: "Current PIN is wrong. Forgot it? Use \"Forgot PIN?\" to reset it." });
     return;
@@ -133,7 +134,7 @@ export async function resetPin(req: AuthedRequest, res: Response) {
     res.status(400).json({ error: "Enter your account password and a new 4-digit PIN" });
     return;
   }
-  const ok = await kidsService.resetPin(req.userId!, parsed.data.pin, parsed.data);
+  const ok = await pinService.resetPin(req.userId!, parsed.data.pin, parsed.data);
   if (!ok) {
     res.status(403).json({ error: "That didn't match this account. Try again." });
     return;
@@ -143,7 +144,7 @@ export async function resetPin(req: AuthedRequest, res: Response) {
 
 export async function verifyPin(req: AuthedRequest, res: Response) {
   const parsed = z.object({ pin: pinSchema }).safeParse(req.body);
-  if (!parsed.success || !(await kidsService.verifyPin(req.userId!, parsed.data.pin))) {
+  if (!parsed.success || !(await pinService.verifyPin(req.userId!, parsed.data.pin))) {
     res.status(403).json({ error: "That PIN isn't right" });
     return;
   }
@@ -180,13 +181,13 @@ export async function setLevel(req: AuthedRequest, res: Response) {
 
 export async function nextChallenge(req: AuthedRequest, res: Response) {
   const parsed = z.object({ fresh: z.boolean().optional() }).safeParse(req.body ?? {});
-  const challenge = await kidsService.nextChallenge(req.userId!, req.params.childId, req.params.slug, parsed.success && !!parsed.data.fresh);
+  const challenge = await challengeService.nextChallenge(req.userId!, req.params.childId, req.params.slug, parsed.success && !!parsed.data.fresh);
   if (!challenge) return notFound(res, "Course not found");
   res.status(201).json({ challenge: serializeChallenge(challenge) });
 }
 
 export async function getChallenge(req: AuthedRequest, res: Response) {
-  const result = await kidsService.getChallenge(req.userId!, req.params.id);
+  const result = await challengeService.getChallenge(req.userId!, req.params.id);
   if (!result) return notFound(res, "Challenge not found");
   const { challenge, level, child, course, enrollment, attempts, messages } = result;
   res.json({
@@ -220,7 +221,7 @@ export async function submitAttempt(req: AuthedRequest, res: Response) {
     res.status(400).json({ error: "Add some code before asking Pal to check it" });
     return;
   }
-  const result = await kidsService.submitAttempt(req.userId!, req.params.id, parsed.data);
+  const result = await challengeService.submitAttempt(req.userId!, req.params.id, parsed.data);
   if (!result) return notFound(res, "Challenge not found");
   res.status(201).json({ attempt: serializeAttempt(result.attempt), leveledUp: result.leveledUp, courseComplete: result.courseComplete });
 }
@@ -236,7 +237,7 @@ export async function askHelp(req: AuthedRequest, res: Response) {
     res.status(400).json({ error: "Type a question for Pal (up to 500 characters)" });
     return;
   }
-  const messages = await kidsService.askHelp(req.userId!, req.params.id, parsed.data.message, parsed.data.code);
+  const messages = await challengeService.askHelp(req.userId!, req.params.id, parsed.data.message, parsed.data.code);
   if (!messages) return notFound(res, "Challenge not found");
   res.status(201).json({ messages: messages.map(serializeMessage) });
 }

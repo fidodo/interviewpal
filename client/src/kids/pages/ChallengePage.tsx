@@ -8,52 +8,17 @@ import { EMPTY_DRAWING } from "../runner/protocol";
 import { AskPal } from "../components/AskPal";
 import { OnboardingTour } from "../../components/OnboardingTour";
 import { challengeTour, markTourSeen, tourSeen } from "../kidTours";
-import { Stars } from "../components/bits";
-import { TurtleCanvas } from "../runner/TurtleCanvas";
+import { CheckResult, CheckResultCard, RunOutput } from "../components/ChallengeCards";
+import { answersKey, blocksKey, clearSaved, draftKey, readSaved, writeSaved } from "../challengeDrafts";
+import { errorMessage } from "../errorMessage";
 import { describeDrawing, preparePython, RunResult, runPython } from "../runner/runPython";
-import { Attempt, ChallengeDetail } from "../types";
+import { ChallengeDetail } from "../types";
 
 // Each editor is its own chunk: Blockly is large and only needed on block levels, CodeMirror only on Python ones.
 const BlocksEditor = lazyWithReload(() => import("../editors/BlocksEditor").then((m) => ({ default: m.BlocksEditor })));
 const PythonEditor = lazyWithReload(() => import("../editors/PythonEditor").then((m) => ({ default: m.PythonEditor })));
 
 type PythonState = "loading" | "ready" | "error";
-
-interface CheckResult {
-  attempt: Attempt;
-  leveledUp: boolean;
-  courseComplete: boolean;
-}
-
-const draftKey = (id: string) => `kids-code:${id}`;
-const blocksKey = (id: string) => `kids-blocks:${id}`;
-const answersKey = (id: string) => `kids-input:${id}`;
-
-function readSaved(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeSaved(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Not remembered between visits; nothing else breaks.
-  }
-}
-
-function clearSaved(id: string) {
-  try {
-    localStorage.removeItem(draftKey(id));
-    localStorage.removeItem(blocksKey(id));
-    localStorage.removeItem(answersKey(id));
-  } catch {
-    // Nothing saved.
-  }
-}
 
 export function ChallengePage() {
   const { id = "" } = useParams();
@@ -81,9 +46,11 @@ export function ChallengePage() {
     setError(null);
     setEditorKey(0);
     codeRef.current = "";
+    let cancelled = false;
     kidsApi
       .challenge(id)
       .then((d) => {
+        if (cancelled) return;
         // In kid mode, a learner can only open their own challenges.
         const lock = user ? getKidLock(user.id) : null;
         if (lock && lock !== d.child.id) {
@@ -95,7 +62,10 @@ export function ChallengePage() {
         const last = d.attempts[d.attempts.length - 1];
         if (last) setResult({ attempt: last, leveledUp: false, courseComplete: false });
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Couldn't load this challenge"));
+      .catch((err) => !cancelled && setError(errorMessage(err, "Couldn't load this challenge")));
+    return () => {
+      cancelled = true;
+    };
   }, [id, user, navigate]);
 
   useEffect(() => {
@@ -132,7 +102,7 @@ export function ChallengePage() {
       setPythonState("error");
       setRun({
         stdout: "",
-        error: err instanceof Error ? err.message : "Couldn't run your code",
+        error: errorMessage(err, "Couldn't run your code"),
         drawing: EMPTY_DRAWING,
       });
       return null;
@@ -145,6 +115,7 @@ export function ChallengePage() {
     const res = await execute();
     if (!res || !detail) return;
     setChecking(true);
+    setError(null);
     try {
       const checked = await kidsApi.submit(id, {
         code: codeRef.current,
@@ -158,7 +129,7 @@ export function ChallengePage() {
         setDetail({ ...detail, challenge: { ...detail.challenge, status: "PASSED" } });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pal couldn't check your work. Try again.");
+      setError(errorMessage(err, "Pal couldn't check your work. Try again."));
     } finally {
       setChecking(false);
     }
@@ -172,7 +143,7 @@ export function ChallengePage() {
       const { challenge } = await kidsApi.nextChallenge(detail.child.id, detail.course.slug, fresh);
       navigate(`/kids/challenge/${challenge.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pal couldn't make a new challenge. Try again.");
+      setError(errorMessage(err, "Pal couldn't make a new challenge. Try again."));
     } finally {
       setMoving(false);
     }
@@ -322,49 +293,11 @@ export function ChallengePage() {
             <p className="helper-text kids-run-hint">Run it to try it out. Check it when you're happy with it.</p>
           </section>
 
-          {run && (
-            <section className="kids-card run-output" aria-labelledby="output-title">
-              <h2 id="output-title" className="kids-card-title">
-                What happened
-              </h2>
-              <div role="status">
-                {showCanvas && <TurtleCanvas drawing={run.drawing} />}
-                {run.stdout && (
-                  <>
-                    <h3 className="output-label">Printed:</h3>
-                    <pre className="console-output">{run.stdout}</pre>
-                  </>
-                )}
-                {run.error && (
-                  <div className="run-error">
-                    <h3 className="output-label">Oops! Something went wrong</h3>
-                    <pre>{run.error}</pre>
-                  </div>
-                )}
-                {!run.stdout && !run.error && !showCanvas && <p className="helper-text">Your program ran but didn't print anything.</p>}
-              </div>
-            </section>
-          )}
+          {run && <RunOutput run={run} showCanvas={showCanvas} />}
         </div>
 
         <aside className="challenge-side">
-          {result && (
-            <section className={`kids-card check-result ${result.attempt.passed ? "is-passed" : ""}`} aria-labelledby="result-title" role="status">
-              <h2 id="result-title" className="kids-card-title">
-                {result.attempt.passed ? "You did it!" : "Not quite yet"}
-              </h2>
-              <Stars count={result.attempt.stars} />
-              <p>{result.attempt.praise}</p>
-              {result.attempt.nextStep && (
-                <p className="next-step">
-                  <strong>{result.attempt.passed ? "Try this next: " : "Hint: "}</strong>
-                  {result.attempt.nextStep}
-                </p>
-              )}
-              {result.leveledUp && <p className="level-up">Level up! You unlocked level {level.order + 1}. 🎉</p>}
-              {result.courseComplete && <p className="level-up">You finished the whole course. Amazing work! 🏆</p>}
-            </section>
-          )}
+          {result && <CheckResultCard result={result} levelOrder={level.order} />}
 
           {error && (
             <p className="error-text" role="alert">

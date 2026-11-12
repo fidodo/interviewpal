@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { kidsApi, PinResetMethod } from "../api";
 import { PinResetForm } from "./PinResetForm";
+import { errorMessage } from "../errorMessage";
 
 interface PinDialogProps {
   hasPin: boolean;
@@ -36,7 +37,7 @@ export function PinDialog({ hasPin, resetMethod, onSuccess, onClose }: PinDialog
       await kidsApi.verifyPin(pin);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That PIN isn't right");
+      setError(errorMessage(err, "That PIN isn't right"));
       setPin("");
     } finally {
       setChecking(false);

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { kidsApi } from "../api";
 import { HelpMessage } from "../types";
+import { errorMessage } from "../errorMessage";
 
 const SUGGESTIONS = ["I'm stuck. Can I have a hint?", "What does my error mean?", "Can you explain the instructions?"];
 
@@ -32,7 +33,7 @@ export function AskPal({ challengeId, getCode, initialMessages, childName }: Ask
       setMessages((prev) => [...prev, ...res.messages]);
       setDraft("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pal couldn't answer just now. Try again.");
+      setError(errorMessage(err, "Pal couldn't answer just now. Try again."));
     } finally {
       setSending(false);
     }
