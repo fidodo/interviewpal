@@ -11,10 +11,11 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // `options` first, so its own headers are merged into ours rather than replacing the JSON content type.
   const res = await fetch(`${BASE}${path}`, {
+    ...options,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options.headers },
-    ...options,
   });
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));

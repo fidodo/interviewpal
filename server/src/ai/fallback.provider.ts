@@ -4,6 +4,8 @@ import { AIProvider, ChatMessage, ChatOptions } from "./provider.interface";
 // timed out, or its key is refused. Bad output (malformed JSON, a schema failure, Groq's json_validate_failed) is
 // thrown straight out, so retryOnInvalid (ai/retry.ts) retries on the same provider instead of hopping.
 export function canFailOver(err: unknown): boolean {
+  // Something thrown that isn't an error object (null, a string) says nothing about the provider: don't hop.
+  if (!err || typeof err !== "object") return false;
   const status = (err as { status?: number }).status;
   if (typeof status === "number") return status === 401 || status === 403 || status === 408 || status === 429 || status >= 500;
   const name = (err as { name?: string }).name ?? "";
