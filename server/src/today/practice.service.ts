@@ -13,6 +13,19 @@ const BEST_LABEL: Record<BestKind, string> = {
   DESIGN: "system design",
 };
 
+// Which personal best a scored practice counts towards (a retake counts as an answer). Kinds without one never
+// record a best, even if a score is passed.
+const BEST_KIND: Record<PracticeKind, BestKind | null> = {
+  ANSWER: "ANSWER",
+  RETAKE: "ANSWER",
+  SPEAK: "SPEAK",
+  DEBUG: "DEBUG",
+  DESIGN: "DESIGN",
+  DRILL: null,
+  TERMS: null,
+  LEARN: null,
+};
+
 // Shown to the learner as a small celebration (the client's RewardToaster). Added to the graded action's response.
 export interface Reward {
   type: "streak" | "badge" | "best";
@@ -70,7 +83,8 @@ export async function recordPractice(userId: string, kind: PracticeKind, score?:
     };
 
     if (score != null) {
-      const best = await personalBest(userId, kind === "RETAKE" ? "ANSWER" : (kind as BestKind), score);
+      const bestKind = BEST_KIND[kind];
+      const best = bestKind ? await personalBest(userId, bestKind, score) : null;
       if (best) rewards.push(best);
       if (score >= 9) await earn("first-nine");
     }
