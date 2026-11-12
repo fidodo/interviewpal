@@ -1,9 +1,9 @@
 import { bankEntryForRounds } from "./story.service";
-import { Prisma } from "@prisma/client";
 import { DRILL_KINDS } from "./story.drills";
 import { prisma } from "../db/prisma";
 import { generateValidated } from "../ai/retry";
 import { parseJsonArray } from "../utils/json";
+import { isUniqueViolation } from "../utils/prismaErrors";
 import { BankStory, COMPETENCIES, Competency, bankSuggestionPrompt, bankSuggestionSchema, fitPrompt, fitSchema } from "./bank.prompts";
 
 export const MAX_BANK_ENTRIES = 30;
@@ -43,6 +43,8 @@ export async function suggest(userId: string, input: { storyId?: string; text?: 
   return generateValidated(bankSuggestionPrompt(text), bankSuggestionSchema);
 }
 
+// The count check runs before the create, so two saves at the same instant could make 31 entries. Harmless, and
+// not worth a serializable transaction.
 export async function createEntry(userId: string, input: { storyId?: string; title: string; summary: string; tags: Competency[] }) {
   if ((await prisma.storyBankEntry.count({ where: { userId } })) >= MAX_BANK_ENTRIES) return "full" as const;
   let bestScore: number | null = null;
@@ -59,7 +61,7 @@ export async function createEntry(userId: string, input: { storyId?: string; tit
     });
   } catch (err) {
     // One entry per Speak story.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return "exists" as const;
+    if (isUniqueViolation(err)) return "exists" as const;
     throw err;
   }
 }

@@ -2,7 +2,9 @@ import { Response } from "express";
 import { z } from "zod";
 import { AuthedRequest } from "../middleware/auth.middleware";
 import { parseJsonArray, parseJsonObject } from "../utils/json";
-import { MAX_CONVERSATION_TURNS, MIN_CONVERSATION_TURNS, STORY_KINDS, TARGET_SECONDS, VOICE_TARGETS, shapeFor, voiceSchema } from "./story.prompts";
+import { STORY_KINDS, TARGET_SECONDS, shapeFor } from "./story.prompts";
+import { MAX_CONVERSATION_TURNS, MIN_CONVERSATION_TURNS } from "./story.conversation";
+import { VOICE_TARGETS, voiceSchema } from "./story.voice";
 import { FRAMEWORKS, frameworksForKind } from "./story.frameworks";
 import { DRILLS, DRILL_KINDS, DRILL_LIST, isDrill } from "./story.drills";
 import * as storyService from "./story.service";
@@ -67,7 +69,8 @@ function serialize(s: Story, bankEntryId: string | null = s.bankEntry?.id ?? nul
 
 export async function listStories(req: AuthedRequest, res: Response) {
   // The frameworks ride along so /speak and /speak/frameworks have one source (static, no AI).
-  res.json({ stories: await storyService.listStories(req.userId!), frameworks: FRAMEWORKS, drills: DRILL_LIST });
+  // maxTakes: takes per story or drill, so the Speak page doesn't keep its own copy.
+  res.json({ stories: await storyService.listStories(req.userId!), frameworks: FRAMEWORKS, drills: DRILL_LIST, maxTakes: storyService.MAX_TAKES });
 }
 
 const optionalText = (max: number) =>

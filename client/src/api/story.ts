@@ -2,7 +2,7 @@ import { api } from "./client";
 import { DrillInfo, DrillKind, Framework, Story, StoryKind, StorySummary, Turn, VoiceStats } from "../story/types";
 
 export const storyApi = {
-  list: () => api.get<{ stories: StorySummary[]; frameworks: Framework[]; drills: DrillInfo[] }>("/story"),
+  list: () => api.get<{ stories: StorySummary[]; frameworks: Framework[]; drills: DrillInfo[]; maxTakes: number }>("/story"),
   // A 1-minute drill: the prompt comes from a fixed list, so no AI call.
   createDrill: (kind: DrillKind) => api.post<{ story: { id: string } }>("/story/drill", { kind }),
   create: (body: { kind: StoryKind; topic: string | null; audience: string | null; targetSeconds: number }) => api.post<{ story: { id: string } }>("/story", body),

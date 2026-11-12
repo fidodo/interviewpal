@@ -1,17 +1,13 @@
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
+import { aiProvider } from "../ai/provider.factory";
 import { generateValidated } from "../ai/retry";
 import { analyzeFillers, analyzeHedges } from "../services/transcriptAnalysis";
 import { parseJsonArray, parseJsonObject } from "../utils/json";
-import {
-  MAX_CONVERSATION_TURNS,
-  MIN_CONVERSATION_TURNS,
-  Turn,
-  conversationMessages,
-  conversationTranscript,
-} from "./story.prompts";
-import { aiProvider } from "../ai/provider.factory";
-import { DeliveryStats, StoryGrade, StoryKind, VoiceStats, storyGradePrompt, storyGradeSchema, storySetupPrompt, storySetupSchema } from "./story.prompts";
+import { isUniqueViolation } from "../utils/prismaErrors";
+import { DeliveryStats, StoryGrade, StoryKind, storyGradePrompt, storyGradeSchema, storySetupPrompt, storySetupSchema } from "./story.prompts";
+import { MAX_CONVERSATION_TURNS, MIN_CONVERSATION_TURNS, Turn, cleanReply, conversationMessages, conversationTranscript } from "./story.conversation";
+import { VoiceStats } from "./story.voice";
 import { DRILLS, DRILL_KINDS, DrillKind, isDrill, pickDrillPrompt } from "./story.drills";
 
 // "Recent drills" on the Speak page.
@@ -203,7 +199,7 @@ export async function submitTake(
     });
     return await findStory(userId, id);
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return "busy" as const;
+    if (isUniqueViolation(err)) return "busy" as const;
     throw err;
   } finally {
     await prisma.storyPractice.updateMany({ where: { id, gradingAt: claimedAt }, data: { gradingAt: null } });
@@ -237,17 +233,6 @@ export async function conversationReply(userId: string, id: string, turns: Turn[
   return { reply, turnsLeft: MAX_CONVERSATION_TURNS - yours };
 }
 
-// One spoken line: no speaker label or wrapping quotes, single spaces, at most 600 characters (cut at a sentence).
-export function cleanReply(text: string) {
-  let t = text.trim().replace(/^(them|interviewer|assistant)\s*:\s*/i, "").replace(/^["“](.*)["”]$/s, "$1").replace(/\s+/g, " ").trim();
-  if (t.length > 600) {
-    const cut = t.slice(0, 600);
-    const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("? "), cut.lastIndexOf("! "));
-    t = end > 200 ? cut.slice(0, end + 1) : `${cut.trimEnd()}…`;
-  }
-  return t;
-}
-
 // "Practise this story again": once every take is used, start the next round of the same story (same prompt,
 // audience, length and coaching notes) with fresh takes. No AI call. continuesFromId is unique, so a double click
 // returns the round that already exists instead of making a second one.
@@ -275,7 +260,7 @@ export async function practiseAgain(userId: string, id: string) {
     });
     return next;
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    if (isUniqueViolation(err)) {
       const existing = await prisma.storyPractice.findUnique({ where: { continuesFromId: story.id }, select: { id: true } });
       if (existing) return existing;
     }
