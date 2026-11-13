@@ -1,4 +1,4 @@
-import { FormEvent, KeyboardEvent, PointerEvent, useId, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, PointerEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import { COMPONENT_KINDS, ComponentKind, Diagram, DiagramEdge, DiagramNode, KIND_GROUP, MAX_EDGES, MAX_LABEL, MAX_NODES, nodeName } from "./kinds";
 
 const WIDTH = 960;
@@ -120,6 +120,20 @@ interface DesignCanvasProps {
 export function DesignCanvas({ diagram, onChange, labelledBy, disabled }: DesignCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number; pointerId: number } | null>(null);
+  // On narrow screens the canvas scrolls sideways. Then the scroll area itself takes keyboard focus, so it can be
+  // scrolled with the arrow keys even when there's no component in it to Tab to (an empty or submitted diagram).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrolls, setScrolls] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const check = () => setScrolls(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    check();
+    return () => observer.disconnect();
+  }, []);
   const [selection, setSelection] = useState<Selection>(null);
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
   const [newKind, setNewKind] = useState<ComponentKind>("service");
@@ -276,7 +290,11 @@ export function DesignCanvas({ diagram, onChange, labelledBy, disabled }: Design
           </button>
         </p>
       )}
-      <div className="dg-scroll">
+      <div
+        ref={scrollRef}
+        className="dg-scroll"
+        {...(scrolls ? { tabIndex: 0, role: "region", "aria-label": "Diagram canvas (scrolls sideways)" } : {})}
+      >
         <svg
           ref={svgRef}
           className="dg-svg"
