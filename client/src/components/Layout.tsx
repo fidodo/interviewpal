@@ -1,17 +1,21 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useAuthConfig } from "../hooks/useAuthConfig";
 import { RewardToaster } from "../today/RewardToaster";
 import { BrandMark } from "./BrandMark";
+import { BottomNav, MenuDialog } from "./MobileNav";
+import { NavIcon } from "./NavIcon";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { emailEnabled } = useAuthConfig();
   const navigate = useNavigate();
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleLogout() {
+    setMenuOpen(false);
     await logout();
     navigate("/login");
   }
@@ -26,7 +30,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${user ? "has-bottom-nav" : ""}`}>
       <a href="#main" className="skip-link">
         Skip to content
       </a>
@@ -47,6 +51,22 @@ export function Layout({ children }: { children: ReactNode }) {
                 Log out
               </button>
             </div>
+          )}
+          {user && (
+            // Phones only (styles.css): the top bar's way into the full menu. On phones History lives in this menu,
+            // so the dashboard tour's "History" step points here when the desktop nav is hidden.
+            <button
+              type="button"
+              className="menu-button"
+              onClick={() => setMenuOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={menuOpen}
+              aria-controls="app-menu"
+              data-tour="history-nav"
+            >
+              <NavIcon name="menu" />
+              <span className="visually-hidden">Menu</span>
+            </button>
           )}
         </div>
         {user && (
@@ -72,7 +92,13 @@ export function Layout({ children }: { children: ReactNode }) {
       <main id="main" tabIndex={-1} className="app-main">
         {children}
       </main>
-      {user && <RewardToaster />}
+      {user && (
+        <>
+          <BottomNav onMore={() => setMenuOpen(true)} menuOpen={menuOpen} />
+          <MenuDialog open={menuOpen} onClose={() => setMenuOpen(false)} email={user.email} onLogout={handleLogout} />
+          <RewardToaster />
+        </>
+      )}
     </div>
   );
 }

@@ -97,6 +97,9 @@ Security rules (Phase 1 of `docs/roadmap.md`):
 
 `MicButton` adds a 5-second countdown before recording. `AnswerGuideModal` (a native `<dialog>`) explains grading and STAR. It opens once per session, tracked in `sessionStorage`.
 
+### Phone navigation
+At 720px and narrower, a logged-in `Layout` hides the tab strip and the email/Log out buttons, and shows a bottom bar (Home, Learn, Speak, Progress, More) plus a hamburger in the top bar. Both open `MenuDialog` (native `<dialog>`: all sections from `SECTIONS`, Account, Log out), which closes on any route change. Code lives in `components/MobileNav.tsx` and `components/NavIcon.tsx`. The bar's height is `--bottom-nav-h`: `.app-main` is padded by it, and `.sticky-save` and the reward toasts sit above it. The hamburger carries `data-tour="history-nav"` too; the tour picks the first *visible* match (`visibleTarget`).
+
 ### Dashboard onboarding tour
 `OnboardingTour.tsx` is a step-by-step spotlight tour with no library behind it. Each step targets a `data-tour="…"` attribute; a step whose target isn't on the page is skipped.
 - **Steps:** defined as `TOUR_STEPS` in `DashboardPage.tsx`. If you rename or move a dashboard control, keep its `data-tour` attribute.

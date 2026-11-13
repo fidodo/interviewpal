@@ -21,6 +21,12 @@ function prefersReducedMotion() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
+// The first match that's actually shown. The same target can exist twice, once per screen size (the desktop nav and
+// the phone menu button both carry data-tour="history-nav"); a hidden one has no layout boxes.
+function visibleTarget(selector: string) {
+  return Array.from(document.querySelectorAll(selector)).find((e) => e.getClientRects().length > 0) ?? null;
+}
+
 export function OnboardingTour({ steps, onClose }: OnboardingTourProps) {
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -33,14 +39,14 @@ export function OnboardingTour({ steps, onClose }: OnboardingTourProps) {
   const isLast = index === steps.length - 1;
 
   const measure = useCallback(() => {
-    const el = step ? document.querySelector(step.target) : null;
+    const el = step ? visibleTarget(step.target) : null;
     setRect(el ? el.getBoundingClientRect() : null);
   }, [step]);
 
   // Find the step's target (skipping missing ones), scroll it into view, and keep its position updated.
   useLayoutEffect(() => {
     if (!step) return;
-    const el = document.querySelector(step.target);
+    const el = visibleTarget(step.target);
     if (!el) {
       const next = index + directionRef.current;
       if (next < 0 || next >= steps.length) onClose();

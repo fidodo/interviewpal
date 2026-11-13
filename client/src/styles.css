@@ -4118,3 +4118,256 @@ button.rl-path-btn:hover {
   font-weight: 600;
   color: var(--text-muted);
 }
+
+/* ---------- Phone navigation (720px and narrower) ---------- */
+/* A bottom bar with Home, Learn, Speak, Progress and More, plus a hamburger in the top bar; both open the full menu.
+   Desktop keeps the tab strip under the top bar. */
+
+:root {
+  --bottom-nav-h: calc(62px + env(safe-area-inset-bottom));
+}
+
+.nav-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-icon-more {
+  stroke-width: 3.5;
+}
+
+.menu-button,
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .has-bottom-nav .subnav,
+  .has-bottom-nav .topbar-actions {
+    display: none;
+  }
+
+  .menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-right: -6px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .menu-button:hover {
+    background: var(--surface-muted);
+  }
+
+  .bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    height: var(--bottom-nav-h);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    backdrop-filter: saturate(180%) blur(10px);
+    -webkit-backdrop-filter: saturate(180%) blur(10px);
+    border-top: 1px solid var(--border);
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .bottom-nav-item .nav-icon {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+  }
+
+  .bottom-nav-item.active {
+    color: var(--primary-text);
+  }
+
+  /* A soft pill behind the current section's icon. */
+  .bottom-nav-item.active .nav-icon {
+    box-sizing: content-box;
+    padding: 2px 14px;
+    border-radius: 999px;
+    background: var(--primary-soft);
+  }
+
+  /* Room at the bottom so the last of a page's content isn't under the bar. */
+  .has-bottom-nav .app-main {
+    padding-bottom: var(--bottom-nav-h);
+  }
+
+  .has-bottom-nav .sticky-save {
+    bottom: var(--bottom-nav-h);
+  }
+
+  .has-bottom-nav .reward-toasts {
+    bottom: calc(var(--bottom-nav-h) + 12px);
+  }
+}
+
+/* The full menu: a sheet from the top on phones (it's only reachable there). */
+.menu-dialog {
+  width: 100%;
+  max-width: 100%;
+  max-height: 100dvh;
+  margin: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 0 18px 18px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.menu-dialog::backdrop {
+  background: rgba(11, 18, 32, 0.5);
+}
+
+.menu-body {
+  padding: 10px 16px 16px;
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.menu-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.menu-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -6px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.menu-close:hover {
+  background: var(--surface-muted);
+}
+
+.menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.menu-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu-link .nav-icon {
+  color: var(--text-muted);
+}
+
+.menu-link:hover {
+  background: var(--surface-muted);
+}
+
+.menu-link.active {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.menu-link.active .nav-icon {
+  color: var(--primary-text);
+}
+
+.menu-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 4px;
+}
+
+.menu-account {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.menu-email {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .menu-dialog[open] {
+    animation: menu-in 0.2s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+}
+
+@keyframes menu-in {
+  from { transform: translateY(-16px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}

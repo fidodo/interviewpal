@@ -64,7 +64,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     target: '[data-tour="history-nav"]',
     title: "Track your progress",
-    body: "Every session is saved with its scores and feedback. Find past interviews under History.",
+    body: "Every session is saved with its scores and feedback. Find past interviews under History (in the menu on a phone).",
   },
   {
     target: '[data-tour="replay"]',
