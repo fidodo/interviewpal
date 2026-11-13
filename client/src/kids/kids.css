@@ -863,6 +863,16 @@ a.course-card:hover {
   color: var(--text);
 }
 
+/* Was inherited from the old landing page's .how-it-works rule; kept here so this box looks the same. */
+.kids-shell .how-it-works {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  max-width: 800px;
+  margin: 8px auto 36px;
+}
+
 .kids-shell .how-it-works > summary {
   cursor: pointer;
   min-height: 44px;

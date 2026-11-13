@@ -10,3 +10,10 @@ dist/
 .vercel
 server/scripts/compare-models.out.json
 server/scripts/kids-challenges.*.json
+
+# Installed third-party agent skills (kept out of the repo)
+.agents/
+.claude/skills/frontend-design
+.claude/skills/grill-me
+.claude/skills/grilling
+skills-lock.json

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useAuthConfig } from "../hooks/useAuthConfig";
 import { RewardToaster } from "../today/RewardToaster";
+import { BrandMark } from "./BrandMark";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -32,10 +33,10 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="app-header">
         <div className="topbar">
           <Link to="/" className="brand">
-            <span className="brand-mark" aria-hidden="true">
-              IP
+            <BrandMark />
+            <span className="brand-name">
+              Interview<span className="brand-name-pal">Pal</span>
             </span>
-            InterviewPal
           </Link>
           {user && (
             <div className="topbar-actions">
