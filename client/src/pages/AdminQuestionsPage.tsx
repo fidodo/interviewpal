@@ -74,20 +74,24 @@ function AdminQuestions() {
     }
   }
 
-  // Runs the update one step at a time until it finishes, is cancelled, or the page closes.
+  // Steps a run until it finishes, is stopped, or the page closes. Also continues a run left unfinished (a closed tab).
+  async function stepLoop(runId: string, phase = "sources") {
+    let result: StepResult = { busy: false, status: "RUNNING", aiCalls: 0, added: 0, retired: 0, log: [], phase };
+    setRun({ ...result, id: runId });
+    while (!stopped.current && result.status === "RUNNING") {
+      result = await poolApi.step(runId);
+      setRun({ ...result, id: runId });
+      // Another tab is working on this step: wait a moment instead of hammering.
+      if (result.busy) await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+
   async function update() {
     setError(null);
     stopped.current = false;
     try {
       const { runId } = await poolApi.start(cap);
-      let result: StepResult = { busy: false, status: "RUNNING", aiCalls: 0, added: 0, retired: 0, log: [], phase: "sources" };
-      setRun({ ...result, id: runId });
-      while (!stopped.current && result.status === "RUNNING") {
-        result = await poolApi.step(runId);
-        setRun({ ...result, id: runId });
-        // Another tab is working on this step: wait a moment instead of hammering.
-        if (result.busy) await new Promise((r) => setTimeout(r, 1500));
-      }
+      await stepLoop(runId);
     } catch (err) {
       setError(message(err));
     } finally {
@@ -95,11 +99,23 @@ function AdminQuestions() {
     }
   }
 
-  async function cancel() {
-    if (!run) return;
+  async function resume(runId: string, phase: string) {
+    setError(null);
+    stopped.current = false;
+    try {
+      await stepLoop(runId, phase);
+    } catch (err) {
+      setError(message(err));
+    } finally {
+      load();
+    }
+  }
+
+  async function cancel(runId = run?.id) {
+    if (!runId) return;
     stopped.current = true;
     try {
-      await poolApi.cancel(run.id);
+      await poolApi.cancel(runId);
     } catch (err) {
       setError(message(err));
     }
@@ -124,6 +140,8 @@ function AdminQuestions() {
   const count = (kind: string, level: string) => status.counts.find((c) => c.kind === kind && c.level === level)?.count ?? 0;
   const running = run?.status === "RUNNING";
   const lastLine = run?.log[run.log.length - 1];
+  // A run still marked running that this page isn't driving: left by a closed tab or another device.
+  const unfinished = !running ? status.runs.find((r) => r.status === "RUNNING") : undefined;
 
   return (
     <div className="page">
@@ -213,16 +231,33 @@ function AdminQuestions() {
             style={{ maxWidth: 120 }}
           />
         </div>
-        <div className="debug-copy-row">
-          <button type="button" className="btn btn-primary" onClick={update} disabled={running}>
-            {running ? "Updating…" : "Check for updates"}
-          </button>
-          {running && (
-            <button type="button" className="btn btn-secondary" onClick={cancel}>
-              Stop
+        {unfinished ? (
+          <>
+            <p>
+              An update started {new Date(unfinished.startedAt).toLocaleString()} didn't finish (the page was closed, or it's running in another
+              tab).
+            </p>
+            <div className="debug-copy-row">
+              <button type="button" className="btn btn-primary" onClick={() => resume(unfinished.id, unfinished.phase)}>
+                Continue it
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => cancel(unfinished.id)}>
+                Stop it
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="debug-copy-row">
+            <button type="button" className="btn btn-primary" onClick={update} disabled={running}>
+              {running ? "Updating…" : "Check for updates"}
             </button>
-          )}
-        </div>
+            {running && (
+              <button type="button" className="btn btn-secondary" onClick={() => cancel()}>
+                Stop
+              </button>
+            )}
+          </div>
+        )}
         {run && (
           <div className="pool-run">
             <p>
