@@ -13,6 +13,7 @@ interface UserRow {
   tokenVersion: number;
   emailVerified: boolean;
   passwordHash: string | null;
+  isAdmin?: boolean;
 }
 
 // `tv` must match User.tokenVersion; bumping the version (logout, password reset) invalidates every older token.
@@ -21,7 +22,8 @@ function issueToken(user: UserRow) {
 }
 
 function publicUser(user: UserRow) {
-  return { id: user.id, email: user.email, emailVerified: user.emailVerified, hasPassword: !!user.passwordHash };
+  // isAdmin lets the client show the admin pages; every admin route checks it again on the server.
+  return { id: user.id, email: user.email, emailVerified: user.emailVerified, hasPassword: !!user.passwordHash, isAdmin: !!user.isAdmin };
 }
 
 function session(user: UserRow) {

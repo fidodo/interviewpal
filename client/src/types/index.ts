@@ -21,6 +21,8 @@ export interface User {
   emailVerified: boolean;
   // false for Google-only accounts
   hasPassword: boolean;
+  // Shows the admin pages (the server checks it on every admin route).
+  isAdmin?: boolean;
 }
 
 export interface Topic {

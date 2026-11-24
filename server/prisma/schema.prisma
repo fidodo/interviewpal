@@ -38,6 +38,7 @@ model User {
   practiceDays   PracticeDay[]
   achievements   Achievement[]
   bests          PersonalBest[]
+  poolVotes      PoolVote[]
   // Daily reminder email (Phase D): opt-in, sent at most once a UTC day on days with no practice.
   dailyReminder  Boolean            @default(false)
   reminderSentOn DateTime?          @db.Date
@@ -116,6 +117,9 @@ model Question {
   codeSpec    String?
   // Set when this question follows up on an earlier answer in the same session (the earlier question's id).
   followUpOf  String?
+  // Set when the question came from the shared pool (null: written by the AI for this session).
+  poolItemId  String?
+  poolItem    PoolItem?        @relation(fields: [poolItemId], references: [id], onDelete: SetNull)
 }
 
 model Answer {
@@ -441,6 +445,9 @@ model DebugChallenge {
   feedback      String?
   createdAt     DateTime  @default(now())
   submittedAt   DateTime?
+  // Set when copied from the shared pool (null: written by the AI for this user).
+  poolItemId    String?
+  poolItem      PoolItem? @relation(fields: [poolItemId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
 }
@@ -471,6 +478,9 @@ model DesignChallenge {
   feedback        String?
   createdAt       DateTime  @default(now())
   submittedAt     DateTime?
+  // Set when copied from the shared pool (null: written by the AI for this user).
+  poolItemId      String?
+  poolItem        PoolItem? @relation(fields: [poolItemId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
 }
@@ -673,4 +683,82 @@ model PersonalBest {
   achievedAt DateTime @default(now())
 
   @@id([userId, kind])
+}
+
+// ---- Question pool (server/src/pool): shared, context-free questions served without an AI call ----
+
+// One question or exercise everyone can be given. Filled only by the admin's "Update questions" run, from prompts
+// with no user data, or imported from licensed GitHub sources. Retired, never deleted, so past answers keep theirs.
+model PoolItem {
+  id        String            @id @default(cuid())
+  // INTERVIEW | DEBUG | DESIGN
+  kind      String
+  // INTERVIEW: the preset track and topic name. DEBUG: the language. Null where not used.
+  track     String?
+  topic     String?
+  language  String?
+  // JUNIOR | INTERMEDIATE | SENIOR
+  level     String
+  // JSON, by kind. INTERVIEW: { text, type, codeSpec }. DEBUG: the challenge fields. DESIGN: the design fields.
+  payload   String
+  // "ai:<model>" or "github:<owner/repo>"; with the page and licence for credit.
+  source    String
+  sourceUrl String?
+  licence   String?
+  credit    String?
+  // Normalised question text, hashed: stops the same question being added twice.
+  checksum  String            @unique
+  served    Int               @default(0)
+  addedAt   DateTime          @default(now())
+  retiredAt DateTime?
+  votes     PoolVote[]
+  questions Question[]
+  debugs    DebugChallenge[]
+  designs   DesignChallenge[]
+
+  @@index([kind, level, retiredAt])
+}
+
+// "Realistic" or "Not realistic", once per user per item. Feeds the update's improve step.
+model PoolVote {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      PoolItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  realistic Boolean
+  createdAt DateTime @default(now())
+
+  @@id([userId, itemId])
+}
+
+// A GitHub source the update imports from, and the commit last imported.
+model PoolSource {
+  id         String    @id
+  repo       String
+  path       String
+  licence    String
+  lastCommit String?
+  checkedAt  DateTime?
+  lastError  String?
+}
+
+// One "Update questions" run: its progress, what it did, and a lock so two runs can't overlap.
+model PoolUpdate {
+  id         String    @id @default(cuid())
+  status     String    @default("RUNNING")
+  startedAt  DateTime  @default(now())
+  heartbeat  DateTime  @default(now())
+  finishedAt DateTime?
+  aiCalls    Int       @default(0)
+  added      Int       @default(0)
+  retired    Int       @default(0)
+  // JSON string[]: one line per step.
+  log        String    @default("[]")
+}
+
+// App-wide switches, e.g. "pool.serve" (serve questions from the pool; off unless the admin turns it on).
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

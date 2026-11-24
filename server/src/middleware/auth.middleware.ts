@@ -48,6 +48,12 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
   }
 }
 
+// Admin-only routes (the question pool). Anyone else gets a 404, as if the route didn't exist. Use after requireAuth.
+export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
+  if (req.isAdmin) return next();
+  res.status(404).json({ error: "Not found" });
+}
+
 // AI routes cost money, so once email is set up they need a verified address. Without email configured
 // nobody could verify, so the check is skipped rather than locking everyone out.
 export function requireVerified(req: AuthedRequest, res: Response, next: NextFunction) {
