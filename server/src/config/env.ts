@@ -63,7 +63,8 @@ export const env = {
   // Cloudflare Workers AI: a free daily allowance (10,000 "neurons", about 60-70 marking calls with gpt-oss-120b).
   cloudflare: {
     accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
-    apiToken: process.env.CLOUDFLARE_AI_TOKEN ?? "",
+    // CLOUDFLARE_API_TOKEN (Cloudflare's usual name) works too.
+    apiToken: process.env.CLOUDFLARE_AI_TOKEN || process.env.CLOUDFLARE_API_TOKEN || "",
     model: process.env.CLOUDFLARE_MODEL ?? "@cf/openai/gpt-oss-120b",
   },
   // Ollama runs a model on your own computer: free and unlimited, but only for local development, because a deployed

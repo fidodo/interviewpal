@@ -15,6 +15,9 @@ export interface OpenAICompatibleConfig {
   // Whether the endpoint accepts response_format json_object. Without it the prompt alone asks for JSON, and the
   // reply is read leniently (code fences and text around the object are dropped).
   jsonMode?: boolean;
+  // An output limit for JSON calls, for endpoints whose default is too small for a reasoning model's thinking plus
+  // its answer (Cloudflare Workers AI cuts replies short otherwise). Unset: the endpoint's default, as before.
+  maxTokens?: number;
 }
 
 // Any provider that speaks the OpenAI chat API: Groq, xAI, Cloudflare Workers AI, Ollama, and so on. Each is just a
@@ -24,6 +27,7 @@ export class OpenAICompatibleProvider implements AIProvider {
   readonly model: string;
   private label: string;
   private jsonMode: boolean;
+  private maxTokens?: number;
 
   constructor(config: OpenAICompatibleConfig) {
     // Ollama needs no key, but the SDK insists on one.
@@ -31,6 +35,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     this.model = config.model;
     this.label = config.label;
     this.jsonMode = config.jsonMode ?? true;
+    this.maxTokens = config.maxTokens;
   }
 
   async generateJson(prompt: string): Promise<unknown> {
@@ -38,6 +43,7 @@ export class OpenAICompatibleProvider implements AIProvider {
       model: this.model,
       ...(this.jsonMode ? { response_format: { type: "json_object" as const } } : {}),
       messages: [{ role: "user", content: prompt }],
+      ...(this.maxTokens ? { max_tokens: this.maxTokens } : {}),
     });
     const text = response.choices[0]?.message?.content;
     if (!text) throw new Error(`${this.label} returned an empty response`);

@@ -27,6 +27,7 @@ const candidates: { name: string; key: string; make: () => AIProvider }[] = [
         apiKey: env.cloudflare.apiToken,
         model: env.cloudflare.model,
         maxRetries: 4,
+        maxTokens: 8192,
       }),
   },
   // Local only: needs Ollama running with the model pulled (ollama pull gpt-oss:20b).

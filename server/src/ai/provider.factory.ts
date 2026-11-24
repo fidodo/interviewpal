@@ -46,6 +46,8 @@ function createOne({ name, model = defaultModel[name]() }: ProviderEntry, inChai
         apiKey: env.cloudflare.apiToken,
         model,
         maxRetries,
+        // Workers AI's default output limit is too small for gpt-oss's thinking plus a full JSON answer.
+        maxTokens: 8192,
       });
     case "ollama":
       return new OpenAICompatibleProvider({ label: "Ollama", baseURL: env.ollama.baseURL, apiKey: "", model, maxRetries });
