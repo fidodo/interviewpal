@@ -48,8 +48,10 @@ export function questionPrompt(params: {
   role?: RoleContext;
   persona?: string;
   followUp?: { question: string; answer: string };
+  forPool?: { avoid: string[]; trends: string[] };
 }): string {
-  const { topic, track, difficulty, priorQA, role, followUp } = params;
+  const { topic, track, difficulty, priorQA, role, followUp, forPool } = params;
+  if (forPool) return poolQuestionPrompt({ topic, track, difficulty, ...forPool });
   const persona = PERSONAS[personaOf(params.persona)];
   return [
     role
@@ -72,6 +74,22 @@ export function questionPrompt(params: {
     ``,
     `${followUp ? "Ask the follow-up" : "Ask the next question"}. Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING", ${role ? `"skills": string[], ` : ``}"code": { "functionName": string, "params": string[], "tests": [{ "args": any[], "expected": any }] } | null }`,
   ].join("\n");
+}
+
+// A question for the shared question bank (the pool): no candidate, no session, no user data. The same type and
+// code-spec rules as an interview question, so pool questions behave like the ones written live.
+function poolQuestionPrompt(p: { topic: string; track: Track; difficulty: Difficulty; avoid: string[]; trends: string[] }): string {
+  return [
+    `You write questions for a bank of realistic ${formatTrack(p.track)} interview questions at ${p.difficulty.toLowerCase()} level, on the topic "${p.topic}". Each is asked on its own, as the opening question of a practice interview.`,
+    `Write ONE clear, focused question of the kind real interviewers ask today.`,
+    p.trends.length ? `Interviews currently emphasise: ${p.trends.join(" ")}` : ``,
+    `Use type "CODING" when the best test is implementing something (a function, an algorithm, fixing a snippet, a query) and type "VERBAL" when an explanation tests it better (architecture, trade-offs, how something works).`,
+    CODE_SPEC_INSTRUCTIONS,
+    p.avoid.length ? `The bank already has these questions on this topic; write a different one that tests something else:\n${p.avoid.slice(0, 40).map((q) => `- ${q}`).join("\n")}` : ``,
+    `Respond ONLY with JSON of the shape: { "text": string, "type": "VERBAL" | "CODING", "code": { "functionName": string, "params": string[], "tests": [{ "args": any[], "expected": any }] } | null }`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 const MAX_FOLLOW_UP_ANSWER_CHARS = 4000;

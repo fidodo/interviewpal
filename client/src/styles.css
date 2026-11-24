@@ -4496,3 +4496,21 @@ button.rl-path-btn:hover {
   font-size: 14px;
   color: var(--text-muted);
 }
+
+/* ---------- Admin: question pool (pages/AdminQuestionsPage.tsx) ---------- */
+
+.pool-run {
+  margin-top: 14px;
+}
+
+.pool-log {
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 8px 0 0;
+  padding: 10px 10px 10px 32px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  font-size: 13px;
+  color: var(--text-muted);
+}

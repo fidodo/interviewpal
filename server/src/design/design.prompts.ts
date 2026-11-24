@@ -99,8 +99,15 @@ export const designGradeSchema = z
     },
   }));
 
-export function challengePrompt(params: { level: string; topic: string | null; roleTitle: string | null; recentTitles: string[] }): string {
-  const { level, topic, roleTitle, recentTitles } = params;
+export function challengePrompt(params: {
+  level: string;
+  topic: string | null;
+  roleTitle: string | null;
+  recentTitles: string[];
+  // Only from the question pool's update: what interviews emphasise now (ai/interviewTrends.ts).
+  trends?: string[];
+}): string {
+  const { level, topic, roleTitle, recentTitles, trends } = params;
   return [
     `You set system design interview questions for a ${levelLabel(level)} engineer${roleTitle ? ` preparing for a "${roleTitle}" job` : ""}.`,
     topic
@@ -108,6 +115,7 @@ export function challengePrompt(params: { level: string; topic: string | null; r
       : `Pick a classic but varied system (e.g. a URL shortener, a chat app, a news feed, a rate limiter, a ride-hailing dispatcher, a notification service, a file sync service, a job scheduler, a payment ledger, an LLM-powered support bot with retrieval)${roleTitle ? ` that suits the role` : ""}.`,
     `Pitch it at ${SCALE[level] ?? SCALE.INTERMEDIATE}.`,
     recentTitles.length ? `Don't repeat these recent questions: ${recentTitles.join("; ")}.` : null,
+    trends?.length ? `Interviews currently emphasise: ${trends.join(" ")}` : null,
     ``,
     `"title": a short name, e.g. "Design a URL shortener". "brief": 2-4 sentences, the way an interviewer would open.`,
     `"functional": 3-6 functional requirements. "nonFunctional": 2-5 non-functional requirements with concrete numbers (users, requests per second, latency, availability, data size).`,

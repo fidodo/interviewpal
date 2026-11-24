@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 import { useAuthConfig } from "../hooks/useAuthConfig";
@@ -193,6 +193,18 @@ export function AccountPage() {
           Log out on all devices
         </button>
       </section>
+
+      {user.isAdmin && (
+        <section className="card" aria-labelledby="admin-title">
+          <h2 id="admin-title" className="card-title">
+            Admin
+          </h2>
+          <p>
+            <Link to="/admin/questions">Question pool</Link>
+            <span className="helper-text"> — what everyone is asked, and "Update questions".</span>
+          </p>
+        </section>
+      )}
 
       <DailyReminder />
 

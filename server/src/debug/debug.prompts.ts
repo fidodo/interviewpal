@@ -104,8 +104,10 @@ export function challengePrompt(params: {
   recentTitles: string[];
   // "Try a similar one": the bugs of an exercise the learner gave up on, to practise the same kinds again.
   similarBugs?: string[];
+  // Only from the question pool's update: what interviews emphasise now (ai/interviewTrends.ts).
+  trends?: string[];
 }): string {
-  const { language, level, roleTitle, recentTitles, similarBugs } = params;
+  const { language, level, roleTitle, recentTitles, similarBugs, trends } = params;
   const { label, runnable } = DEBUG_LANGUAGES[language];
   return [
     `You write realistic debugging exercises for a ${levelLabel(level)} developer${roleTitle ? ` preparing for a "${roleTitle}" job` : ""}.`,
@@ -119,6 +121,7 @@ export function challengePrompt(params: {
       ? `The code is run with its types stripped, not type-checked, so every bug must change what the code does when it runs (a wrong value, condition or order), never be a type error alone. Use type annotations and interfaces as a careful developer would.`
       : null,
     recentTitles.length ? `Don't repeat these recent exercises: ${recentTitles.join("; ")}.` : null,
+    trends?.length ? `Interviews currently emphasise: ${trends.join(" ")}` : null,
     similarBugs?.length
       ? `The developer just struggled with bugs like these. Plant bugs of the same kinds, in a different scenario with different code:\n${similarBugs.map((b) => `- ${b}`).join("\n")}`
       : null,

@@ -50,30 +50,43 @@ export function hintedIndexes(c: { hintedBugs: string; hintsUsed: number }): num
   return stored.length || !c.hintsUsed ? stored : Array.from({ length: c.hintsUsed }, (_, i) => i);
 }
 
+export type WrittenChallenge = Pick<
+  Prisma.DebugChallengeUncheckedCreateInput,
+  "language" | "level" | "title" | "scenario" | "buggyCode" | "spec" | "bugs" | "referenceFix"
+>;
+
+// Writes one exercise with the AI, with every check (schema, layout, Prettier, bug snippets), without saving it.
+// Used for a user's own exercise and, with no user context, by the question pool's update (pool/fill.ts).
+export async function writeChallenge(p: {
+  language: DebugLanguage;
+  level: string;
+  roleTitle: string | null;
+  recentTitles: string[];
+  similarBugs?: string[];
+  trends?: string[];
+}): Promise<WrittenChallenge> {
+  const runnable = DEBUG_LANGUAGES[p.language].runnable;
+  const generated = await generateValidated(challengePrompt(p), challengeSchema(runnable));
+  const [buggyCode, referenceFix] = await Promise.all([formatCode(p.language, generated.buggyCode), formatCode(p.language, generated.referenceFix)]);
+  return {
+    language: p.language,
+    level: p.level,
+    title: generated.title,
+    scenario: generated.scenario,
+    buggyCode,
+    spec: runnable && generated.spec ? JSON.stringify(generated.spec) : null,
+    bugs: JSON.stringify(generated.bugs.map((b) => checkSnippets(b, buggyCode, referenceFix))),
+    referenceFix,
+  };
+}
+
 export async function createChallenge(userId: string, language: DebugLanguage, level: string, similarBugs?: string[]) {
   const [role, recent] = await Promise.all([
     prisma.targetRole.findFirst({ where: { userId, isActive: true }, select: { title: true } }),
     prisma.debugChallenge.findMany({ where: { userId, language }, orderBy: { createdAt: "desc" }, take: RECENT, select: { title: true } }),
   ]);
-  const runnable = DEBUG_LANGUAGES[language].runnable;
-  const generated = await generateValidated(
-    challengePrompt({ language, level, roleTitle: role?.title ?? null, recentTitles: recent.map((r) => r.title), similarBugs }),
-    challengeSchema(runnable)
-  );
-  const [buggyCode, referenceFix] = await Promise.all([formatCode(language, generated.buggyCode), formatCode(language, generated.referenceFix)]);
-  return prisma.debugChallenge.create({
-    data: {
-      userId,
-      language,
-      level,
-      title: generated.title,
-      scenario: generated.scenario,
-      buggyCode,
-      spec: runnable && generated.spec ? JSON.stringify(generated.spec) : null,
-      bugs: JSON.stringify(generated.bugs.map((b) => checkSnippets(b, buggyCode, referenceFix))),
-      referenceFix,
-    },
-  });
+  const written = await writeChallenge({ language, level, roleTitle: role?.title ?? null, recentTitles: recent.map((r) => r.title), similarBugs });
+  return prisma.debugChallenge.create({ data: { userId, ...written } });
 }
 
 // "To finish" is anything not yet closed (being marked counts); "done" is scored or answer shown.

@@ -754,6 +754,8 @@ model PoolUpdate {
   retired    Int       @default(0)
   // JSON string[]: one line per step.
   log        String    @default("[]")
+  // JSON: where the run is (phase, files still to import, questions waiting to be sorted), so each step resumes it.
+  state      String    @default("{}")
 }
 
 // App-wide switches, e.g. "pool.serve" (serve questions from the pool; off unless the admin turns it on).

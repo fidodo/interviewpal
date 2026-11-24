@@ -62,6 +62,7 @@ CREATE TABLE "PoolUpdate" (
     "added" INTEGER NOT NULL DEFAULT 0,
     "retired" INTEGER NOT NULL DEFAULT 0,
     "log" TEXT NOT NULL DEFAULT '[]',
+    "state" TEXT NOT NULL DEFAULT '{}',
 
     CONSTRAINT "PoolUpdate_pkey" PRIMARY KEY ("id")
 );

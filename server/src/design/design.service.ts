@@ -6,27 +6,44 @@ import { challengePrompt, challengeSchema, designGradeSchema, Diagram, gradeProm
 const RECENT = 10;
 const STALE_GRADING_MS = 2 * 60 * 1000;
 
+export interface WrittenDesign {
+  level: string;
+  title: string;
+  brief: string;
+  requirements: string;
+  hints: string;
+  keyPoints: string;
+  referenceDesign: string;
+}
+
+// Writes one design question with the AI, checked by the schema, without saving it. Used for a user's own question
+// and, with no user context, by the question pool's update (pool/fill.ts).
+export async function writeChallenge(p: {
+  level: string;
+  topic: string | null;
+  roleTitle: string | null;
+  recentTitles: string[];
+  trends?: string[];
+}): Promise<WrittenDesign> {
+  const generated = await generateValidated(challengePrompt(p), challengeSchema);
+  return {
+    level: p.level,
+    title: generated.title,
+    brief: generated.brief,
+    requirements: JSON.stringify({ functional: generated.functional, nonFunctional: generated.nonFunctional }),
+    hints: JSON.stringify(generated.hints),
+    keyPoints: JSON.stringify(generated.keyPoints),
+    referenceDesign: generated.referenceDesign,
+  };
+}
+
 export async function createChallenge(userId: string, level: string, topic: string | null) {
   const [role, recent] = await Promise.all([
     prisma.targetRole.findFirst({ where: { userId, isActive: true }, select: { title: true } }),
     prisma.designChallenge.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: RECENT, select: { title: true } }),
   ]);
-  const generated = await generateValidated(
-    challengePrompt({ level, topic, roleTitle: role?.title ?? null, recentTitles: recent.map((r) => r.title) }),
-    challengeSchema
-  );
-  return prisma.designChallenge.create({
-    data: {
-      userId,
-      level,
-      title: generated.title,
-      brief: generated.brief,
-      requirements: JSON.stringify({ functional: generated.functional, nonFunctional: generated.nonFunctional }),
-      hints: JSON.stringify(generated.hints),
-      keyPoints: JSON.stringify(generated.keyPoints),
-      referenceDesign: generated.referenceDesign,
-    },
-  });
+  const written = await writeChallenge({ level, topic, roleTitle: role?.title ?? null, recentTitles: recent.map((r) => r.title) });
+  return prisma.designChallenge.create({ data: { userId, ...written } });
 }
 
 export function listChallenges(userId: string) {

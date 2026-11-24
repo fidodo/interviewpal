@@ -63,6 +63,9 @@ export interface GenerateQuestionParams {
   persona?: string;
   // Set to ask one follow-up on this earlier answer instead of a new question.
   followUp?: { question: string; answer: string };
+  // Set only by the question pool's update (pool/fill.ts): a question for the shared bank, with no candidate and no
+  // session; `avoid` lists the bank's questions on this topic already, `trends` what interviews emphasise now.
+  forPool?: { avoid: string[]; trends: string[] };
 }
 
 export interface GradeAnswerParams {

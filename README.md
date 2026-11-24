@@ -135,6 +135,7 @@ cd client && npm run dev   # http://localhost:5173, proxies /api to the server
 | `XAI_API_KEY` / `XAI_MODEL` | xAI Grok |
 | `RAG_LAB_PROVIDER` / `RAG_LAB_MODEL` | The model RAG Lab bots call, separate from the interview model (`groq` by default) |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Optional email: verification, password reset and the daily reminder |
+| `GITHUB_TOKEN` | Optional, for the question pool's update: raises GitHub's limit from 60 to 5,000 requests an hour (a token with no scopes is enough) |
 | `CRON_SECRET` | Authorises the daily cron call (reminders and clean-up of old practice stories) |
 | `PORT` | Local dev port (default 4000) |
 | `CLIENT_URL` | Allowed CORS origin: the front end's URL |
@@ -180,6 +181,7 @@ There are no lint or test scripts.
 - **Graded once.** Every AI-graded submission first claims its record with a conditional write, so a double click is graded once, and a claim stuck for a few minutes can be retaken. Progress and level-ups are conditional updates too.
 - **Code runs in the browser.** Tests for coding answers, debug exercises, the kids' Python and RAG Lab bots all run in Web Workers (JavaScript, or Python via Pyodide), never on the server.
 - **Limits.** AI routes need a verified email (once email is set up) and share a daily allowance. Rate-limit counters are stored in Postgres, because serverless instances don't share memory.
+- **Question pool.** Quick-practice questions, new Debug exercises and System design questions can be served from a shared pool, so they cost no AI call. The admin fills it from an "Update questions" page (`/admin/questions`): real questions imported from MIT-licensed GitHub handbooks, with credit, plus AI-written ones for thin topics. Serving is off until the admin turns it on; anything the pool doesn't have is written by the AI as before. Sources and their licences are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 - **Privacy.** Recordings stay in the browser (IndexedDB, 30 days); only numbers from them are sent. Children have no accounts, only a nickname and age under a parent's account.
 
 ## Deployment
