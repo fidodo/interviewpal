@@ -317,7 +317,12 @@ export interface DebugChallenge {
     missed: string[];
     bugs: string[];
     referenceFix: string;
+    // How the score was made; absent on results marked before the rubric (server debug.rubric.ts).
+    parts?: { fix: number; explanation: number; quality: number; hints: number };
+    reasons?: { fix: string; explanation: string; quality: string };
+    toImprove?: ImproveStep[];
   } | null;
+  guide: RubricGuide;
 }
 
 export interface DesignSummary {
@@ -350,4 +355,18 @@ export interface DesignChallenge {
     keyPoints: string[];
     referenceDesign: string;
   } | null;
+}
+
+// A score made of parts (server *.rubric.ts): the bands for each part, shown before answering, and the steps that
+// would earn the points still missing, shown after.
+export interface RubricGuide {
+  parts: { key: string; label: string; max: number; bands: readonly string[] }[];
+  // Extra rules shown under the parts, e.g. the hint penalty.
+  notes?: readonly string[];
+}
+
+export interface ImproveStep {
+  part: string;
+  points: number;
+  step: string;
 }

@@ -6,6 +6,7 @@ import { debugApi } from "../api/debug";
 import { CopyButton } from "../components/CopyButton";
 import { CodeDiff } from "../code/CodeDiff";
 import { ScoreBadge } from "../components/ScoreBadge";
+import { HowItsMarked, ScoreParts } from "../components/ScoreParts";
 import { runTests } from "../code/runTests";
 import { RunLanguage } from "../code/protocol";
 import { canFormat, FormatError, formatCode } from "../code/formatCode";
@@ -337,11 +338,12 @@ export function DebugChallengePage() {
                 className="input"
                 rows={4}
                 maxLength={3000}
-                placeholder="Explain it the way you would to an interviewer: the symptom, the root cause, and your fix."
+                placeholder="Explain it the way you would to an interviewer: the root cause, why it caused the symptom, and an input that would have caught it."
                 value={explanation}
                 onChange={(e) => setExplanation(e.target.value)}
               />
             </div>
+            <HowItsMarked guide={challenge.guide} />
             {notice && (
               <p ref={noticeRef} tabIndex={-1} className="helper-text">
                 {notice}
@@ -420,6 +422,16 @@ export function DebugChallengePage() {
                 </p>
               </div>
             </div>
+            {result.parts && (
+              <ScoreParts
+                guide={challenge.guide}
+                points={result.parts}
+                reasons={result.reasons}
+                steps={result.toImprove ?? []}
+                score={result.score ?? 0}
+                deductions={[{ label: "Hints", points: result.parts.hints }]}
+              />
+            )}
             <p>{result.feedback}</p>
             {result.missed.length > 0 && (
               <>

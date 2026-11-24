@@ -15,6 +15,7 @@ import {
   MIN_CODE_LINES,
 } from "./debug.prompts";
 import { canFormat, formatCode, normaliseCode } from "./format";
+import { factSteps, fixPoints, improvementSteps, scoreParts } from "./debug.rubric";
 
 const RECENT = 10;
 const STALE_GRADING_MS = 2 * 60 * 1000;
@@ -216,6 +217,13 @@ export async function submitFix(
       }),
       debugGradeSchema
     );
+    const bugsFixed = Math.min(grade.bugsFixed, bugs.length);
+    const { parts, score } = scoreParts({
+      fix: fixPoints(bugsFixed, bugs.length, testResults),
+      explanation: grade.explanation,
+      quality: grade.quality,
+      hintsUsed,
+    });
     // Only the request holding this claim may write the result (a stale claim may have been retaken).
     await prisma.debugChallenge.updateMany({
       where: { id, status: "GRADING", submittedAt: claimedAt },
@@ -224,8 +232,16 @@ export async function submitFix(
         submittedCode: submission.code,
         explanation: submission.explanation,
         testResults: testResults ? JSON.stringify(testResults) : null,
-        score: grade.score,
-        feedback: JSON.stringify({ bugsFixed: Math.min(grade.bugsFixed, bugs.length), feedback: grade.feedback, missed: grade.missed }),
+        score,
+        feedback: JSON.stringify({
+          bugsFixed,
+          feedback: grade.feedback,
+          missed: grade.missed,
+          // How the score was made (debug.rubric.ts). Results marked before this have none and show the old view.
+          parts,
+          reasons: grade.reasons,
+          toImprove: improvementSteps(parts, grade.toImprove, factSteps({ bugsFixed, bugCount: bugs.length, testResults })),
+        }),
         submittedAt: new Date(),
       },
     });

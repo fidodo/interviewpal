@@ -4371,3 +4371,128 @@ button.rl-path-btn:hover {
   from { transform: translateY(-16px); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
+
+/* ---------- Scores made of parts (components/ScoreParts.tsx) ---------- */
+
+.score-parts {
+  margin: 16px 0;
+}
+
+.score-parts-full {
+  margin: 0 0 12px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+/* What to do next comes first: it's the part people act on. */
+.score-parts-next {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+}
+
+.score-parts-next .feedback-list-title {
+  margin-top: 0;
+}
+
+.score-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.score-steps li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.score-step-points {
+  min-width: 2.2em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-contrast);
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-parts-list {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.score-part dt {
+  font-weight: 600;
+}
+
+.score-part dd {
+  margin: 4px 0 0;
+  display: grid;
+  gap: 4px;
+}
+
+.score-part-points {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.score-part-minus {
+  color: var(--danger);
+}
+
+.score-part-bar {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.score-part-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+.score-part-reason {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* The marker writes reasons as "you …"; start them with a capital. */
+.score-part-reason::first-letter {
+  text-transform: uppercase;
+}
+
+.how-marked {
+  margin-top: 4px;
+}
+
+.how-marked summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary-text);
+  padding: 6px 0;
+}
+
+.how-marked-part h4 {
+  margin: 12px 0 4px;
+  font-size: 14px;
+}
+
+.how-marked-part ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--text-muted);
+}

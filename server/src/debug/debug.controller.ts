@@ -5,6 +5,7 @@ import { aiDailyLimiter, aiLimiter } from "../middleware/rateLimit";
 import { Difficulty } from "../types";
 import { parseJsonArray, parseJsonObject as parseObject } from "../utils/json";
 import { DEBUG_LANGUAGE_KEYS, DEBUG_LANGUAGES, DebugLanguage } from "./debug.prompts";
+import { DEBUG_GUIDE } from "./debug.rubric";
 import * as debugService from "./debug.service";
 import { passes } from "../middleware/runMiddleware";
 import { recordPractice } from "../today/practice.service";
@@ -33,6 +34,8 @@ function serialize(c: Challenge) {
     level: c.level,
     buggyCode: c.buggyCode,
     spec: parseObject(c.spec),
+    // How a fix is scored, for the "How it's marked" card (debug.rubric.ts).
+    guide: DEBUG_GUIDE,
     status: c.status,
     bugCount: bugs.length,
     hints: hinted.map((i) => bugs[i]?.hint).filter((h): h is string => !!h),
@@ -44,6 +47,7 @@ function serialize(c: Challenge) {
           explanation: c.explanation,
           testResults: parseObject(c.testResults),
           ...(parseObject<{ bugsFixed: number; feedback: string; missed: string[] }>(c.feedback) ?? { bugsFixed: 0, feedback: "", missed: [] }),
+          // parts, reasons and toImprove come through the spread above for results marked with the rubric.
           bugs: bugs.map((b) => b.description),
           referenceFix: c.referenceFix,
         }

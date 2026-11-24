@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { levelLabel } from "../roles/roles.prompts";
 import { codeSpecSchema } from "../ai/schemas";
+import { guideForPrompt } from "./debug.rubric";
 
 // Stacks the learner can debug. Runnable ones execute against tests in the browser (Pyodide / a JS worker);
 // the rest are graded by the AI reading the fix. Mirrored in client/src/types/index.ts (DEBUG_LANGUAGES).
@@ -77,9 +78,19 @@ export function hintCheckPrompt(p: { language: DebugLanguage; buggyCode: string;
   ].join("\n\n");
 }
 
+const reason = z.string().trim().max(400).catch("");
+
+// The marker marks only what needs judgement (debug.rubric.ts): the explanation and the fix quality, a reason for
+// each part, and a step for each part that lost points. The fix points, hint penalty and total are worked out in code.
 export const debugGradeSchema = z.object({
-  score: z.number().transform((n) => Math.min(10, Math.max(1, Math.round(n)))),
   bugsFixed: z.number().transform((n) => Math.max(0, Math.round(n))),
+  reasons: z.object({ fix: reason, explanation: reason, quality: reason }).catch({ fix: "", explanation: "", quality: "" }),
+  explanation: z.number().transform((n) => Math.min(3, Math.max(0, Math.round(n)))),
+  quality: z.number().transform((n) => Math.min(2, Math.max(0, Math.round(n)))),
+  toImprove: z
+    .array(z.object({ part: z.enum(["fix", "explanation", "quality", "hints"]), step: z.string().trim().min(3).max(300) }))
+    .max(4)
+    .catch([]),
   feedback: z.string().min(1).max(2000),
   missed: z.array(z.string().max(600)).max(6).default([]),
 });
@@ -147,9 +158,15 @@ export function gradePrompt(params: {
       : `Their code wasn't run (this stack is reviewed only), so judge whether the fix is correct by reading it.`,
     `They used ${p.hintsUsed} hint${p.hintsUsed === 1 ? "" : "s"}.`,
     ``,
+    `Mark it with this rubric. Points for the fix and for hints are worked out separately; you mark the rest.`,
+    guideForPrompt(),
+    ``,
+    `For each part, decide the reason first, then the points (evidence before the mark):`,
     `"bugsFixed": how many of the planted bugs their code genuinely fixes (a different but correct fix counts).`,
-    `"score" 1-10: mostly whether the bugs are fixed without breaking anything, then whether the explanation shows they understood the root cause, minus about 1 point per hint used. A full rewrite that works is fine but say a targeted fix is better in an interview.`,
-    `"feedback": 2-4 sentences. "missed": for each bug they didn't fix, what it was (empty if none).`,
-    `Respond ONLY with JSON of the shape: { "score": number, "bugsFixed": number, "feedback": string, "missed": string[] }`,
+    `"reasons": one sentence each for "fix", "explanation" and "quality", addressed to them as "you": what earned the points or what held them back, pointing at their actual code or words.`,
+    `"explanation" and "quality": the points from the bands above.`,
+    `"toImprove": for each part that is below its maximum, one concrete step that would earn the missing points, specific to this exercise (for "explanation", say what to add, e.g. why the bug caused the reported symptom, or the input that exposes it). Include "hints" only if they used hints ("solve the next one without hints"). Empty if nothing is missing.`,
+    `"feedback": 2-3 sentences overall. "missed": for each bug they didn't fix, what it was (empty if none). A full rewrite that works is fine but say a targeted fix is better in an interview.`,
+    `Respond ONLY with JSON of the shape: { "bugsFixed": number, "reasons": { "fix": string, "explanation": string, "quality": string }, "explanation": number, "quality": number, "toImprove": [{ "part": "fix" | "explanation" | "quality" | "hints", "step": string }], "feedback": string, "missed": string[] }`,
   ].join("\n");
 }
