@@ -56,7 +56,16 @@ A fourth provider, `"mistral"` → `mistral.provider.ts` (Mistral's OpenAI-compa
 - **Mistral `mistral-large-4`:** 8/8, ranked correctly, and writes runnable `codeSpec`s. But it always reasons first, so a call takes about 20 seconds (`reasoning_effort: "low"` barely helps, and `"none"` is refused). It's the last, slow-but-reliable fallback.
   - **Free mode is per model:** Large 4 gets 50 requests and 20,000 tokens a minute; Ministral/Codestral get 2 requests a minute; Small, Medium and Magistral get 0 (an immediate 429). Read the `x-ratelimit-*` headers to check.
   - **Response format:** reasoning replies come back as content chunks (`thinking` + `text`), which `textOf` in `mistral.provider.ts` unwraps.
-  - **Recommended production order:** `AI_PROVIDERS="groq,gemini,mistral"`.
+  - **2026-11-24:** Mistral now refuses `mistral-large-4` and `-latest` on this key ("not available in your subscription tier"); Small and Medium get 0, and only Ministral works (2 a minute). It's out of the recommended chain.
+
+**Free backups (2026-11-24).** `AI_PROVIDERS` entries can be `provider:model` (parsed by `parseProviderList` in `config/env.ts`, split at the first colon because Ollama names have one). Every OpenAI-compatible provider (Groq, xAI, Cloudflare, Ollama) is `ai/openaiCompatible.provider.ts` with a base URL, key and model; `GroqProvider`/`GrokProvider` are thin wrappers. JSON replies are read leniently (`parseJsonReply`).
+- **Groq second model:** each Groq model has its own free allowance. Groq has retired `llama-3.3-70b-versatile`; the key's only text models are `openai/gpt-oss-120b`, `openai/gpt-oss-20b` and `qwen/qwen3.8-27b`. **`openai/gpt-oss-20b`** passed compare-models 8/8 (1.8 s, ranked correctly) and the debug marking check, but its allowance is shared with RAG Lab.
+- **Cloudflare Workers AI** (`cloudflare`, `@cf/openai/gpt-oss-120b`): 10,000 neurons a day free, about 60–70 marking calls. Needs `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_AI_TOKEN`; not yet checked with compare-models.
+- **Ollama** (`ollama`): a local model, free and unlimited, for development only; the factory skips it when `NODE_ENV=production`.
+- **Not free or too small (researched):** Cerebras (free tier ended July 2026), SambaNova (20 a day), OpenRouter `:free` (50 a day, changing list), NVIDIA build (free terms are for development only).
+- **Out of quota:** `FallbackProvider` skips a provider that returned 429 with a `retry-after` of a minute or more until then (at most an hour, per serverless instance); the last provider is always tried.
+- **Prompt shape:** the debug grade reply asks for its numbers before `reasons`, because `gpt-oss-20b` sometimes stopped after a long `reasons` object (3 in 10 replies; 0 in 10 after the reorder).
+- **Recommended production order:** `AI_PROVIDERS="groq,gemini,groq:openai/gpt-oss-20b,cloudflare"` (add `,ollama` locally).
 
 Prompts are history-aware: `session.service.ts`'s `loadPriorQA` reassembles the full prior Q&A (+ per-answer score) for a session and passes it into every prompt, capped at the last 20 exchanges (`MAX_PRIOR_QA` in `prompts.ts`). This is how question generation adapts to the candidate's running performance and avoids repeating questions.
 

@@ -91,8 +91,10 @@ export const debugGradeSchema = z.object({
     .array(z.object({ part: z.enum(["fix", "explanation", "quality", "hints"]), step: z.string().trim().min(3).max(300) }))
     .max(4)
     .catch([]),
-  feedback: z.string().min(1).max(2000),
-  missed: z.array(z.string().max(600)).max(6).default([]),
+  // The reasons and steps carry the detail, so a missing overall paragraph (smaller backup models sometimes drop it)
+  // shouldn't fail the marking.
+  feedback: z.string().max(2000).catch(""),
+  missed: z.array(z.string().max(600)).max(6).catch([]),
 });
 
 export function challengePrompt(params: {
@@ -167,6 +169,8 @@ export function gradePrompt(params: {
     `"explanation" and "quality": the points from the bands above.`,
     `"toImprove": for each part that is below its maximum, one concrete step that would earn the missing points, specific to this exercise (for "explanation", say what to add, e.g. why the bug caused the reported symptom, or the input that exposes it). Include "hints" only if they used hints ("solve the next one without hints"). Empty if nothing is missing.`,
     `"feedback": 2-3 sentences overall. "missed": for each bug they didn't fix, what it was (empty if none). A full rewrite that works is fine but say a targeted fix is better in an interview.`,
-    `Respond ONLY with JSON of the shape: { "bugsFixed": number, "reasons": { "fix": string, "explanation": string, "quality": string }, "explanation": number, "quality": number, "toImprove": [{ "part": "fix" | "explanation" | "quality" | "hints", "step": string }], "feedback": string, "missed": string[] }`,
+    // Numbers first in the reply: smaller backup models sometimes stop after a long "reasons" object, and the numbers
+    // are what can't be missing. (Reasoning models still think the reasons through before writing any of it.)
+    `Respond ONLY with JSON of the shape: { "bugsFixed": number, "explanation": number, "quality": number, "reasons": { "fix": string, "explanation": string, "quality": string }, "toImprove": [{ "part": "fix" | "explanation" | "quality" | "hints", "step": string }], "feedback": string, "missed": string[] }`,
   ].join("\n");
 }

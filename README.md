@@ -125,11 +125,13 @@ cd client && npm run dev   # http://localhost:5173, proxies /api to the server
 | `JWT_SECRET` | Signs the session cookie; any long random string. Also signs reminder unsubscribe links |
 | `GOOGLE_CLIENT_ID` | OAuth Client ID, for verifying Google sign-in server-side |
 | `SEED_USER_1_EMAIL` / `SEED_USER_1_PASSWORD` | Account created by `prisma:seed` (and `SEED_USER_2_*` for a second). Seed user 1 is an admin, so it's exempt from AI limits |
-| `AI_PROVIDER` | A single provider: `groq`, `gemini`, `mistral` or `grok` (xAI) |
-| `AI_PROVIDERS` | Optional fallback order, e.g. `groq,gemini,mistral`: a call moves on only when a provider is rate limited or down |
+| `AI_PROVIDER` | A single provider: `groq`, `gemini`, `mistral`, `grok` (xAI), `cloudflare` or `ollama` |
+| `AI_PROVIDERS` | Optional fallback order, e.g. `groq,gemini,groq:openai/gpt-oss-20b,cloudflare,ollama`. A call moves on only when a provider is rate limited or down, and a provider whose allowance is used up is skipped until it resets. `provider:model` uses another model with the same key (each Groq model has its own free allowance). |
 | `GROQ_API_KEY` / `GROQ_MODEL` | Groq (recommended primary: `openai/gpt-oss-120b`) |
 | `GEMINI_API_KEY` / `GEMINI_MODEL` | Gemini (also used for RAG Lab embeddings) |
-| `MISTRAL_API_KEY` / `MISTRAL_MODEL` | Mistral (a slow but reliable last fallback) |
+| `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_AI_TOKEN` / `CLOUDFLARE_MODEL` | Cloudflare Workers AI, a free daily allowance (about 60–70 marking calls); `@cf/openai/gpt-oss-120b` by default |
+| `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | Ollama, a model on your own computer: free and unlimited, local development only (production skips it) |
+| `MISTRAL_API_KEY` / `MISTRAL_MODEL` | Mistral (its free plan now only allows the small Ministral models) |
 | `XAI_API_KEY` / `XAI_MODEL` | xAI Grok |
 | `RAG_LAB_PROVIDER` / `RAG_LAB_MODEL` | The model RAG Lab bots call, separate from the interview model (`groq` by default) |
 | `RESEND_API_KEY` / `EMAIL_FROM` | Optional email: verification, password reset and the daily reminder |

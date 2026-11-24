@@ -8,13 +8,31 @@ import { AIProvider } from "../src/ai/provider.interface";
 import { GroqProvider } from "../src/ai/groq.provider";
 import { MistralProvider } from "../src/ai/mistral.provider";
 import { GeminiProvider } from "../src/ai/gemini.provider";
+import { OpenAICompatibleProvider } from "../src/ai/openaiCompatible.provider";
 import { env } from "../src/config/env";
 
 const candidates: { name: string; key: string; make: () => AIProvider }[] = [
   { name: "groq gpt-oss-120b", key: env.groq.apiKey, make: () => new GroqProvider("openai/gpt-oss-120b", 4) },
   { name: "groq qwen3.8-27b", key: env.groq.apiKey, make: () => new GroqProvider("qwen/qwen3.8-27b", 4) },
+  // Backups with their own free allowance (2026-11-24): another Groq model on the same key, and Cloudflare Workers AI.
+  // (llama-3.3-70b-versatile was retired by Groq; on 2026-11-24 the key's only text models were gpt-oss-120b/-20b and qwen3.8.)
+  { name: "groq gpt-oss-20b", key: env.groq.apiKey, make: () => new GroqProvider("openai/gpt-oss-20b", 4) },
+  {
+    name: "cloudflare gpt-oss-120b",
+    key: env.cloudflare.apiToken && env.cloudflare.accountId,
+    make: () =>
+      new OpenAICompatibleProvider({
+        label: "Cloudflare Workers AI",
+        baseURL: `https://api.cloudflare.com/client/v4/accounts/${env.cloudflare.accountId}/ai/v1`,
+        apiKey: env.cloudflare.apiToken,
+        model: env.cloudflare.model,
+        maxRetries: 4,
+      }),
+  },
+  // Local only: needs Ollama running with the model pulled (ollama pull gpt-oss:20b).
+  { name: "ollama gpt-oss-20b", key: process.env.OLLAMA_CHECK ? "local" : "", make: () => new OpenAICompatibleProvider({ label: "Ollama", baseURL: env.ollama.baseURL, apiKey: "", model: env.ollama.model }) },
   { name: "mistral-large-4", key: env.mistral.apiKey, make: () => new MistralProvider("mistral-large-4", 4) },
-  
+  { name: "ministral-8b", key: env.mistral.apiKey, make: () => new MistralProvider("ministral-8b-latest", 4) },
   { name: "gemma-4-31b-it", key: env.gemini.apiKey, make: () => new GeminiProvider("gemma-4-31b-it") },
   { name: "gemini-3.5-flash-lite", key: env.gemini.apiKey, make: () => new GeminiProvider("gemini-3.5-flash-lite") },
 ];
