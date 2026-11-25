@@ -1,4 +1,7 @@
 import { createHash } from "crypto";
+// @google/genai ships a CommonJS build (dist/node/index.cjs) but its types sit in an ESM-only package, so with
+// "moduleResolution": "Node16" TypeScript wrongly says require() can't load it (TS1479). The types still apply.
+// @ts-expect-error TS1479: remove once the package ships CommonJS types (.d.cts).
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../config/env";
 import { prisma } from "../db/prisma";
