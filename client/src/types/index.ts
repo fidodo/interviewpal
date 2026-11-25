@@ -222,6 +222,8 @@ export interface LearnCourse {
 export interface LearnAnswerResult {
   correct: boolean;
   feedback: string;
+  // Written answers: points a full answer needed that this one missed (none on answers marked before this).
+  missing?: string[];
   correctIndex: number | null;
   modelAnswer: string | null;
   explanation: string;

@@ -61,6 +61,8 @@ export interface TermAnswer {
   reveal: TermReveal;
   // AI-marked Recall
   note?: string;
+  // AI-marked Recall: each key point and whether the answer covered it (null if the marker didn't say).
+  coverage?: { point: string; covered: boolean }[] | null;
   // Use it
   termAppears?: boolean;
   precision?: number;

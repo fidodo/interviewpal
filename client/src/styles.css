@@ -4651,3 +4651,29 @@ button.rl-path-btn:hover {
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+/* Terms Recall: "What a full answer needed", each key point covered or missing (terms/TermsPages.tsx). */
+.coverage-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.coverage-mark {
+  display: inline-block;
+  min-width: 5.5em;
+  margin-right: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid currentColor;
+}
+.coverage-yes .coverage-mark {
+  color: var(--success);
+}
+.coverage-no .coverage-mark {
+  color: var(--danger);
+}

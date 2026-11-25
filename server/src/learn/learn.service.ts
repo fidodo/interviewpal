@@ -213,6 +213,7 @@ export type AnswerResult =
   | {
       correct: boolean;
       feedback: string;
+      missing: string[];
       correctIndex: number | null;
       modelAnswer: string | null;
       explanation: string;
@@ -232,6 +233,7 @@ export async function answerQuestion(
 
   let correct: boolean;
   let feedback = "";
+  let missing: string[] = [];
   let stored: string;
   if (question.kind === "MCQ") {
     if (response.choice == null) return "wrongKind";
@@ -245,16 +247,18 @@ export async function answerQuestion(
     );
     correct = mark.correct;
     feedback = mark.feedback;
+    missing = mark.missing;
     stored = response.text;
   }
 
-  await prisma.learnAnswer.create({ data: { questionId, response: stored, correct, feedback, fromReview } });
+  await prisma.learnAnswer.create({ data: { questionId, response: stored, correct, feedback: encodeFeedback(feedback, missing), fromReview } });
   const { nextReviewDays, mastered } = await schedule(userId, questionId, correct, fromReview);
   const lessonComplete = fromReview ? false : await markLessonIfComplete(question.lessonId);
 
   return {
     correct,
     feedback,
+    missing,
     correctIndex: question.kind === "MCQ" ? Number(question.answer) : null,
     modelAnswer: question.kind === "SHORT" ? question.answer : null,
     explanation: question.explanation,
@@ -271,4 +275,24 @@ export async function dueReviews(userId: string) {
     take: REVIEW_BATCH,
     include: { question: { include: { lesson: { select: { title: true, course: { select: { id: true, title: true } } } } } } },
   });
+}
+
+// LearnAnswer.feedback holds { v: 1, text, missing } as JSON when there are missing points, and plain text otherwise
+// (as every answer before "What a full answer needed" was stored).
+export function encodeFeedback(text: string, missing: string[]) {
+  return missing.length ? JSON.stringify({ v: 1, text, missing }) : text;
+}
+
+export function decodeFeedback(stored: string): { text: string; missing: string[] } {
+  if (stored.startsWith("{")) {
+    try {
+      const o = JSON.parse(stored) as { v?: number; text?: unknown; missing?: unknown };
+      if (o.v === 1 && typeof o.text === "string") {
+        return { text: o.text, missing: Array.isArray(o.missing) ? o.missing.filter((m): m is string => typeof m === "string") : [] };
+      }
+    } catch {
+      // Not ours: plain text that happens to start with "{".
+    }
+  }
+  return { text: stored, missing: [] };
 }

@@ -15,7 +15,7 @@ export function HearIt({ text }: { text: string }) {
     <button
       type="button"
       className="btn-link btn-link-inline tm-hear"
-      aria-label={`Hear how to say "${text}"`}
+      aria-label={`Hear it: how to say "${text}"`}
       onClick={() => {
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);

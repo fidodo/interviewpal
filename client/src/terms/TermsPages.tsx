@@ -292,6 +292,18 @@ function ResultPanel({ answer, mode }: { answer: TermAnswer; mode: TermCardData[
         <strong>{RESULT_LABELS[answer.result]}.</strong> {schedule}
       </p>
       {answer.note && <p>{answer.note}</p>}
+      {answer.coverage && answer.coverage.length > 0 && answer.coverage.some((c) => !c.covered) && (
+        <>
+          <h3 className="feedback-list-title">What a full answer needed</h3>
+          <ul className="coverage-list">
+            {answer.coverage.map((c) => (
+              <li key={c.point} className={c.covered ? "coverage-yes" : "coverage-no"}>
+                <span className="coverage-mark">{c.covered ? "Covered" : "Missing"}</span> {c.point}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {mode === "USE" && (
         <>
           {answer.termAppears === false && <p>You didn't say “{answer.reveal.term}” in your answer.</p>}

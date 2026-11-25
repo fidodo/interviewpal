@@ -104,7 +104,7 @@ export async function getLesson(req: AuthedRequest, res: Response) {
             ? {
                 response: last.response,
                 correct: last.correct,
-                feedback: last.feedback,
+                ...(({ text, missing }) => ({ feedback: text, missing }))(learnService.decodeFeedback(last.feedback)),
                 correctIndex: q.kind === "MCQ" ? Number(q.answer) : null,
                 modelAnswer: q.kind === "SHORT" ? q.answer : null,
                 explanation: q.explanation,

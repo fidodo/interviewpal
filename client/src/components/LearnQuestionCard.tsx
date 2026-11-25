@@ -93,6 +93,16 @@ export function LearnQuestionCard({ question, number, fromReview = false, onAnsw
           <div className="learn-result">
             <p className="learn-verdict">{result.correct ? "Correct" : "Not quite"}</p>
             {result.feedback && <p>{result.feedback}</p>}
+            {result.missing && result.missing.length > 0 && (
+              <>
+                <p className="feedback-list-title">What a full answer needed</p>
+                <ul className="feedback-list">
+                  {result.missing.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              </>
+            )}
             {result.modelAnswer && (
               <p>
                 <strong>A strong answer covers:</strong> {result.modelAnswer}

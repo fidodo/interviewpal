@@ -291,7 +291,11 @@ export async function markRecall(userId: string, termId: string, answer: string)
     recallMarkPrompt({ term: t.term, oneLiner: t.oneLiner, keyPoints: parseJsonArray<string>(t.keyPoints), withExample: progress.box === 3, answer }),
     recallMarkSchema
   );
-  return { result: mark.result, note: mark.note, ...(await apply(progress, mark.result)), reveal: reveal(t) };
+  // "What a full answer needed": each key point, and whether this answer covered it (numbers checked against the list).
+  const keyPoints = parseJsonArray<string>(t.keyPoints);
+  const missing = new Set((mark.missingPoints ?? []).filter((n) => n >= 1 && n <= keyPoints.length));
+  const coverage = mark.missingPoints ? keyPoints.map((point, i) => ({ point, covered: !missing.has(i + 1) })) : null;
+  return { result: mark.result, note: mark.note, coverage, ...(await apply(progress, mark.result)), reveal: reveal(t) };
 }
 
 // Whether the term appears in the transcript, allowing other forms of the same word: "idempotency" matches

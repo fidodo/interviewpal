@@ -34,4 +34,10 @@ export const lessonSchema = z.object({
 export const shortMarkSchema = z.object({
   correct: z.boolean(),
   feedback: z.string().min(1).max(1000),
+  // "What a full answer needed": up to 3 short points this answer missed. Optional: a bad value is dropped.
+  missing: z
+    .array(z.string().trim().min(3).max(200))
+    .optional()
+    .catch(undefined)
+    .transform((m) => (m ?? []).slice(0, 3)),
 });

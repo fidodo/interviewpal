@@ -165,6 +165,7 @@ Retakes and follow-ups (practice loop, Phase A of the 2026-11-06 plan):
   - **Multiple choice:** options are shuffled when stored and marked on the server without the AI, so these answers aren't rate limited.
   - **Written answers:** the AI marks them against a model answer.
   - **Answers stay on the server:** a question's answer is only sent after the learner has answered it.
+- **What a full answer needed (written answers):** the marker also returns `missing` (up to 3 short points). `LearnAnswer.feedback` holds `{ v: 1, text, missing }` JSON when there are missing points and plain text otherwise (all older rows); read it only through `decodeFeedback`/`encodeFeedback` in `learn.service.ts`.
 - **Spaced repetition** (`ReviewItem`, `schedule()`): a wrong answer puts the question in box 1, due tomorrow. A correct review answer moves it to box 2–4 (due in 3, 7 or 14 days), and passing box 4 retires it. Only items that are due can move; answering early changes nothing.
 - **Lesson text format** (`LessonContent.tsx`): `## ` headings, `- ` bullets and fenced code, rendered as React text and never as HTML.
 
@@ -266,6 +267,7 @@ Interview terminology with spaced review. It's reached from the Learn page and a
   - box 4: Use it (answer the term's interview question; AI-marked, and passing requires `usedCorrectly`)
 - **Moving between boxes** (`nextBox`): right moves up, and passing box 4 masters the term. Partly stays, and wrong moves down one; both come back tomorrow. Intervals come from `utils/spacedRepetition.ts`, shared with Learn.
 - **Only due or new terms move.** Practising ahead (`?ahead=1`) never changes the schedule. Answers are conditional `updateMany`s, so a double submit moves a term once.
+- **What a full answer needed (AI-marked Recall):** the marker returns `missingPoints` (1-based numbers into the term's numbered `keyPoints`); `markRecall` checks them against the list and returns `coverage` (each point, covered or not), shown as Covered/Missing under the note when anything is missing.
 - **New terms:** at most `NEW_PER_DAY` (5) are introduced per UTC day.
 - **Recognise options** are the term's one-liner plus other one-liners from the same deck (stored `distractors` fill any gap). They're shuffled on the server, and the answer only comes back after answering.
 - **Limits:** AI routes (generating a deck, adding a term, AI-marked Recall, Use it) use the shared 50-a-day allowance; everything else is behind `termsLimiter` only.

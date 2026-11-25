@@ -49,7 +49,8 @@ export function shortAnswerPrompt(params: { question: string; modelAnswer: strin
     `Learner's answer: ${response.slice(0, 3000)}`,
     ``,
     `Mark it "correct" if it gets the main idea right, even if it's brief or worded differently. Mark it incorrect if the key point is missing or wrong.`,
-    `"feedback": 1-3 sentences: what was good, and what was missing or wrong.`,
-    `Respond ONLY with JSON of the shape: { "correct": boolean, "feedback": string }`,
+    `"feedback": 1-3 sentences, addressed to the learner as "you": what was good, and what was missing or wrong.`,
+    `"missing": up to 3 short points (a few words each) from what a strong answer covers that this answer left out or got wrong. An empty list if it covers everything.`,
+    `Respond ONLY with JSON of the shape: { "correct": boolean, "feedback": string, "missing": string[] }`,
   ].join("\n");
 }
