@@ -31,6 +31,8 @@ function serialize(c: Challenge) {
     language: c.language,
     // Exercises written before a language became runnable have no spec, and stay AI-reviewed.
     runnable: (DEBUG_LANGUAGES[c.language as DebugLanguage]?.runnable ?? false) && c.spec != null,
+    // Set when the exercise came from the shared pool, for the "Was this realistic?" vote.
+    poolItemId: c.poolItemId,
     level: c.level,
     buggyCode: c.buggyCode,
     spec: parseObject(c.spec),

@@ -10,6 +10,7 @@ import { applyEvidence, roleContextForSession } from "../roles/roles.service";
 import { MOCK_PLAN, MockRound, roundGradingInstructions, roundQuestionInstructions } from "../roles/mock";
 import { parseJsonArray } from "../utils/json";
 import { isUniqueViolation } from "../utils/prismaErrors";
+import { pickInterview, POOL_CREDIT } from "../pool/serve";
 
 // A question's skill tags (a JSON array of skill names).
 export const parseSkillTags = (value: string) => parseJsonArray<string>(value);
@@ -45,7 +46,7 @@ export async function getSession(sessionId: string, userId: string) {
     where: { id: sessionId, userId },
     include: {
       topic: true,
-      questions: { orderBy: { order: "asc" }, include: { answer: { include: { feedback: true, retakes: { orderBy: { number: "asc" } } } } } },
+      questions: { orderBy: { order: "asc" }, include: { ...POOL_CREDIT, answer: { include: { feedback: true, retakes: { orderBy: { number: "asc" } } } } } },
     },
   });
 }
@@ -91,9 +92,32 @@ export async function generateFollowUp(questionId: string, userId: string) {
   return createQuestion(session, null, parent);
 }
 
+// Quick practice only: a preset topic, the Balanced interviewer, no target role, not a mock, not a follow-up. Those
+// questions have nothing personal in them, so the shared pool can supply them. Everything else is tailored and
+// stays with the AI.
+function canUsePool(session: SessionWithQuestions, round: MockRound | null, followUpOf?: unknown) {
+  return !round && !followUpOf && session.mode !== "MOCK" && !session.roleId && session.persona === "NEUTRAL" && !session.topic.isCustom;
+}
+
 async function createQuestion(session: SessionWithQuestions, round: MockRound | null, followUpOf?: { id: string; text: string; skillTags: string }) {
   const sessionId = session.id;
   const order = session.questions.length + 1;
+  if (canUsePool(session, round, followUpOf)) {
+    // About one question in three is a coding one, like the AI's usual mix.
+    const pooled = await pickInterview({ userId: session.userId, track: session.track, topic: session.topic.name, level: session.difficulty, preferCoding: order % 3 === 0 });
+    if (pooled) {
+      const { text, type, codeSpec } = pooled.payload;
+      return saveQuestion(sessionId, order, {
+        text,
+        type,
+        round: null,
+        skillTags: "[]",
+        codeSpec: type === "CODING" && codeSpec ? JSON.stringify(codeSpec) : null,
+        followUpOf: null,
+        poolItemId: pooled.id,
+      });
+    }
+  }
   const priorQA = await loadPriorQA(sessionId);
   const parentAnswer = followUpOf ? await prisma.answer.findUnique({ where: { questionId: followUpOf.id }, select: { transcript: true } }) : null;
   const followUp = followUpOf && parentAnswer ? { question: followUpOf.text, answer: parentAnswer.transcript } : undefined;
@@ -126,21 +150,26 @@ async function createQuestion(session: SessionWithQuestions, round: MockRound | 
   // follow-up is a spoken conversation.
   const type = followUp || (role && !role.isTechnical) || (round && round !== "ROLE") ? "VERBAL" : generated.type;
 
-  const created = await prisma.question.create({
-    data: {
-      sessionId,
-      text: generated.text,
-      type,
-      order,
-      round,
-      skillTags: JSON.stringify([...new Set(skillTags)]),
-      codeSpec: type === "CODING" && generated.code ? JSON.stringify(generated.code) : null,
-      followUpOf: followUp ? followUpOf!.id : null,
-    },
+  return saveQuestion(sessionId, order, {
+    text: generated.text,
+    type,
+    round,
+    skillTags: JSON.stringify([...new Set(skillTags)]),
+    codeSpec: type === "CODING" && generated.code ? JSON.stringify(generated.code) : null,
+    followUpOf: followUp ? followUpOf!.id : null,
+    poolItemId: null,
   });
+}
+
+async function saveQuestion(
+  sessionId: string,
+  order: number,
+  q: { text: string; type: string; round: MockRound | null; skillTags: string; codeSpec: string | null; followUpOf: string | null; poolItemId: string | null }
+) {
+  const created = await prisma.question.create({ data: { sessionId, order, ...q }, include: POOL_CREDIT });
   // Two overlapping requests (double click, reload during generation) can both create question N. Keep the
   // first one and drop ours, so a session never gets duplicate or extra questions.
-  const first = await prisma.question.findFirst({ where: { sessionId, order }, orderBy: [{ generatedAt: "asc" }, { id: "asc" }] });
+  const first = await prisma.question.findFirst({ where: { sessionId, order }, orderBy: [{ generatedAt: "asc" }, { id: "asc" }], include: POOL_CREDIT });
   if (first && first.id !== created.id) {
     await prisma.question.delete({ where: { id: created.id } });
     return first;

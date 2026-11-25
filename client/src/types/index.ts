@@ -82,6 +82,8 @@ export interface Question {
   codeSpec?: CodeSpec | null;
   // Set when this question follows up on an earlier one (that question's id).
   followUpOf?: string | null;
+  // Set when the question came from the shared pool: its credit and the id to vote on.
+  pool?: { itemId: string; credit: string | null; sourceUrl: string | null; licence: string | null } | null;
 }
 
 // Answering a question again for practice. The original answer and the session report don't change.
@@ -296,6 +298,8 @@ export interface DebugChallenge {
   id: string;
   title: string;
   scenario: string;
+  // Set when it came from the shared pool, for the "Realistic?" vote.
+  poolItemId?: string | null;
   language: string;
   runnable: boolean;
   level: Difficulty;
@@ -340,6 +344,8 @@ export interface DesignChallenge {
   id: string;
   title: string;
   brief: string;
+  // Set when it came from the shared pool, for the "Realistic?" vote.
+  poolItemId?: string | null;
   level: Difficulty;
   requirements: { functional: string[]; nonFunctional: string[] };
   status: "OPEN" | "GRADING" | "SUBMITTED";

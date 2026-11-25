@@ -183,3 +183,9 @@ export const termsLimiter = limiter("terms", 60_000, 120, "You're going through 
   keyGenerator: byUserOrIp,
   skip: isAdmin,
 });
+
+// "Was this realistic?" votes on pool questions: free, one row per user and item.
+export const poolVoteLimiter = limiter("pool-vote", 60_000, 30, "That's a lot of votes at once. Wait a minute and try again.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});

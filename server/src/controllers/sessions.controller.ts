@@ -1,3 +1,4 @@
+import { PoolCredit, serializePool } from "../pool/serve";
 import { Response } from "express";
 import { z } from "zod";
 import { Difficulty } from "../types";
@@ -104,8 +105,19 @@ export async function createSession(req: AuthedRequest, res: Response) {
   res.status(201).json({ session });
 }
 
-function serializeQuestion(question: { id: string; text: string; type: string; order: number; round: string | null; codeSpec: string | null; followUpOf: string | null }) {
+function serializeQuestion(question: {
+  id: string;
+  text: string;
+  type: string;
+  order: number;
+  round: string | null;
+  codeSpec: string | null;
+  followUpOf: string | null;
+  poolItem?: PoolCredit;
+}) {
   return {
+    // Set when the question came from the shared pool: its credit (GitHub questions) and the id to vote on.
+    pool: serializePool(question.poolItem),
     id: question.id,
     text: question.text,
     type: question.type,

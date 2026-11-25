@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { lazyWithReload } from "../lazyWithReload";
+import { PoolNote } from "../components/PoolNote";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { debugApi } from "../api/debug";
@@ -247,6 +248,7 @@ export function DebugChallengePage() {
           The bug report
         </h2>
         <p className="scenario-text">{challenge.scenario}</p>
+        <PoolNote pool={challenge.poolItemId ? { itemId: challenge.poolItemId } : null} />
         {!challenge.runnable && <p className="helper-text">{languageLabel} doesn't run in the browser, so your fix is reviewed by the AI.</p>}
       </section>
 

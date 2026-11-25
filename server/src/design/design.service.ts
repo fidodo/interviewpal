@@ -1,4 +1,5 @@
 import { prisma } from "../db/prisma";
+import { pickDesign } from "../pool/serve";
 import { generateValidated } from "../ai/retry";
 import { parseJsonArray, parseJsonObject } from "../utils/json";
 import { challengePrompt, challengeSchema, designGradeSchema, Diagram, gradePrompt } from "./design.prompts";
@@ -38,6 +39,10 @@ export async function writeChallenge(p: {
 }
 
 export async function createChallenge(userId: string, level: string, topic: string | null) {
+  // Without a topic, a question comes from the shared pool when it's switched on and has one this user hasn't had.
+  // A typed topic has no reliable match in the pool, so it's always written by the AI.
+  const pooled = topic ? null : await pickDesign({ userId, level });
+  if (pooled) return prisma.designChallenge.create({ data: { userId, ...pooled.payload, level, poolItemId: pooled.id } });
   const [role, recent] = await Promise.all([
     prisma.targetRole.findFirst({ where: { userId, isActive: true }, select: { title: true } }),
     prisma.designChallenge.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: RECENT, select: { title: true } }),

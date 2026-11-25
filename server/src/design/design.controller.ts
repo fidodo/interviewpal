@@ -22,6 +22,8 @@ function serialize(c: Challenge) {
     id: c.id,
     title: c.title,
     brief: c.brief,
+    // Set when the exercise came from the shared pool, for the "Was this realistic?" vote.
+    poolItemId: c.poolItemId,
     level: c.level,
     requirements: parseJsonObject<{ functional: string[]; nonFunctional: string[] }>(c.requirements) ?? { functional: [], nonFunctional: [] },
     status: c.status,

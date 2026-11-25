@@ -1,5 +1,6 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { lazyWithReload } from "../lazyWithReload";
+import { PoolNote } from "../components/PoolNote";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { SessionDetail, Feedback, FillerStats, Question, ROUND_LABELS, PERSONA_LABELS } from "../types";
@@ -219,6 +220,7 @@ export function InterviewSessionPage() {
             </button>
           </div>
           <p className="question-text">{currentQuestion.text}</p>
+          <PoolNote key={currentQuestion.id} pool={currentQuestion.pool} />
         </div>
       )}
 

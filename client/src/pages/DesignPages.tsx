@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { designApi } from "../api/design";
 import { ScoreBadge } from "../components/ScoreBadge";
+import { PoolNote } from "../components/PoolNote";
 import { DesignCanvas, DiagramView } from "../design/DesignCanvas";
 import { COMPONENT_KINDS, Diagram, MAX_LABEL } from "../design/kinds";
 import { DesignChallenge, DesignSummary, Difficulty, LEVEL_LABELS } from "../types";
@@ -258,6 +259,7 @@ export function DesignChallengePage() {
           The question
         </h2>
         <p className="scenario-text">{challenge.brief}</p>
+        <PoolNote pool={challenge.poolItemId ? { itemId: challenge.poolItemId } : null} />
         <h3 className="feedback-list-title">Functional requirements</h3>
         <ul className="requirement-list">
           {requirements.functional.map((r, i) => (

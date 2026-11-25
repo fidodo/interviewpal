@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
+import { pickDebug } from "../pool/serve";
 import { generateValidated } from "../ai/retry";
 import { parseJsonArray } from "../utils/json";
 import {
@@ -81,6 +82,10 @@ export async function writeChallenge(p: {
 }
 
 export async function createChallenge(userId: string, language: DebugLanguage, level: string, similarBugs?: string[]) {
+  // A new exercise comes from the shared pool when it's switched on and has one this user hasn't had. "Try a
+  // similar one" is tailored to the bugs they met, so it's always written by the AI.
+  const pooled = similarBugs ? null : await pickDebug({ userId, language, level });
+  if (pooled) return prisma.debugChallenge.create({ data: { userId, ...pooled.payload, language, level, poolItemId: pooled.id } });
   const [role, recent] = await Promise.all([
     prisma.targetRole.findFirst({ where: { userId, isActive: true }, select: { title: true } }),
     prisma.debugChallenge.findMany({ where: { userId, language }, orderBy: { createdAt: "desc" }, take: RECENT, select: { title: true } }),

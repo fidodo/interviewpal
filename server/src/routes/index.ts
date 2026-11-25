@@ -14,6 +14,7 @@ import { progressRouter } from "../progress/progress.routes";
 import { termsRouter } from "../terms/terms.routes";
 import { cronRouter, remindersRouter, todayRouter } from "../today/today.routes";
 import { poolAdminRouter } from "../pool/pool.routes";
+import { poolVoteRouter } from "../pool/vote.routes";
 
 export const apiRouter = Router();
 
@@ -37,3 +38,4 @@ apiRouter.use("/today", todayRouter);
 apiRouter.use("/reminders", remindersRouter);
 apiRouter.use("/cron", cronRouter);
 apiRouter.use("/admin/pool", poolAdminRouter);
+apiRouter.use("/pool", poolVoteRouter);

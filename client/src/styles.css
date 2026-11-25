@@ -4514,3 +4514,30 @@ button.rl-path-btn:hover {
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* Under a question from the shared pool: its credit and the "Realistic?" vote (components/PoolNote.tsx). */
+.pool-note {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+.pool-note .helper-text {
+  margin: 0;
+}
+.pool-vote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.pool-vote-btn {
+  min-height: 36px;
+  padding: 4px 12px;
+  font-size: 0.875rem;
+}
+.pool-vote-btn[aria-pressed="true"],
+.pool-vote-btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-contrast);
+}
