@@ -166,6 +166,10 @@ model Feedback {
   strengths        String
   weaknesses       String
   suggestions      String
+  // Points marking (answer.rubric.ts), JSON: { scheme: "points-v1", reasons, toImprove }. When set, the three part
+  // scores above are points (correctness 0-5, depth 0-3, clarity 0-2) adding up to score; null on older answers,
+  // whose parts are 1-10.
+  marking          String?
   createdAt        DateTime @default(now())
 }
 

@@ -19,21 +19,24 @@ const QUESTION_SCHEMA = {
 const GRADING_SCHEMA = {
   type: "OBJECT",
   properties: {
-    score: { type: "NUMBER" },
-    breakdown: {
+    correctness: { type: "NUMBER" },
+    depth: { type: "NUMBER" },
+    clarity: { type: "NUMBER" },
+    reasons: {
       type: "OBJECT",
-      properties: {
-        correctness: { type: "NUMBER" },
-        clarity: { type: "NUMBER" },
-        depth: { type: "NUMBER" },
-      },
-      required: ["correctness", "clarity", "depth"],
+      properties: { correctness: { type: "STRING" }, depth: { type: "STRING" }, clarity: { type: "STRING" } },
+      required: ["correctness", "depth", "clarity"],
+    },
+    toImprove: {
+      type: "ARRAY",
+      items: { type: "OBJECT", properties: { part: { type: "STRING" }, step: { type: "STRING" } }, required: ["part", "step"] },
     },
     strengths: { type: "ARRAY", items: { type: "STRING" } },
     weaknesses: { type: "ARRAY", items: { type: "STRING" } },
     suggestions: { type: "ARRAY", items: { type: "STRING" } },
   },
-  required: ["score", "breakdown", "strengths", "weaknesses", "suggestions"],
+  required: ["correctness", "depth", "clarity", "reasons", "toImprove", "strengths", "weaknesses", "suggestions"],
+  propertyOrdering: ["correctness", "depth", "clarity", "reasons", "toImprove", "strengths", "weaknesses", "suggestions"],
 };
 
 const SUMMARY_SCHEMA = {

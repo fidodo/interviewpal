@@ -11,6 +11,8 @@ import { MOCK_PLAN, MockRound, roundGradingInstructions, roundQuestionInstructio
 import { parseJsonArray } from "../utils/json";
 import { isUniqueViolation } from "../utils/prismaErrors";
 import { pickInterview, POOL_CREDIT } from "../pool/serve";
+import { GradingResult } from "../ai/provider.interface";
+import { AnswerMarking, ANSWER_SCHEME, scoreAnswer } from "../ai/answer.rubric";
 
 // A question's skill tags (a JSON array of skill names).
 export const parseSkillTags = (value: string) => parseJsonArray<string>(value);
@@ -209,7 +211,7 @@ export async function submitAnswer(
       persona: question.session.persona,
       testResults: question.type === "CODING" ? testResults : null,
     })
-  );
+  ).then((g) => withTestCap(g, question.type === "CODING" ? testResults : null));
 
   let answer;
   try {
@@ -228,6 +230,7 @@ export async function submitAnswer(
             strengths: JSON.stringify(grading.strengths),
             weaknesses: JSON.stringify(grading.weaknesses),
             suggestions: JSON.stringify(grading.suggestions),
+            marking: grading.marking ? JSON.stringify(grading.marking) : null,
           },
         },
       },
@@ -250,6 +253,29 @@ export async function submitAnswer(
   return { answer, feedback: answer.feedback!, mode: question.session.mode };
 }
 
+// A coding answer whose tests ran and failed can't have full correctness; the total and the step points follow.
+// Older-style grading (no marking) is left as it is.
+function withTestCap(grading: GradingResult, testResults: { passed: number; total: number } | null | undefined): GradingResult {
+  if (!grading.marking || !testResults) return grading;
+  const { score, points, marking } = scoreAnswer({ points: grading.breakdown, reasons: grading.marking.reasons, steps: grading.marking.toImprove }, testResults);
+  return { ...grading, score, breakdown: points, marking };
+}
+
+// Feedback.marking / a retake's stored marking, read back; anything that isn't the points scheme is null.
+export function parseMarking(value: unknown): AnswerMarking | null {
+  const m = (typeof value === "string" ? safeParse(value) : value) as Partial<AnswerMarking> | null;
+  if (!m || m.scheme !== ANSWER_SCHEME) return null;
+  return { scheme: ANSWER_SCHEME, reasons: m.reasons ?? {}, toImprove: Array.isArray(m.toImprove) ? m.toImprove : [] };
+}
+
+function safeParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 export const MAX_RETAKES = 3;
 const STALE_RETAKE_MS = 2 * 60 * 1000;
 
@@ -260,6 +286,8 @@ export interface RetakeFeedback {
   strengths: string[];
   weaknesses: string[];
   suggestions: string[];
+  // Points marking (answer.rubric.ts); null on retakes marked before it.
+  marking: AnswerMarking | null;
 }
 
 export function retakeFeedback(value: string): RetakeFeedback {
@@ -270,9 +298,10 @@ export function retakeFeedback(value: string): RetakeFeedback {
       strengths: parsed.strengths ?? [],
       weaknesses: parsed.weaknesses ?? [],
       suggestions: parsed.suggestions ?? [],
+      marking: parseMarking(parsed.marking ?? null),
     };
   } catch {
-    return { breakdown: null, strengths: [], weaknesses: [], suggestions: [] };
+    return { breakdown: null, strengths: [], weaknesses: [], suggestions: [], marking: null };
   }
 }
 
@@ -322,7 +351,7 @@ export async function submitRetake(
         testResults: questionType === "CODING" ? testResults : null,
         previousAttempt,
       })
-    );
+    ).then((g) => withTestCap(g, questionType === "CODING" ? testResults : null));
     // @@unique([answerId, number]) backs up the claim.
     return await prisma.answerRetake.create({
       data: {
@@ -337,6 +366,7 @@ export async function submitRetake(
           strengths: grading.strengths,
           weaknesses: grading.weaknesses,
           suggestions: grading.suggestions,
+          marking: grading.marking,
         }),
       },
     });

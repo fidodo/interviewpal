@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FeedbackCard } from "../../components/FeedbackCard";
 import { Feedback } from "../../types";
+import { ANSWER_GUIDE } from "../../components/answerGuide";
 
 // The landing page's one piece of automatic motion: a spoken answer is "recorded", transcribed and marked, so a
 // visitor sees what the app does before signing in. It plays once; "Play again" replays it on request. With reduced
@@ -14,10 +15,22 @@ const ANSWER_SECONDS = 42;
 
 const FEEDBACK: Feedback = {
   score: 8,
-  breakdown: { correctness: 9, clarity: 7, depth: 8 },
+  breakdown: { correctness: 5, depth: 2, clarity: 1 },
   strengths: ["Clear explanation of event delegation with a concrete example"],
   weaknesses: [],
   suggestions: [],
+  marking: {
+    reasons: {
+      correctness: "Bubbling, one listener on the parent and checking event.target are all right.",
+      depth: "Names two benefits, but not when delegation doesn't fit.",
+      clarity: "Easy to follow, though it doesn't open with a one-line answer.",
+    },
+    toImprove: [
+      { part: "depth", points: 1, step: "Mention events that don't bubble (focus, blur) and how closest() handles nested elements." },
+      { part: "clarity", points: 1, step: "Open with the answer in one line, then explain." },
+    ],
+  },
+  guide: ANSWER_GUIDE,
 };
 
 // Milliseconds from the start of a run.

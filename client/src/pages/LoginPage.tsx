@@ -7,7 +7,7 @@ import { AnswerDemo } from "./landing/AnswerDemo";
 const HOW_IT_WORKS = [
   { step: 1, title: "Pick a topic & difficulty", detail: "Frontend, backend, AI engineering, or your own — junior to senior." },
   { step: 2, title: "Answer out loud or in code", detail: "Speak your answer, or type a solution for coding questions." },
-  { step: 3, title: "Get instant AI feedback", detail: "A score, a correctness/clarity/depth breakdown, and what to improve." },
+  { step: 3, title: "Get instant AI feedback", detail: "A score made of correctness, depth and clarity points, why each got its mark, and how to score higher." },
 ];
 
 interface GoogleCredentialResponse {

@@ -1,5 +1,6 @@
 import { Feedback, FillerStats } from "../types";
 import { ScoreBadge, scoreClass } from "./ScoreBadge";
+import { ScoreParts } from "./ScoreParts";
 
 const BREAKDOWN_LABELS: Record<string, string> = {
   correctness: "Correctness",
@@ -56,7 +57,15 @@ export function FeedbackCard({
         </div>
       </div>
 
-      {feedback.breakdown && (
+      {feedback.marking && feedback.guide && feedback.breakdown ? (
+        <ScoreParts
+          guide={feedback.guide}
+          points={feedback.breakdown as unknown as Record<string, number>}
+          reasons={feedback.marking.reasons}
+          steps={feedback.marking.toImprove}
+          score={feedback.score}
+        />
+      ) : feedback.breakdown && (
         <dl className="breakdown">
           {(Object.entries(feedback.breakdown) as [string, number][]).map(([key, value], i) => (
             <div className="breakdown-row" key={key}>

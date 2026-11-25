@@ -68,20 +68,20 @@ export function AnswerGuideModal({ open, onClose, fallbackFocusSelector }: Answe
         <section className="guide-section">
           <h3>Your score</h3>
           <p>
-            Each answer gets an overall score out of 10, plus three sub-scores. The bar rises with the difficulty you
-            picked.
+            Each answer gets a score out of 10, made of three parts added up. The bar rises with the difficulty you picked.
           </p>
           <ul className="guide-rubric">
             <li>
-              <strong>Correctness</strong> — is it accurate and complete?
+              <strong>Correctness, up to 5</strong> — is it accurate and complete? A coding answer needs every test passing for 5.
             </li>
             <li>
-              <strong>Clarity</strong> — is it well-structured and easy to follow?
+              <strong>Depth, up to 3</strong> — how or why it works, then trade-offs, edge cases and a real example.
             </li>
             <li>
-              <strong>Depth</strong> — nuance, tradeoffs, edge cases, going beyond the obvious.
+              <strong>Clarity, up to 2</strong> — answer first, then a clear order that's easy to follow aloud.
             </li>
           </ul>
+          <p className="helper-text">After each answer you'll see why each part got its points, and what would have scored higher.</p>
           <p className="helper-text">Spoken answers also get a filler-word count ("um", "like", "you know").</p>
         </section>
 

@@ -1,6 +1,7 @@
 import { Difficulty, QuestionType, Track } from "../types";
 import { PriorQA, RoleContext } from "./provider.interface";
 import { PERSONAS, personaOf } from "./personas";
+import { answerGuideForPrompt } from "./answer.rubric";
 
 const MAX_PRIOR_QA = 20;
 
@@ -118,7 +119,7 @@ export function gradingPrompt(params: {
   const { question, transcript, difficulty, questionType, roundInstructions, testResults, previousAttempt } = params;
   const persona = PERSONAS[personaOf(params.persona)];
   const tests = testResults
-    ? `The candidate ran this ${testResults.language} code against ${testResults.total} test cases in the browser and ${testResults.passed} passed. Weigh that heavily for correctness, but still judge approach, edge cases and readability.`
+    ? `The candidate ran this ${testResults.language} code against ${testResults.total} test cases in the browser and ${testResults.passed} passed. Weigh that heavily for correctness (5 needs every test passing), but still judge approach, edge cases and readability.`
     : ``;
   const modeInstructions =
     questionType === "CODING"
@@ -133,7 +134,7 @@ export function gradingPrompt(params: {
     ...(tests ? [tests] : []),
     ...(previousAttempt
       ? [
-          `This is a retake: the candidate is answering the same question again. Their previous attempt scored ${previousAttempt.score}/10${
+          `This is a retake: the candidate is answering the same question again. Their previous attempt scored ${previousAttempt.score} out of 10${
             previousAttempt.weaknesses.length ? `, with these weaknesses: ${previousAttempt.weaknesses.join("; ")}` : ""
           }. Grade this answer on its own merits with the same rigour (don't inflate the score for trying again). Start "strengths" with what improved since the previous attempt, if anything did, and say in "weaknesses" if an earlier weakness is still there.`,
         ]
@@ -142,8 +143,11 @@ export function gradingPrompt(params: {
     `Question: ${question}`,
     `Candidate's answer: ${transcript}`,
     ``,
-    `In addition to the overall score, rate three specific dimensions 1-10 each: "correctness" (how accurate/complete the answer is), "clarity" (how well-structured and easy to follow it is), and "depth" (how much nuance, edge-case awareness, or going-beyond-the-obvious it shows).`,
-    `Respond ONLY with JSON of the shape: { "score": number (1-10), "breakdown": { "correctness": number (1-10), "clarity": number (1-10), "depth": number (1-10) }, "strengths": string[], "weaknesses": string[], "suggestions": string[] }`,
+    `Mark the answer in three parts, using these bands for the stated level (the total is added up for you):`,
+    answerGuideForPrompt(),
+    `For each part, give one sentence in "reasons" saying why it got that mark, pointing at what the candidate said or wrote.`,
+    `In "toImprove", for each part that lost points, write one concrete step that would have earned them for THIS question: name the missing fact, trade-off, edge case or structure change. At most 3 steps.`,
+    `Respond ONLY with JSON of the shape (numbers first): { "correctness": number (0-5), "depth": number (0-3), "clarity": number (0-2), "reasons": { "correctness": string, "depth": string, "clarity": string }, "toImprove": [{ "part": "correctness" | "depth" | "clarity", "step": string }], "strengths": string[], "weaknesses": string[], "suggestions": string[] }`,
   ].join("\n");
 }
 

@@ -1,3 +1,4 @@
+import { AnswerMarking } from "./answer.rubric";
 import { Difficulty, QuestionType, Track } from "../types";
 
 export interface PriorQA {
@@ -41,10 +42,13 @@ export interface GradingBreakdown {
 
 export interface GradingResult {
   score: number;
+  // With marking set, the parts are points (correctness 0-5, depth 0-3, clarity 0-2) adding up to score; otherwise
+  // the older 1-10 ratings.
   breakdown: GradingBreakdown;
   strengths: string[];
   weaknesses: string[];
   suggestions: string[];
+  marking: AnswerMarking | null;
 }
 
 export interface SummaryResult {

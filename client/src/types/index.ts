@@ -51,10 +51,14 @@ export interface FeedbackBreakdown {
 
 export interface Feedback {
   score: number;
+  // With `marking`, the parts are points (correctness 0-5, depth 0-3, clarity 0-2) adding up to the score; without
+  // it (answers marked before points), 1-10 ratings.
   breakdown: FeedbackBreakdown | null;
   strengths: string[];
   weaknesses: string[];
   suggestions: string[];
+  marking?: { reasons: Record<string, string>; toImprove: ImproveStep[] } | null;
+  guide?: RubricGuide;
 }
 
 export interface FillerStats {

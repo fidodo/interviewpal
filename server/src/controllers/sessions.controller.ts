@@ -1,3 +1,4 @@
+import { AnswerMarking, ANSWER_GUIDE } from "../ai/answer.rubric";
 import { PoolCredit, serializePool } from "../pool/serve";
 import { Response } from "express";
 import { z } from "zod";
@@ -27,6 +28,7 @@ interface FeedbackRow {
   strengths: string;
   weaknesses: string;
   suggestions: string;
+  marking?: string | null;
 }
 
 function serializeFeedback(feedback: FeedbackRow | null | undefined) {
@@ -40,7 +42,13 @@ function serializeFeedback(feedback: FeedbackRow | null | undefined) {
     strengths: parseJsonArray(feedback.strengths),
     weaknesses: parseJsonArray(feedback.weaknesses),
     suggestions: parseJsonArray(feedback.suggestions),
+    ...markingFields(sessionService.parseMarking(feedback.marking ?? null)),
   };
+}
+
+// Answers marked in points carry their reasons, steps and the rubric; older ones have none and keep the 1-10 view.
+function markingFields(marking: AnswerMarking | null) {
+  return marking ? { marking: { reasons: marking.reasons, toImprove: marking.toImprove }, guide: ANSWER_GUIDE } : { marking: null };
 }
 
 function serializeFillerStats(fillerStats: string | null | undefined) {
@@ -136,7 +144,7 @@ function serializeRetake(r: { number: number; transcript: string; fillerStats: s
     fillerStats: serializeFillerStats(r.fillerStats),
     testResults: serializeFillerStats(r.testResults),
     createdAt: r.createdAt,
-    feedback: { score: r.score, ...feedback },
+    feedback: { score: r.score, ...feedback, ...markingFields(feedback.marking) },
   };
 }
 
