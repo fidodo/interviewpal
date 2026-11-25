@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { designApi } from "../api/design";
 import { ScoreBadge } from "../components/ScoreBadge";
+import { HowItsMarked, ScoreParts } from "../components/ScoreParts";
 import { PoolNote } from "../components/PoolNote";
 import { DesignCanvas, DiagramView } from "../design/DesignCanvas";
 import { COMPONENT_KINDS, Diagram, MAX_LABEL } from "../design/kinds";
@@ -301,7 +302,7 @@ export function DesignChallengePage() {
                 ))}
               </ol>
             ) : (
-              <p className="helper-text">Stuck? A hint is what an interviewer would nudge you with. Each costs about half a point.</p>
+              <p className="helper-text">Stuck? A hint is what an interviewer would nudge you with. Hints take off half a point each, rounded up.</p>
             )}
             {challenge.hintsLeft > 0 && (
               <button type="button" className="btn btn-secondary" onClick={hint} disabled={busy !== null}>
@@ -327,6 +328,7 @@ export function DesignChallengePage() {
                 Cover the API, the data model, how it scales and fails, and the trade-offs you made. {notes.length}/{MAX_NOTES}
               </p>
             </div>
+            <HowItsMarked guide={challenge.guide} />
             {error && (
               <p className="error-text" role="alert">
                 {error}
@@ -358,7 +360,16 @@ export function DesignChallengePage() {
                 )}
               </div>
             </div>
-            {result.breakdown && (
+            {result.parts ? (
+              <ScoreParts
+                guide={challenge.guide}
+                points={result.parts}
+                reasons={result.reasons}
+                steps={result.toImprove ?? []}
+                score={result.score}
+                deductions={[{ label: "Hints", points: result.parts.hints }]}
+              />
+            ) : result.breakdown && (
               <ul className="design-breakdown">
                 {(Object.keys(BREAKDOWN_LABELS) as (keyof typeof BREAKDOWN_LABELS)[]).map((k) => (
                   <li key={k}>
@@ -368,7 +379,7 @@ export function DesignChallengePage() {
                 ))}
               </ul>
             )}
-            <p>{result.feedback}</p>
+            {result.feedback && <p>{result.feedback}</p>}
             {result.strengths.length > 0 && (
               <>
                 <h3 className="feedback-list-title">What went well</h3>

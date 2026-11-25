@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { pickDesign } from "../pool/serve";
+import { scoreDesign } from "./design.rubric";
 import { generateValidated } from "../ai/retry";
 import { parseJsonArray, parseJsonObject } from "../utils/json";
 import { challengePrompt, challengeSchema, designGradeSchema, Diagram, gradePrompt } from "./design.prompts";
@@ -104,6 +105,16 @@ export async function submitDesign(userId: string, id: string, submission: { dia
       }),
       designGradeSchema
     );
+    const common = { strengths: grade.strengths, gaps: grade.gaps, feedback: grade.feedback, followUps: grade.followUps };
+    // Points marking: the hint deduction, total and step points come from design.rubric.ts. A reply in the older
+    // shape is stored the old way.
+    const marked =
+      grade.kind === "points"
+        ? (() => {
+            const { parts, score, toImprove } = scoreDesign(grade.raw, hintsUsed, grade.steps);
+            return { score, feedback: { ...common, parts, reasons: grade.reasons, toImprove } };
+          })()
+        : { score: grade.score, feedback: { ...common, breakdown: grade.breakdown } };
     // Only the request holding this claim may write the result (a stale claim may have been retaken).
     await prisma.designChallenge.updateMany({
       where: { id, status: "GRADING", submittedAt: claimedAt },
@@ -111,8 +122,8 @@ export async function submitDesign(userId: string, id: string, submission: { dia
         status: "SUBMITTED",
         diagram: JSON.stringify(submission.diagram),
         notes: submission.notes,
-        score: grade.score,
-        feedback: JSON.stringify({ breakdown: grade.breakdown, strengths: grade.strengths, gaps: grade.gaps, feedback: grade.feedback, followUps: grade.followUps }),
+        score: marked.score,
+        feedback: JSON.stringify(marked.feedback),
         submittedAt: new Date(),
       },
     });

@@ -1,3 +1,4 @@
+import { DESIGN_GUIDE } from "./design.rubric";
 import { Response } from "express";
 import { z } from "zod";
 import { AuthedRequest } from "../middleware/auth.middleware";
@@ -29,12 +30,16 @@ function serialize(c: Challenge) {
     status: c.status,
     hints: hints.slice(0, c.hintsUsed),
     hintsLeft: c.status === "OPEN" ? hints.length - c.hintsUsed : 0,
+    // How it's marked (design.rubric.ts), shown before submitting and with the result.
+    guide: DESIGN_GUIDE,
     result: submitted
       ? {
           score: c.score,
           diagram: parseJsonObject(c.diagram) ?? { nodes: [], edges: [] },
           notes: c.notes ?? "",
-          ...(parseJsonObject(c.feedback) ?? { breakdown: null, strengths: [], gaps: [], feedback: "", followUps: [] }),
+          // Points-marked results have parts, reasons and toImprove; older ones a 1-10 breakdown.
+          breakdown: null,
+          ...(parseJsonObject(c.feedback) ?? { strengths: [], gaps: [], feedback: "", followUps: [] }),
           keyPoints: parseJsonArray<string>(c.keyPoints),
           referenceDesign: c.referenceDesign,
         }

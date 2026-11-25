@@ -359,11 +359,18 @@ export interface DesignChallenge {
   status: "OPEN" | "GRADING" | "SUBMITTED";
   hints: string[];
   hintsLeft: number;
+  // How it's marked (server design.rubric.ts).
+  guide: RubricGuide;
   result: {
     score: number;
     diagram: Diagram;
     notes: string;
+    // Older results: 1-10 per dimension. Points-marked results have `parts` (points, plus `hints` as a deduction),
+    // `reasons` and `toImprove` instead.
     breakdown: { requirements: number; architecture: number; scalability: number; tradeoffs: number } | null;
+    parts?: { requirements: number; architecture: number; scalability: number; tradeoffs: number; hints: number };
+    reasons?: Record<string, string> | null;
+    toImprove?: ImproveStep[];
     strengths: string[];
     gaps: string[];
     feedback: string;
