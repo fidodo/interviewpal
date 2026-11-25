@@ -222,7 +222,7 @@ function ChallengeHistory() {
                   <span className="course-item-title">{c.title}</span>
                   <span className="helper-text">
                     {DEBUG_LANGUAGES[c.language]?.label ?? c.language} · {LEVEL_LABELS[c.level]} · {shortDate(c.createdAt)} ·{" "}
-                    {c.status === "SUBMITTED" ? `scored ${c.score}/10` : c.status === "REVEALED" ? "answer shown" : c.status === "GRADING" ? "being marked" : "not submitted yet"}
+                    {c.status === "SUBMITTED" ? `scored ${c.score}/10` : c.status === "REVEALED" ? "answer shown" : c.status === "GRADING" ? "being marked" : c.score != null ? `improving, last scored ${c.score}/10` : "not submitted yet"}
                   </span>
                 </Link>
               </li>

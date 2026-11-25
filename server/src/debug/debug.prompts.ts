@@ -1,3 +1,4 @@
+import { previousAttemptLines } from "../utils/attempts";
 import { z } from "zod";
 import { levelLabel } from "../roles/roles.prompts";
 import { codeSpecSchema } from "../ai/schemas";
@@ -147,6 +148,8 @@ export function gradePrompt(params: {
   explanation: string;
   testResults: { passed: number; total: number } | null;
   hintsUsed: number;
+  // A resubmission: the last attempt's score and steps (utils/attempts.ts).
+  previous?: { score: number; steps: string[] };
 }): string {
   const p = params;
   return [
@@ -162,6 +165,7 @@ export function gradePrompt(params: {
       ? `Their code was run against ${p.testResults.total} tests in the browser and ${p.testResults.passed} passed.`
       : `Their code wasn't run (this stack is reviewed only), so judge whether the fix is correct by reading it.`,
     `They used ${p.hintsUsed} hint${p.hintsUsed === 1 ? "" : "s"}.`,
+    ...previousAttemptLines(p.previous),
     ``,
     `Mark it with this rubric. Points for the fix and for hints are worked out separately; you mark the rest.`,
     guideForPrompt(),
@@ -170,7 +174,9 @@ export function gradePrompt(params: {
     `"bugsFixed": how many of the planted bugs their code genuinely fixes (a different but correct fix counts).`,
     `"reasons": one sentence each for "fix", "explanation" and "quality", addressed to them as "you": what earned the points or what held them back, pointing at their actual code or words.`,
     `"explanation" and "quality": the points from the bands above.`,
-    `"toImprove": for each part that is below its maximum, one concrete step that would earn the missing points, specific to this exercise (for "explanation", say what to add, e.g. why the bug caused the reported symptom, or the input that exposes it). Include "hints" only if they used hints ("solve the next one without hints"). Empty if nothing is missing.`,
+    `"toImprove": for each part that is below its maximum, one concrete step that would earn the missing points, specific to this exercise (for "fix" and "quality", point to where a remaining bug is and what goes wrong there, like a hint, e.g. "Look at the loop condition: which item is never added?", never the corrected code or the exact change such as "change it to i < n"; for "explanation", say what to add, e.g. why the bug caused the reported symptom, or the input that exposes it). Include "hints" only if they used hints ("solve the next one without hints"). Empty if nothing is missing.`,
+    // The reference fix stays hidden after marking so they can improve and resubmit (utils/attempts.ts).
+    `They may fix it again before seeing the answer, so in "reasons", "toImprove" and "feedback" never write the corrected code or the exact change: for a bug that's still there, say where to look and what goes wrong (like a hint), not how to fix it.`,
     `"feedback": 2-3 sentences overall. "missed": for each bug they didn't fix, what it was (empty if none). A full rewrite that works is fine but say a targeted fix is better in an interview.`,
     // Numbers first in the reply: smaller backup models sometimes stop after a long "reasons" object, and the numbers
     // are what can't be missing. (Reasoning models still think the reasons through before writing any of it.)

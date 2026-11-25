@@ -1,3 +1,4 @@
+import { answerVisible, attemptInfo, attemptsLeft } from "../utils/attempts";
 import { Response } from "express";
 import { z } from "zod";
 import { AuthedRequest, requireVerified } from "../middleware/auth.middleware";
@@ -24,6 +25,11 @@ function serialize(c: Challenge) {
   const submitted = c.status === "SUBMITTED";
   const revealed = c.status === "REVEALED";
   const revealInfo = revealed ? (parseObject<{ fixed: boolean[] }>(c.feedback)?.fixed ?? bugs.map(() => false)) : null;
+  // Improve and resubmit (utils/attempts.ts): the bugs, what was missed and the reference fix wait until the answer
+  // is shown. Results from before attempts were tracked always show them.
+  const marked = parseObject<Record<string, unknown>>(c.feedback);
+  const attempts = attemptInfo(marked);
+  const answerShown = answerVisible(attempts);
   return {
     id: c.id,
     title: c.title,
@@ -48,10 +54,15 @@ function serialize(c: Challenge) {
           submittedCode: c.submittedCode,
           explanation: c.explanation,
           testResults: parseObject(c.testResults),
-          ...(parseObject<{ bugsFixed: number; feedback: string; missed: string[] }>(c.feedback) ?? { bugsFixed: 0, feedback: "", missed: [] }),
+          ...((marked as { bugsFixed: number; feedback: string; missed: string[] } | null) ?? { bugsFixed: 0, feedback: "", missed: [] }),
           // parts, reasons and toImprove come through the spread above for results marked with the rubric.
-          bugs: bugs.map((b) => b.description),
-          referenceFix: c.referenceFix,
+          ...(answerShown ? {} : { missed: [] }),
+          bugs: answerShown ? bugs.map((b) => b.description) : null,
+          referenceFix: answerShown ? c.referenceFix : null,
+          attempt: attempts?.attempt ?? 1,
+          history: attempts?.history ?? [],
+          attemptsLeft: attemptsLeft(attempts),
+          answerShown,
         }
       : revealed && revealInfo
         ? {
@@ -68,6 +79,24 @@ function serialize(c: Challenge) {
             bugHints: bugs.map((b, i) => (hinted.includes(i) ? b.hint : null)),
             bugs: bugs.map((b) => b.description),
             referenceFix: c.referenceFix,
+          }
+        : null,
+    // Being improved after a mark: the last mark, for "What to work on" while editing, and the code to start from.
+    previous:
+      c.status !== "SUBMITTED" && c.status !== "REVEALED" && attempts && marked
+        ? {
+            attempt: attempts.attempt,
+            history: attempts.history,
+            attemptsLeft: attemptsLeft(attempts),
+            score: c.score,
+            submittedCode: c.submittedCode ?? "",
+            explanation: c.explanation ?? "",
+            testResults: parseObject(c.testResults),
+            bugsFixed: typeof marked.bugsFixed === "number" ? marked.bugsFixed : 0,
+            feedback: typeof marked.feedback === "string" ? marked.feedback : "",
+            parts: marked.parts ?? null,
+            reasons: marked.reasons ?? null,
+            toImprove: Array.isArray(marked.toImprove) ? marked.toImprove : [],
           }
         : null,
   };
@@ -160,6 +189,12 @@ export async function revealAnswer(req: AuthedRequest, res: Response) {
   }
   const challenge = await debugService.findChallenge(req.userId!, req.params.id);
   if (!challenge) return notFound(res);
+  // Being improved after a mark: showing the answer keeps the last mark (no code check needed).
+  if (challenge.status === "OPEN" && challenge.feedback != null) {
+    const shown = await debugService.showAnswer(req.userId!, challenge.id);
+    res.json({ challenge: serialize(shown ?? challenge) });
+    return;
+  }
   if (challenge.status !== "OPEN") {
     res.status(409).json({ error: "This exercise has already been submitted or its answer shown." });
     return;
@@ -199,4 +234,29 @@ export async function submitFix(req: AuthedRequest, res: Response) {
     return;
   }
   res.status(201).json({ challenge: serialize(result), rewards: await recordPractice(req.userId!, "DEBUG", result.score) });
+}
+
+const IMPROVE_ERRORS = {
+  notMarked: "This exercise hasn't been marked yet.",
+  answerShown: "You've seen the answer, so this exercise can't be resubmitted. Try a similar one instead.",
+  noAttemptsLeft: "You've used every resubmit for this exercise. Show the answer, or try a similar one.",
+  changed: "This exercise changed in another tab. Refresh the page.",
+} as const;
+
+// "Improve and resubmit": back to editing, with the last mark kept to work from. No AI call.
+export async function improve(req: AuthedRequest, res: Response) {
+  const outcome = await debugService.improve(req.userId!, req.params.id);
+  if ("error" in outcome) {
+    if (outcome.error === "notFound") return notFound(res);
+    res.status(409).json({ error: IMPROVE_ERRORS[outcome.error] });
+    return;
+  }
+  res.json({ challenge: serialize(outcome.challenge) });
+}
+
+// "Show me the answer" after a mark: the bugs and the reference fix, which ends resubmitting. No AI call.
+export async function showAnswer(req: AuthedRequest, res: Response) {
+  const challenge = await debugService.showAnswer(req.userId!, req.params.id);
+  if (!challenge) return notFound(res);
+  res.json({ challenge: serialize(challenge) });
 }

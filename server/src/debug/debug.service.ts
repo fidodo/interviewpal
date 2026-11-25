@@ -1,8 +1,10 @@
+import { fixLeakChecker, scrubFix } from "./leaks";
+import { answerVisible, attemptInfo, attemptsLeft, nextAttempt, previousForPrompt } from "../utils/attempts";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { pickDebug } from "../pool/serve";
 import { generateValidated } from "../ai/retry";
-import { parseJsonArray } from "../utils/json";
+import { parseJsonArray, parseJsonObject } from "../utils/json";
 import {
   challengePrompt,
   challengeSchema,
@@ -197,7 +199,8 @@ export async function giveHint(userId: string, challenge: Challenge, statuses: B
 // write on status OPEN means it can't race a submit (which also only claims OPEN) or a second reveal.
 export async function revealAnswer(userId: string, challenge: Challenge, code: string, statuses: BugStatus[]) {
   const claimed = await prisma.debugChallenge.updateMany({
-    where: { id: challenge.id, userId, status: "OPEN" },
+    // feedback null: never marked. An exercise being improved after a mark goes through showAnswer instead.
+    where: { id: challenge.id, userId, status: "OPEN", feedback: null },
     data: {
       status: "REVEALED",
       submittedCode: code,
@@ -229,7 +232,11 @@ export async function submitFix(
 
   try {
     // Re-read after the claim, so a hint revealed just before it is counted.
-    const { hintsUsed } = await prisma.debugChallenge.findUniqueOrThrow({ where: { id }, select: { hintsUsed: true } });
+    const latest = await prisma.debugChallenge.findUniqueOrThrow({ where: { id }, select: { hintsUsed: true, feedback: true, score: true } });
+    const hintsUsed = latest.hintsUsed;
+    // A resubmission follows the attempt marked before it (utils/attempts.ts).
+    const previousFeedback = parseJsonObject<{ toImprove?: unknown }>(latest.feedback);
+    const previous = attemptInfo(previousFeedback);
     const bugs = parseJsonArray<Bug>(challenge.bugs);
     const runnable = (DEBUG_LANGUAGES[challenge.language as DebugLanguage]?.runnable ?? false) && challenge.spec != null;
     const testResults = runnable ? submission.testResults : null;
@@ -245,10 +252,17 @@ export async function submitFix(
         explanation: submission.explanation,
         testResults,
         hintsUsed,
+        previous: previous ? previousForPrompt(latest.score, previousFeedback?.toImprove) : undefined,
       }),
       debugGradeSchema
     );
     const bugsFixed = Math.min(grade.bugsFixed, bugs.length);
+    // The fix stays hidden after marking, so the marker's words mustn't contain it (leaks.ts).
+    const said = scrubFix(fixLeakChecker(bugs, challenge.buggyCode, challenge.referenceFix), {
+      reasons: grade.reasons,
+      toImprove: grade.toImprove,
+      feedback: grade.feedback,
+    });
     const { parts, score } = scoreParts({
       fix: fixPoints(bugsFixed, bugs.length, testResults),
       explanation: grade.explanation,
@@ -266,12 +280,13 @@ export async function submitFix(
         score,
         feedback: JSON.stringify({
           bugsFixed,
-          feedback: grade.feedback,
+          feedback: said.feedback,
           missed: grade.missed,
           // How the score was made (debug.rubric.ts). Results marked before this have none and show the old view.
           parts,
-          reasons: grade.reasons,
-          toImprove: improvementSteps(parts, grade.toImprove, factSteps({ bugsFixed, bugCount: bugs.length, testResults })),
+          reasons: said.reasons,
+          toImprove: improvementSteps(parts, said.toImprove, factSteps({ bugsFixed, bugCount: bugs.length, testResults })),
+          ...nextAttempt(previous, latest.score),
         }),
         submittedAt: new Date(),
       },
@@ -281,4 +296,39 @@ export async function submitFix(
     await prisma.debugChallenge.updateMany({ where: { id, status: "GRADING", submittedAt: claimedAt }, data: { status: "OPEN" } });
     throw err;
   }
+}
+
+type ImproveOutcome = { challenge: Challenge } | { error: "notFound" | "answerShown" | "noAttemptsLeft" | "notMarked" | "changed" };
+
+// "Improve and resubmit": a marked exercise whose answer hasn't been shown goes back to OPEN, keeping its mark (score
+// and feedback) so the page can show what to work on. The write is conditional on the feedback read here, so it can't
+// race "Show me the answer" (which changes it) or a second click.
+export async function improve(userId: string, id: string): Promise<ImproveOutcome> {
+  const challenge = await findChallenge(userId, id);
+  if (!challenge) return { error: "notFound" };
+  if (challenge.status !== "SUBMITTED" || challenge.feedback == null) return { error: "notMarked" };
+  const info = attemptInfo(parseJsonObject(challenge.feedback));
+  if (answerVisible(info)) return { error: "answerShown" };
+  if (attemptsLeft(info) === 0) return { error: "noAttemptsLeft" };
+  const moved = await prisma.debugChallenge.updateMany({
+    where: { id, userId, status: "SUBMITTED", feedback: challenge.feedback },
+    data: { status: "OPEN" },
+  });
+  if (moved.count !== 1) return { error: "changed" };
+  return { challenge: await prisma.debugChallenge.findUniqueOrThrow({ where: { id } }) };
+}
+
+// "Show me the answer" after a mark: records that the answer was opened, which ends resubmitting. While improving
+// (OPEN after a mark) it goes back to the last mark, unchanged. Results without attempts already show it.
+export async function showAnswer(userId: string, id: string): Promise<Challenge | null> {
+  const challenge = await findChallenge(userId, id);
+  if (!challenge) return null;
+  const feedback = parseJsonObject<Record<string, unknown>>(challenge.feedback);
+  const info = attemptInfo(feedback);
+  if (!info || info.answerShown || !(challenge.status === "SUBMITTED" || challenge.status === "OPEN")) return challenge;
+  await prisma.debugChallenge.updateMany({
+    where: { id, userId, status: challenge.status, feedback: challenge.feedback },
+    data: { status: "SUBMITTED", feedback: JSON.stringify({ ...feedback, answerShown: true }) },
+  });
+  return prisma.debugChallenge.findUniqueOrThrow({ where: { id } });
 }

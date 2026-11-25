@@ -331,14 +331,36 @@ export interface DebugChallenge {
     bugsFixed: number;
     feedback: string;
     missed: string[];
-    bugs: string[];
-    referenceFix: string;
+    // Null on a marked result until the answer is shown (improve and resubmit).
+    bugs: string[] | null;
+    referenceFix: string | null;
     // How the score was made; absent on results marked before the rubric (server debug.rubric.ts).
     parts?: { fix: number; explanation: number; quality: number; hints: number };
     reasons?: { fix: string; explanation: string; quality: string };
     toImprove?: ImproveStep[];
-  } | null;
+  } & Partial<Attempts> | null;
+  // Being improved after a mark: the last mark and the code it was given for.
+  previous?: (Omit<Attempts, "answerShown"> & {
+    score: number | null;
+    submittedCode: string;
+    explanation: string;
+    testResults: { passed: number; total: number } | null;
+    bugsFixed: number;
+    feedback: string;
+    parts: { fix: number; explanation: number; quality: number; hints: number } | null;
+    reasons: { fix: string; explanation: string; quality: string } | null;
+    toImprove: ImproveStep[];
+  }) | null;
   guide: RubricGuide;
+}
+
+// Improve and resubmit (server utils/attempts.ts): which marked attempt this is, the earlier scores, how many
+// resubmits are left, and whether the answer has been shown (which ends resubmitting).
+export interface Attempts {
+  attempt: number;
+  history: { attempt: number; score: number }[];
+  attemptsLeft: number;
+  answerShown: boolean;
 }
 
 export interface DesignSummary {
@@ -377,9 +399,20 @@ export interface DesignChallenge {
     gaps: string[];
     feedback: string;
     followUps: string[];
-    keyPoints: string[];
-    referenceDesign: string;
-  } | null;
+    // Null until the model answer is shown (improve and resubmit).
+    keyPoints: string[] | null;
+    referenceDesign: string | null;
+  } & Partial<Attempts> | null;
+  // Being improved after a mark: the last mark and the design it was given for.
+  previous?: (Omit<Attempts, "answerShown"> & {
+    score: number | null;
+    diagram: Diagram;
+    notes: string;
+    parts: { requirements: number; architecture: number; scalability: number; tradeoffs: number; hints: number } | null;
+    reasons: Record<string, string> | null;
+    toImprove: ImproveStep[];
+    gaps: string[];
+  }) | null;
 }
 
 // A score made of parts (server *.rubric.ts): the bands for each part, shown before answering, and the steps that

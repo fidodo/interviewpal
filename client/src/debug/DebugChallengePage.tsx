@@ -8,6 +8,7 @@ import { CopyButton } from "../components/CopyButton";
 import { CodeDiff } from "../code/CodeDiff";
 import { ScoreBadge } from "../components/ScoreBadge";
 import { HowItsMarked, ScoreParts } from "../components/ScoreParts";
+import { AttemptTrail, ImproveActions, LastMark } from "../components/Attempts";
 import { runTests } from "../code/runTests";
 import { RunLanguage } from "../code/protocol";
 import { canFormat, FormatError, formatCode } from "../code/formatCode";
@@ -27,7 +28,7 @@ export function DebugChallengePage() {
   const [explanation, setExplanation] = useState("");
   const [editorKey, setEditorKey] = useState(0);
   const navigate = useNavigate();
-  const [busy, setBusy] = useState<"hint" | "submit" | "format" | "reveal" | "similar" | null>(null);
+  const [busy, setBusy] = useState<"hint" | "submit" | "format" | "reveal" | "similar" | "improve" | "answer" | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A message about hints that isn't a new hint (e.g. "your code looks like it fixes every bug").
   const [hintMessage, setHintMessage] = useState<string | null>(null);
@@ -50,7 +51,11 @@ export function DebugChallengePage() {
     setNotice(null);
     debugApi
       .get(id)
-      .then((res) => setChallenge(res.challenge))
+      .then((res) => {
+        setChallenge(res.challenge);
+        // Being improved after a mark: start from the explanation that was marked.
+        if (res.challenge.status === "OPEN" && res.challenge.previous) setExplanation(res.challenge.previous.explanation);
+      })
       .catch((err) => setError(errorMessage(err, "Couldn't load this challenge")));
   }, [id]);
 
@@ -146,8 +151,47 @@ export function DebugChallengePage() {
     }
   }
 
+  // "Improve and resubmit": back to the editor, starting from the code that was marked.
+  async function improve() {
+    setBusy("improve");
+    setError(null);
+    try {
+      const res = await debugApi.improve(id);
+      writeDraft(id, null);
+      setLoadCode(null);
+      setExplanation(res.challenge.previous?.explanation ?? "");
+      setEditorKey((k) => k + 1);
+      setChallenge(res.challenge);
+      requestAnimationFrame(() => document.getElementById("last-mark")?.focus());
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't reopen this exercise. Try again."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // The answer after a mark (or while improving one): the last mark stays as the score, and resubmitting ends.
+  async function showAnswer() {
+    if (!challenge) return;
+    const score = challenge.result?.score ?? challenge.previous?.score ?? 0;
+    if (!window.confirm(`Your score stays at ${score}/10 and you won't be able to resubmit this exercise. Show the answer?`)) return;
+    setBusy("answer");
+    setError(null);
+    try {
+      const res = await debugApi.answer(id);
+      writeDraft(id, null);
+      setChallenge(res.challenge);
+      requestAnimationFrame(() => resultRef.current?.focus());
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't show the answer. Try again."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   // "Show me the answer": closes the exercise unscored and shows what was fixed, bug by bug.
   async function reveal() {
+    if (challenge?.previous) return showAnswer();
     if (!challenge || !window.confirm("You'll see the planted bugs and a fix, and this exercise won't be scored. Show the answer?")) return;
     setBusy("reveal");
     setError(null);
@@ -178,7 +222,8 @@ export function DebugChallengePage() {
   function reset() {
     if (!challenge || !window.confirm("Put the original buggy code back? Your changes will be lost.")) return;
     writeDraft(id, null);
-    setLoadCode(null);
+    // The buggy original, even while improving (when the editor otherwise starts from the code that was marked).
+    setLoadCode(challenge.buggyCode);
     setEditorKey((k) => k + 1);
   }
 
@@ -226,8 +271,13 @@ export function DebugChallengePage() {
     reveal: "Checking your code…",
     similar: "Writing a similar exercise…",
     format: "Formatting…",
+    improve: "Opening…",
+    answer: "Opening the answer…",
   };
   const busyLabel = busy && busy !== "format" ? BUSY_LABELS[busy] : null;
+  const previous = challenge.previous ?? null;
+  // The code to start from: a draft, else the code that was marked (when improving), else the buggy original.
+  const startCode = previous?.submittedCode || challenge.buggyCode;
 
   return (
     <div className="page">
@@ -270,6 +320,23 @@ export function DebugChallengePage() {
         </section>
       ) : open ? (
         <>
+          {previous && (
+            <LastMark
+              guide={challenge.guide}
+              score={previous.score}
+              attempt={previous.attempt}
+              attemptsLeft={previous.attemptsLeft}
+              history={previous.history}
+              steps={previous.toImprove}
+              extra={
+                <p className="helper-text">
+                  Last time you fixed {previous.bugsFixed} of {challenge.bugCount} bug{challenge.bugCount === 1 ? "" : "s"}
+                  {previous.testResults ? `, and ${previous.testResults.passed} of ${previous.testResults.total} tests passed` : ""}. The code you
+                  submitted is in the editor; "Reset to original" brings back the buggy code.
+                </p>
+              }
+            />
+          )}
           <section className="card" aria-labelledby="debug-code-label">
             <div className="code-header">
               <h2 id="debug-code-label" className="code-header-title">
@@ -292,7 +359,7 @@ export function DebugChallengePage() {
               <CodeRunner
                 language={challenge.language}
                 spec={challenge.runnable ? challenge.spec : null}
-                initialCode={loadCode ?? ((editorKey === 0 && readDraft(id, challenge.buggyCode)) || challenge.buggyCode)}
+                initialCode={loadCode ?? ((editorKey === 0 && readDraft(id, challenge.buggyCode)) || startCode)}
                 editorKey={`${id}:${editorKey}`}
                 labelledBy="debug-code-label"
                 // Tests run in the browser, so they stay usable during a hint; they wait while the code is being
@@ -361,7 +428,11 @@ export function DebugChallengePage() {
             </button>
             {!stuck && (
               <button type="button" className="btn btn-secondary btn-block debug-reveal" onClick={reveal} disabled={busy !== null}>
-                {busy === "reveal" ? BUSY_LABELS.reveal : "Can't solve it? Show me the answer"}
+                {busy === "reveal" || busy === "answer"
+                  ? BUSY_LABELS[busy]
+                  : previous
+                    ? `Keep my ${previous.score ?? 0}/10 and show me the answer`
+                    : "Can't solve it? Show me the answer"}
               </button>
             )}
             {(busy === "submit" || busy === "reveal") && busyLabel && <BusyNote label={busyLabel} seconds={seconds} />}
@@ -375,7 +446,7 @@ export function DebugChallengePage() {
           <p className="helper-text">Not scored. Try a similar one to practise the same kinds of bug while they're fresh.</p>
           <h3 className="feedback-list-title">Bug by bug</h3>
           <ol className="feedback-list debug-bug-status">
-            {result.bugs.map((b, i) => (
+            {(result.bugs ?? []).map((b, i) => (
               <li key={i}>
                 <span className={`badge ${result.fixed?.[i] ? "badge-success" : "badge-warning"}`}>{result.fixed?.[i] ? "Fixed" : "Not fixed yet"}</span> {b}
                 {result.bugHints?.[i] && <span className="helper-text"> Hint you had: {result.bugHints[i]}</span>}
@@ -385,12 +456,12 @@ export function DebugChallengePage() {
           <CodeDiff
             title="What changed"
             views={[
-              { key: "buggy", label: "Buggy code → fix", from: challenge.buggyCode, to: result.referenceFix, sameText: "The fix matches the original code." },
-              { key: "yours", label: "Your code → fix", from: result.submittedCode, to: result.referenceFix, sameText: "Your code already matches the fix." },
+              { key: "buggy", label: "Buggy code → fix", from: challenge.buggyCode, to: result.referenceFix ?? "", sameText: "The fix matches the original code." },
+              { key: "yours", label: "Your code → fix", from: result.submittedCode, to: result.referenceFix ?? "", sameText: "Your code already matches the fix." },
             ]}
           />
           <div className="debug-copy-row">
-            <CopyButton text={result.referenceFix} label="Copy the fix" />
+            <CopyButton text={result.referenceFix ?? ""} label="Copy the fix" />
             <CopyButton text={result.submittedCode} label="Copy your code" />
             <CopyButton text={challenge.buggyCode} label="Copy the original buggy code" />
           </div>
@@ -422,6 +493,7 @@ export function DebugChallengePage() {
                   {result.testResults ? `${result.testResults.passed} of ${result.testResults.total} tests passed` : "Reviewed by AI"}
                   {challenge.hints.length > 0 && ` · ${challenge.hints.length} hint${challenge.hints.length === 1 ? "" : "s"} used`}
                 </p>
+                <AttemptTrail history={result.history ?? []} current={result.score} />
               </div>
             </div>
             {result.parts && (
@@ -445,22 +517,39 @@ export function DebugChallengePage() {
                 </ul>
               </>
             )}
-            <h3 className="feedback-list-title">The bugs that were planted</h3>
-            <ol className="feedback-list">
-              {result.bugs.map((b, i) => (
-                <li key={i}>{b}</li>
-              ))}
-            </ol>
-            <CodeDiff
-              title="A reference fix: what changed"
-              views={[
-                { key: "buggy", label: "Buggy code → fix", from: challenge.buggyCode, to: result.referenceFix, sameText: "The fix matches the original code." },
-                { key: "yours", label: "Your fix → reference", from: result.submittedCode, to: result.referenceFix, sameText: "Your fix matches the reference fix." },
-              ]}
-            />
-            <div className="debug-copy-row">
-              <CopyButton text={result.referenceFix} label="Copy the reference fix" />
-            </div>
+            {result.bugs && result.referenceFix != null ? (
+              <>
+                <h3 className="feedback-list-title">The bugs that were planted</h3>
+                <ol className="feedback-list">
+                  {result.bugs.map((b, i) => (
+                    <li key={i}>{b}</li>
+                  ))}
+                </ol>
+                <CodeDiff
+                  title="A reference fix: what changed"
+                  views={[
+                    { key: "buggy", label: "Buggy code → fix", from: challenge.buggyCode, to: result.referenceFix, sameText: "The fix matches the original code." },
+                    { key: "yours", label: "Your fix → reference", from: result.submittedCode, to: result.referenceFix, sameText: "Your fix matches the reference fix." },
+                  ]}
+                />
+                <div className="debug-copy-row">
+                  <CopyButton text={result.referenceFix} label="Copy the reference fix" />
+                </div>
+              </>
+            ) : (
+              <ImproveActions
+                attemptsLeft={result.attemptsLeft ?? 0}
+                busy={busy === "improve" || busy === "answer" ? busy : null}
+                answerLabel="Show me the answer"
+                onImprove={improve}
+                onShowAnswer={showAnswer}
+              />
+            )}
+            {error && (
+              <p className="error-text" role="alert">
+                {error}
+              </p>
+            )}
             <details>
               <summary>Your fix</summary>
               <pre className="lesson-code" tabIndex={0} aria-label="Your fix">

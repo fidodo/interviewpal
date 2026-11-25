@@ -97,11 +97,14 @@ function NodeShape({ node, selected, connecting }: { node: DiagramNode; selected
   return (
     <g className={`dg-node dg-node--${KIND_GROUP[node.kind]} ${selected ? "is-selected" : ""} ${connecting ? "is-connecting" : ""}`} transform={`translate(${node.x} ${node.y})`}>
       <rect width={NODE_W} height={NODE_H} rx={node.kind === "database" ? 18 : 10} className="dg-node-box" />
-      <text x={10} y={18} className="dg-node-kind">
-        {COMPONENT_KINDS[node.kind]}
-      </text>
-      <text x={10} y={40} className="dg-node-label">
-        {short(nodeName(node))}
+      {/* One text element, so the visible text reads "Service App" (with the space) and matches the accessible name. */}
+      <text>
+        <tspan x={10} y={18} className="dg-node-kind">
+          {`${COMPONENT_KINDS[node.kind]} `}
+        </tspan>
+        <tspan x={10} y={40} className="dg-node-label">
+          {short(nodeName(node))}
+        </tspan>
       </text>
     </g>
   );
@@ -339,7 +342,8 @@ export function DesignCanvas({ diagram, onChange, labelledBy, disabled }: Design
               role="button"
               tabIndex={disabled ? -1 : 0}
               aria-pressed={selection?.id === node.id}
-              aria-label={`${COMPONENT_KINDS[node.kind]}: ${nodeName(node)}, ${connections(node.id)} connection${connections(node.id) === 1 ? "" : "s"}`}
+              // Starts with the visible text (kind, then name) so speech users can say what they see.
+              aria-label={`${COMPONENT_KINDS[node.kind]} ${nodeName(node)}, ${connections(node.id)} connection${connections(node.id) === 1 ? "" : "s"}`}
               className="dg-node-wrap"
               onPointerDown={(e) => onNodePointerDown(e, node)}
               onKeyDown={(e) => onNodeKeyDown(e, node)}

@@ -16,3 +16,6 @@ designRouter.get("/:id", asyncHandler(designController.getChallenge));
 // Hints were written with the question, so revealing one costs no AI call.
 designRouter.post("/:id/hint", asyncHandler(designController.useHint));
 designRouter.post("/:id/submit", ...aiGuard, asyncHandler(designController.submitDesign));
+// After a mark: improve and resubmit, or open the model answer (which ends resubmitting). Neither calls the AI.
+designRouter.post("/:id/improve", asyncHandler(designController.improve));
+designRouter.post("/:id/answer", asyncHandler(designController.showAnswer));

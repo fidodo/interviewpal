@@ -14,4 +14,7 @@ export const debugApi = {
   reveal: (id: string, code: string) => api.post<{ challenge: DebugChallenge }>(`/debug/${id}/reveal`, { code }),
   submit: (id: string, body: { code: string; explanation: string; testResults: { passed: number; total: number } | null }) =>
     api.post<{ challenge: DebugChallenge }>(`/debug/${id}/submit`, body),
+  // After a mark: back to editing (up to 3 resubmits), or open the answer, which ends resubmitting.
+  improve: (id: string) => api.post<{ challenge: DebugChallenge }>(`/debug/${id}/improve`),
+  answer: (id: string) => api.post<{ challenge: DebugChallenge }>(`/debug/${id}/answer`),
 };

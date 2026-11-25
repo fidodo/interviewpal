@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { designApi } from "../api/design";
 import { ScoreBadge } from "../components/ScoreBadge";
+import { AttemptTrail, ImproveActions, LastMark } from "../components/Attempts";
 import { HowItsMarked, ScoreParts } from "../components/ScoreParts";
 import { PoolNote } from "../components/PoolNote";
 import { DesignCanvas, DiagramView } from "../design/DesignCanvas";
@@ -133,7 +134,7 @@ export function DesignPage() {
                 <Link to={`/design/${c.id}`} className="card course-item">
                   <span className="course-item-title">{c.title}</span>
                   <span className="helper-text">
-                    {LEVEL_LABELS[c.level]} · {c.status === "SUBMITTED" ? `scored ${c.score}/10` : "not submitted yet"}
+                    {LEVEL_LABELS[c.level]} · {c.status === "SUBMITTED" ? `scored ${c.score}/10` : c.score != null ? `improving, last scored ${c.score}/10` : "not submitted yet"}
                   </span>
                 </Link>
               </li>
@@ -153,7 +154,7 @@ export function DesignChallengePage() {
   const [challenge, setChallenge] = useState<DesignChallenge | null>(null);
   const [diagram, setDiagram] = useState<Diagram>(EMPTY);
   const [notes, setNotes] = useState("");
-  const [busy, setBusy] = useState<"hint" | "submit" | null>(null);
+  const [busy, setBusy] = useState<"hint" | "submit" | "improve" | "answer" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const resultRef = useRef<HTMLElement>(null);
@@ -168,7 +169,16 @@ export function DesignChallengePage() {
     setNotes(draft?.notes ?? "");
     designApi
       .get(id)
-      .then((res) => !cancelled && setChallenge(res.challenge))
+      .then((res) => {
+        if (cancelled) return;
+        setChallenge(res.challenge);
+        // Being improved after a mark, with no draft in this browser: start from the design that was marked.
+        const prev = res.challenge.status === "OPEN" ? res.challenge.previous : null;
+        if (prev && !draft) {
+          setDiagram(prev.diagram);
+          setNotes(prev.notes);
+        }
+      })
       .catch((err) => !cancelled && setError(errorMessage(err, "Couldn't load this question")));
     return () => {
       cancelled = true;
@@ -222,6 +232,47 @@ export function DesignChallengePage() {
     }
   }
 
+  // "Improve and resubmit": back to the canvas, starting from the design that was marked.
+  async function improve() {
+    setBusy("improve");
+    setError(null);
+    try {
+      const res = await designApi.improve(id);
+      writeDraft(id, null);
+      setDirty(false);
+      if (res.challenge.previous) {
+        setDiagram(res.challenge.previous.diagram);
+        setNotes(res.challenge.previous.notes);
+      }
+      setChallenge(res.challenge);
+      requestAnimationFrame(() => document.getElementById("last-mark")?.focus());
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't reopen this question. Try again."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // The model answer after a mark (or while improving one): the last mark stays as the score, and resubmitting ends.
+  async function showAnswer() {
+    if (!challenge) return;
+    const score = challenge.result?.score ?? challenge.previous?.score ?? 0;
+    if (!window.confirm(`Your score stays at ${score}/10 and you won't be able to resubmit this design. Show the model answer?`)) return;
+    setBusy("answer");
+    setError(null);
+    try {
+      const res = await designApi.answer(id);
+      writeDraft(id, null);
+      setDirty(false);
+      setChallenge(res.challenge);
+      requestAnimationFrame(() => resultRef.current?.focus());
+    } catch (err) {
+      setError(errorMessage(err, "Couldn't show the model answer. Try again."));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function clear() {
     if (!window.confirm("Clear your diagram? Your notes are kept.")) return;
     save({ diagram: EMPTY, notes });
@@ -243,6 +294,7 @@ export function DesignChallengePage() {
 
   const { result, requirements } = challenge;
   const open = challenge.status !== "SUBMITTED";
+  const previous = challenge.previous ?? null;
 
   return (
     <div className="page page-wide">
@@ -277,6 +329,28 @@ export function DesignChallengePage() {
 
       {open ? (
         <>
+          {previous && (
+            <LastMark
+              guide={challenge.guide}
+              score={previous.score}
+              attempt={previous.attempt}
+              attemptsLeft={previous.attemptsLeft}
+              history={previous.history}
+              steps={previous.toImprove}
+              extra={
+                previous.gaps.length > 0 && (
+                  <>
+                    <h3 className="feedback-list-title">What was missing</h3>
+                    <ul className="feedback-list">
+                      {previous.gaps.map((g, i) => (
+                        <li key={i}>{g}</li>
+                      ))}
+                    </ul>
+                  </>
+                )
+              }
+            />
+          )}
           <section className="card" aria-labelledby="design-canvas-title">
             <div className="code-header">
               <h2 id="design-canvas-title" className="code-header-title">
@@ -340,8 +414,13 @@ export function DesignChallengePage() {
               onClick={submit}
               disabled={busy !== null || (diagram.nodes.length === 0 && !notes.trim())}
             >
-              {busy === "submit" ? "Marking your design…" : "Submit my design"}
+              {busy === "submit" ? "Marking your design…" : previous ? "Resubmit my design" : "Submit my design"}
             </button>
+            {previous && (
+              <button type="button" className="btn btn-secondary btn-block debug-reveal" onClick={showAnswer} disabled={busy !== null}>
+                {busy === "answer" ? "Opening the model answer…" : `Keep my ${previous.score ?? 0}/10 and show me the model answer`}
+              </button>
+            )}
           </section>
         </>
       ) : (
@@ -358,6 +437,7 @@ export function DesignChallengePage() {
                     {challenge.hints.length} hint{challenge.hints.length === 1 ? "" : "s"} used
                   </p>
                 )}
+                <AttemptTrail history={result.history ?? []} current={result.score} />
               </div>
             </div>
             {result.parts ? (
@@ -418,14 +498,31 @@ export function DesignChallengePage() {
                 <p className="review-answer">{result.notes}</p>
               </details>
             )}
-            <h3 className="feedback-list-title">What a strong answer covers</h3>
-            <ul className="feedback-list">
-              {result.keyPoints.map((k, i) => (
-                <li key={i}>{k}</li>
-              ))}
-            </ul>
-            <h3 className="feedback-list-title">A model answer</h3>
-            <p className="scenario-text">{result.referenceDesign}</p>
+            {result.keyPoints && result.referenceDesign != null ? (
+              <>
+                <h3 className="feedback-list-title">What a strong answer covers</h3>
+                <ul className="feedback-list">
+                  {result.keyPoints.map((k, i) => (
+                    <li key={i}>{k}</li>
+                  ))}
+                </ul>
+                <h3 className="feedback-list-title">A model answer</h3>
+                <p className="scenario-text">{result.referenceDesign}</p>
+              </>
+            ) : (
+              <ImproveActions
+                attemptsLeft={result.attemptsLeft ?? 0}
+                busy={busy === "improve" || busy === "answer" ? busy : null}
+                answerLabel="Show me the model answer"
+                onImprove={improve}
+                onShowAnswer={showAnswer}
+              />
+            )}
+            {error && (
+              <p className="error-text" role="alert">
+                {error}
+              </p>
+            )}
             <Link to="/design" className="btn btn-primary">
               Try another
             </Link>

@@ -1,3 +1,4 @@
+import { answerVisible, attemptInfo, attemptsLeft, nextAttempt, previousForPrompt } from "../utils/attempts";
 import { prisma } from "../db/prisma";
 import { pickDesign } from "../pool/serve";
 import { scoreDesign } from "./design.rubric";
@@ -89,7 +90,11 @@ export async function submitDesign(userId: string, id: string, submission: { dia
 
   try {
     // Re-read after the claim, so a hint revealed just before it is counted.
-    const { hintsUsed } = await prisma.designChallenge.findUniqueOrThrow({ where: { id }, select: { hintsUsed: true } });
+    const latest = await prisma.designChallenge.findUniqueOrThrow({ where: { id }, select: { hintsUsed: true, feedback: true, score: true } });
+    const hintsUsed = latest.hintsUsed;
+    // A resubmission follows the attempt marked before it (utils/attempts.ts).
+    const previousFeedback = parseJsonObject<{ toImprove?: unknown }>(latest.feedback);
+    const previous = attemptInfo(previousFeedback);
     const requirements = parseJsonObject<{ functional: string[]; nonFunctional: string[] }>(challenge.requirements);
     const grade = await generateValidated(
       gradePrompt({
@@ -102,10 +107,11 @@ export async function submitDesign(userId: string, id: string, submission: { dia
         diagram: submission.diagram,
         notes: submission.notes,
         hintsUsed,
+        previous: previous ? previousForPrompt(latest.score, previousFeedback?.toImprove) : undefined,
       }),
       designGradeSchema
     );
-    const common = { strengths: grade.strengths, gaps: grade.gaps, feedback: grade.feedback, followUps: grade.followUps };
+    const common = { strengths: grade.strengths, gaps: grade.gaps, feedback: grade.feedback, followUps: grade.followUps, ...nextAttempt(previous, latest.score) };
     // Points marking: the hint deduction, total and step points come from design.rubric.ts. A reply in the older
     // shape is stored the old way.
     const marked =
@@ -132,4 +138,38 @@ export async function submitDesign(userId: string, id: string, submission: { dia
     await prisma.designChallenge.updateMany({ where: { id, status: "GRADING", submittedAt: claimedAt }, data: { status: "OPEN" } });
     throw err;
   }
+}
+
+type ImproveOutcome = { challenge: Challenge } | { error: "notFound" | "answerShown" | "noAttemptsLeft" | "notMarked" | "changed" };
+type Challenge = NonNullable<Awaited<ReturnType<typeof findChallenge>>>;
+
+// "Improve and resubmit", as in debug practice: a marked design whose model answer hasn't been shown goes back to
+// OPEN with its mark kept. Conditional on the feedback read here, so it can't race "Show me the model answer".
+export async function improve(userId: string, id: string): Promise<ImproveOutcome> {
+  const challenge = await findChallenge(userId, id);
+  if (!challenge) return { error: "notFound" };
+  if (challenge.status !== "SUBMITTED" || challenge.feedback == null) return { error: "notMarked" };
+  const info = attemptInfo(parseJsonObject(challenge.feedback));
+  if (answerVisible(info)) return { error: "answerShown" };
+  if (attemptsLeft(info) === 0) return { error: "noAttemptsLeft" };
+  const moved = await prisma.designChallenge.updateMany({
+    where: { id, userId, status: "SUBMITTED", feedback: challenge.feedback },
+    data: { status: "OPEN" },
+  });
+  if (moved.count !== 1) return { error: "changed" };
+  return { challenge: await prisma.designChallenge.findUniqueOrThrow({ where: { id } }) };
+}
+
+// "Show me the model answer" after a mark: ends resubmitting. While improving it goes back to the last mark.
+export async function showAnswer(userId: string, id: string): Promise<Challenge | null> {
+  const challenge = await findChallenge(userId, id);
+  if (!challenge) return null;
+  const feedback = parseJsonObject<Record<string, unknown>>(challenge.feedback);
+  const info = attemptInfo(feedback);
+  if (!info || info.answerShown || !(challenge.status === "SUBMITTED" || challenge.status === "OPEN")) return challenge;
+  await prisma.designChallenge.updateMany({
+    where: { id, userId, status: challenge.status, feedback: challenge.feedback },
+    data: { status: "SUBMITTED", feedback: JSON.stringify({ ...feedback, answerShown: true }) },
+  });
+  return prisma.designChallenge.findUniqueOrThrow({ where: { id } });
 }

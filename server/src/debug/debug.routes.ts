@@ -19,3 +19,6 @@ debugRouter.post("/:id/hint", asyncHandler(debugController.useHint));
 // Showing the answer is free unless the code check needs the AI (the controller applies the AI limits then).
 debugRouter.post("/:id/reveal", asyncHandler(debugController.revealAnswer));
 debugRouter.post("/:id/submit", ...aiGuard, asyncHandler(debugController.submitFix));
+// After a mark: improve and resubmit, or open the answer (which ends resubmitting). Neither calls the AI.
+debugRouter.post("/:id/improve", asyncHandler(debugController.improve));
+debugRouter.post("/:id/answer", asyncHandler(debugController.showAnswer));

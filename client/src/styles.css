@@ -4677,3 +4677,17 @@ button.rl-path-btn:hover {
 .coverage-no .coverage-mark {
   color: var(--danger);
 }
+
+/* Improve and resubmit (components/Attempts.tsx): the actions under a mark, and the last mark while improving. */
+.improve-actions {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.last-mark:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.attempt-trail {
+  margin: 4px 0 0;
+}

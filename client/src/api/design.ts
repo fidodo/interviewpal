@@ -8,4 +8,7 @@ export const designApi = {
   get: (id: string) => api.get<{ challenge: DesignChallenge }>(`/design/${id}`),
   hint: (id: string) => api.post<{ challenge: DesignChallenge }>(`/design/${id}/hint`),
   submit: (id: string, body: { diagram: Diagram; notes: string }) => api.post<{ challenge: DesignChallenge }>(`/design/${id}/submit`, body),
+  // After a mark: back to editing (up to 3 resubmits), or open the model answer, which ends resubmitting.
+  improve: (id: string) => api.post<{ challenge: DesignChallenge }>(`/design/${id}/improve`),
+  answer: (id: string) => api.post<{ challenge: DesignChallenge }>(`/design/${id}/answer`),
 };
