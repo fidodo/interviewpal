@@ -286,10 +286,14 @@ export interface DebugSummary {
 }
 
 // "Your challenges" filter: open = not submitted yet (including being marked), done = scored or answer shown.
-export type DebugListFilter = "all" | "open" | "done";
+export type DebugListFilter = "open" | "done";
 
 export interface DebugListResponse {
   challenges: DebugSummary[];
+  // The page actually returned (a page past the end comes back as the last one), of `pages`.
+  page: number;
+  pages: number;
+  total: number;
   hasMore: boolean;
   counts: Record<DebugListFilter, number>;
 }

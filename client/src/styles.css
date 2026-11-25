@@ -4018,13 +4018,67 @@ button.rl-path-btn:hover {
   margin-bottom: 12px;
 }
 
-.debug-history-more {
+.debug-history-status {
+  margin: 12px 0 0;
+}
+.debug-history-title:focus {
+  outline: none;
+}
+.debug-history-title:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Numbered pages (components/Pagination.tsx). */
+.pagination {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  gap: 8px;
   margin-top: 12px;
+}
+.pagination-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pagination-step {
+  min-height: 44px;
+}
+.pagination-page {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pagination-page:hover:not(.active) {
+  border-color: var(--primary);
+}
+.pagination-page.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-contrast);
+  cursor: default;
+}
+.pagination-page:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.pagination-gap {
+  min-width: 20px;
+  text-align: center;
+  color: var(--text-muted, inherit);
 }
 
 /* Speak: framework cheat sheets ("How to shape it" and /speak/frameworks). */
@@ -4540,4 +4594,19 @@ button.rl-path-btn:hover {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--primary-contrast);
+}
+/* Phones: the Previous / Next words are hidden visually (still read out), so the bar fits on one row. */
+@media (max-width: 480px) {
+  .pagination-step {
+    min-width: 44px;
+    padding: 0 12px;
+  }
+  .pagination-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }

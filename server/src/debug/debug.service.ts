@@ -98,23 +98,36 @@ export async function createChallenge(userId: string, language: DebugLanguage, l
 export const LIST_FILTERS = { all: undefined, open: ["OPEN", "GRADING"], done: ["SUBMITTED", "REVEALED"] } as const;
 export type ListFilter = keyof typeof LIST_FILTERS;
 
-// One page of "Your challenges", newest first. `before` is the id of the last challenge already shown: the page
-// continues after it (by createdAt, then id), so a challenge created while paging can't shift or repeat rows. The
+const LIST_SELECT = { id: true, title: true, language: true, level: true, status: true, score: true, createdAt: true } as const;
+const LIST_ORDER: Prisma.DebugChallengeOrderByWithRelationInput[] = [{ createdAt: "desc" }, { id: "desc" }];
+
+function listWhere(userId: string, filter: ListFilter): Prisma.DebugChallengeWhereInput {
+  const statuses = LIST_FILTERS[filter];
+  return { userId, ...(statuses ? { status: { in: [...statuses] } } : {}) };
+}
+
+// "Your challenges", page by page (1-based), newest first. A page past the end gives the last page, so a list that
+// shrank (exercises moved from To finish to Done) is never shown empty by mistake.
+export async function listChallengePage(userId: string, opts: { filter: ListFilter; page: number; limit: number }) {
+  const where = listWhere(userId, opts.filter);
+  const total = await prisma.debugChallenge.count({ where });
+  const pages = Math.max(1, Math.ceil(total / opts.limit));
+  const page = Math.min(Math.max(1, opts.page), pages);
+  const challenges = await prisma.debugChallenge.findMany({ where, orderBy: LIST_ORDER, skip: (page - 1) * opts.limit, take: opts.limit, select: LIST_SELECT });
+  return { challenges, page, pages, total, hasMore: page < pages };
+}
+
+// The older "Show more" list, kept so a browser still running the previous page keeps working after a deploy.
+// `before` is the id of the last challenge already shown: the page continues after it (by createdAt, then id). The
 // cursor is looked up within the user's own challenges, so someone else's id gives an empty page.
 export async function listChallenges(userId: string, opts: { filter: ListFilter; before?: string; limit: number }) {
-  const statuses = LIST_FILTERS[opts.filter];
-  const where: Prisma.DebugChallengeWhereInput = { userId, ...(statuses ? { status: { in: [...statuses] } } : {}) };
+  const where = listWhere(userId, opts.filter);
   if (opts.before) {
     const cursor = await prisma.debugChallenge.findFirst({ where: { id: opts.before, userId }, select: { id: true, createdAt: true } });
     if (!cursor) return { challenges: [], hasMore: false };
     where.OR = [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }];
   }
-  const rows = await prisma.debugChallenge.findMany({
-    where,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: opts.limit + 1,
-    select: { id: true, title: true, language: true, level: true, status: true, score: true, createdAt: true },
-  });
+  const rows = await prisma.debugChallenge.findMany({ where, orderBy: LIST_ORDER, take: opts.limit + 1, select: LIST_SELECT });
   return { challenges: rows.slice(0, opts.limit), hasMore: rows.length > opts.limit };
 }
 

@@ -2,9 +2,8 @@ import { api } from "./client";
 import { DebugChallenge, DebugListFilter, DebugListResponse, Difficulty } from "../types";
 
 export const debugApi = {
-  // One page of your challenges, newest first; `before` is the id of the last one already shown.
-  list: (status: DebugListFilter, before?: string) =>
-    api.get<DebugListResponse>(`/debug?${new URLSearchParams({ status, ...(before ? { before } : {}) })}`),
+  // One page (1-based, 10 per page) of your challenges, newest first.
+  list: (status: DebugListFilter, page: number) => api.get<DebugListResponse>(`/debug?${new URLSearchParams({ status, page: String(page) })}`),
   create: (language: string, level: Difficulty) => api.post<{ challenge: { id: string } }>("/debug", { language, level }),
   // A new exercise with the same stack, level and kinds of bugs as one of yours.
   createSimilar: (similarTo: string) => api.post<{ challenge: { id: string } }>("/debug", { similarTo }),

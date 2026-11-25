@@ -73,17 +73,23 @@ function serialize(c: Challenge) {
   };
 }
 
-// ?status=all|open|done&before=<id>&limit=1-30. Anything unrecognised falls back to the defaults.
+// ?status=open|done&page=1-1000&limit=1-30. Anything unrecognised falls back to the defaults (To finish, page 1).
+// `before=<id>` (and status=all) is the older "Show more" list, kept for a browser still running the previous page.
 const listQuerySchema = z.object({
-  status: z.enum(["all", "open", "done"]).catch("all"),
+  status: z.enum(["all", "open", "done"]).catch("open"),
+  page: z.coerce.number().int().min(1).max(1000).catch(1),
   before: z.string().trim().min(1).max(64).optional().catch(undefined),
   limit: z.coerce.number().int().min(1).max(30).catch(10),
 });
 
 export async function listChallenges(req: AuthedRequest, res: Response) {
-  const q = listQuerySchema.parse({ status: req.query.status ?? "all", before: req.query.before, limit: req.query.limit ?? 10 });
+  const q = listQuerySchema.parse({ status: req.query.status ?? "open", page: req.query.page ?? 1, before: req.query.before, limit: req.query.limit ?? 10 });
+  const legacy = q.before !== undefined;
+  const filter = q.status === "all" && !legacy ? "open" : q.status;
   const [page, counts] = await Promise.all([
-    debugService.listChallenges(req.userId!, { filter: q.status, before: q.before, limit: q.limit }),
+    legacy
+      ? debugService.listChallenges(req.userId!, { filter, before: q.before, limit: q.limit })
+      : debugService.listChallengePage(req.userId!, { filter, page: q.page, limit: q.limit }),
     debugService.challengeCounts(req.userId!),
   ]);
   res.json({ ...page, counts });

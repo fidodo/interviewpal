@@ -5,6 +5,7 @@ import { useElapsed } from "../hooks/useElapsed";
 import { DEBUG_LANGUAGES, DebugListFilter, DebugSummary, Difficulty, LEVEL_LABELS } from "../types";
 import { LEVELS, ProgressCard, WRITING_DETAIL, errorMessage } from "./debugBits";
 import { isStack, saveStack, savedStack } from "./debugDrafts";
+import { Pagination } from "../components/Pagination";
 
 // /debug: pick a stack and level, plus your past challenges.
 export function DebugPage() {
@@ -99,10 +100,9 @@ export function DebugPage() {
   );
 }
 
-const FILTERS: { key: DebugListFilter; label: string; empty: string }[] = [
-  { key: "all", label: "All", empty: "None yet." },
-  { key: "open", label: "To finish", empty: "Nothing to finish. Start one above." },
-  { key: "done", label: "Done", empty: "None done yet." },
+const FILTERS: { key: DebugListFilter; label: string; empty: string; noun: string }[] = [
+  { key: "open", label: "To finish", empty: "Nothing to finish. Start one above.", noun: "to finish" },
+  { key: "done", label: "Done", empty: "None done yet.", noun: "done" },
 ];
 
 // "12 Nov", or "12 Nov 2025" when it isn't this year.
@@ -112,67 +112,95 @@ function shortDate(iso: string) {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
 }
 
-// "Your challenges": 10 at a time, newest first, with a To finish / Done filter. "Show more" adds the next 10 below
-// and moves focus to the first new one.
+// "Your challenges": To finish / Done, 10 per page, newest first. The tab and page live in the address
+// (?show=done&page=2), so Back from a challenge returns to the same place. Without ?show, To finish opens, or Done
+// when there's nothing to finish.
 function ChallengeHistory() {
-  const [filter, setFilter] = useState<DebugListFilter>("all");
+  const [params, setParams] = useSearchParams();
+  const show = params.get("show");
+  const chosen: DebugListFilter | null = show === "open" || show === "done" ? show : null;
+  const [autoFilter, setAutoFilter] = useState<DebugListFilter>("open");
+  const filter = chosen ?? autoFilter;
+  const requestedPage = Math.max(1, Math.min(1000, Number.parseInt(params.get("page") ?? "1", 10) || 1));
   const [items, setItems] = useState<DebugSummary[] | null>(null);
-  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
   const [counts, setCounts] = useState<Record<DebugListFilter, number> | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Responses for an earlier filter (or a superseded request) are ignored.
+  // Responses for an earlier tab or page (a superseded request) are ignored.
   const requestId = useRef(0);
-  const focusId = useRef<string | null>(null);
-  const listRef = useRef<HTMLUListElement>(null);
+  // Set when the learner changed the page or tab, so focus moves to the list heading.
+  const moved = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
-  async function load(f: DebugListFilter, before?: string) {
-    const id = ++requestId.current;
-    setError(null);
-    try {
-      const res = await debugApi.list(f, before);
-      if (id !== requestId.current) return;
-      setCounts(res.counts);
-      setHasMore(res.hasMore);
-      setItems((prev) => {
-        if (!before || !prev) return res.challenges;
-        const seen = new Set(prev.map((c) => c.id));
-        const fresh = res.challenges.filter((c) => !seen.has(c.id));
-        focusId.current = fresh[0]?.id ?? null;
-        return [...prev, ...fresh];
-      });
-    } catch (err) {
-      if (id === requestId.current) setError(errorMessage(err, "Couldn't load your challenges"));
-    } finally {
-      if (id === requestId.current) setLoadingMore(false);
-    }
+  // Writes the tab and page into the address, keeping any other parameters (such as ?language=).
+  function go(next: { show?: DebugListFilter; page?: number }, push = false) {
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (next.show) p.set("show", next.show);
+        if (next.page !== undefined) {
+          if (next.page > 1) p.set("page", String(next.page));
+          else p.delete("page");
+        }
+        return p;
+      },
+      { replace: !push }
+    );
   }
 
   useEffect(() => {
-    setItems(null);
-    setLoadingMore(false);
-    void load(filter);
+    const id = ++requestId.current;
+    setError(null);
+    debugApi
+      .list(filter, requestedPage)
+      .then((res) => {
+        if (id !== requestId.current) return;
+        setCounts(res.counts);
+        // Nothing to finish and no tab picked yet: open on Done instead.
+        if (!chosen && filter === "open" && res.counts.open === 0 && res.counts.done > 0) {
+          setAutoFilter("done");
+          return;
+        }
+        setItems(res.challenges);
+        setPage(res.page);
+        setPages(res.pages);
+        // A page past the end comes back as the last page: correct the address to match.
+        if (res.page !== requestedPage) go({ page: res.page });
+        if (moved.current) {
+          moved.current = false;
+          headingRef.current?.focus();
+        }
+      })
+      .catch((err) => {
+        if (id === requestId.current) setError(errorMessage(err, "Couldn't load your challenges"));
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, requestedPage]);
 
-  // After "Show more", focus the first newly loaded challenge.
-  useEffect(() => {
-    if (!focusId.current) return;
-    listRef.current?.querySelector<HTMLAnchorElement>(`a[data-id="${focusId.current}"]`)?.focus();
-    focusId.current = null;
-  }, [items]);
+  function changePage(p: number) {
+    moved.current = true;
+    go({ show: filter, page: p }, true);
+  }
 
-  const total = counts?.[filter] ?? 0;
-  const empty = FILTERS.find((f) => f.key === filter)!.empty;
+  function changeTab(f: DebugListFilter) {
+    if (f === filter) return;
+    moved.current = true;
+    setItems(null);
+    go({ show: f, page: 1 });
+  }
+
+  const tab = FILTERS.find((f) => f.key === filter)!;
+  const anything = counts ? counts.open + counts.done > 0 : false;
   return (
     <section aria-labelledby="debug-history-title">
-      <h2 id="debug-history-title" className="card-title">
+      <h2 id="debug-history-title" className="card-title debug-history-title" tabIndex={-1} ref={headingRef}>
         Your challenges
       </h2>
-      {counts && counts.all > 0 && (
+      {counts && anything && (
         <div className="segmented debug-history-filter" role="group" aria-label="Show challenges">
           {FILTERS.map((f) => (
-            <button key={f.key} type="button" className={`segmented-option ${filter === f.key ? "active" : ""}`} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
+            <button key={f.key} type="button" className={`segmented-option ${filter === f.key ? "active" : ""}`} aria-pressed={filter === f.key} onClick={() => changeTab(f.key)}>
               {f.label} ({counts[f.key]})
             </button>
           ))}
@@ -184,13 +212,13 @@ function ChallengeHistory() {
         </p>
       )}
       {!items && !error && <p className="helper-text">Loading…</p>}
-      {items?.length === 0 && <p className="helper-text">{empty}</p>}
+      {items?.length === 0 && <p className="helper-text">{anything ? tab.empty : "None yet. Start one above."}</p>}
       {items && items.length > 0 && (
         <>
-          <ul className="course-list" ref={listRef}>
+          <ul className="course-list">
             {items.map((c) => (
               <li key={c.id}>
-                <Link to={`/debug/${c.id}`} className="card course-item" data-id={c.id}>
+                <Link to={`/debug/${c.id}`} className="card course-item">
                   <span className="course-item-title">{c.title}</span>
                   <span className="helper-text">
                     {DEBUG_LANGUAGES[c.language]?.label ?? c.language} · {LEVEL_LABELS[c.level]} · {shortDate(c.createdAt)} ·{" "}
@@ -200,24 +228,11 @@ function ChallengeHistory() {
               </li>
             ))}
           </ul>
-          <div className="debug-history-more">
-            <p className="helper-text" role="status">
-              Showing {items.length} of {Math.max(total, items.length)}
-            </p>
-            {hasMore && (
-              <button
-                type="button"
-                className="btn btn-secondary"
-                disabled={loadingMore}
-                onClick={() => {
-                  setLoadingMore(true);
-                  void load(filter, items[items.length - 1].id);
-                }}
-              >
-                {loadingMore ? "Loading…" : "Show more"}
-              </button>
-            )}
-          </div>
+          <p className="helper-text debug-history-status" role="status">
+            {pages > 1 ? `Page ${page} of ${pages} · ` : ""}
+            {counts?.[filter] ?? items.length} {tab.noun}
+          </p>
+          <Pagination page={page} pages={pages} onChange={changePage} label="Pages of your challenges" />
         </>
       )}
     </section>
