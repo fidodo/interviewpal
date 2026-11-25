@@ -90,12 +90,35 @@ export function TakeResult({
           <li key={i}>{s}</li>
         ))}
       </ul>
-      <h4 className="feedback-list-title">What would help most</h4>
-      <ul className="feedback-list">
-        {take.improvements.map((s, i) => (
-          <li key={i}>{s}</li>
-        ))}
-      </ul>
+      {take.toImprove && take.toImprove.length > 0 ? (
+        <div className="score-parts-next">
+          <h4 className="feedback-list-title">How to score higher</h4>
+          <ul className="score-steps">
+            {take.toImprove.map((s) => (
+              <li key={s.dimension}>
+                <span className="score-step-points">
+                  {s.from}
+                  <span aria-hidden="true">→</span>
+                  <span className="visually-hidden"> to </span>
+                  {s.to}
+                </span>
+                <span>
+                  <strong>{DIMENSIONS.find((d) => d.key === s.dimension)?.label ?? s.dimension}:</strong> {s.step}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : take.score < 10 ? (
+        <>
+          <h4 className="feedback-list-title">What would help most</h4>
+          <ul className="feedback-list">
+            {take.improvements.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       <h4 className="feedback-list-title">A stronger version of your story</h4>
       <p className="helper-text">Built only from what you said. Fill in the [bracketed] gaps with your own details.</p>
       <div className="st-stronger">

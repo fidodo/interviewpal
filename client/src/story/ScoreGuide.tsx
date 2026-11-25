@@ -118,6 +118,11 @@ export function ScoreGuide({
                 <strong>To reach {guide.bands[next].min}:</strong> {d.bands[next]}
               </p>
             )}
+            {take.toImprove?.find((t) => t.dimension === d.key) && (
+              <p>
+                <strong>For this story:</strong> {take.toImprove.find((t) => t.dimension === d.key)!.step}
+              </p>
+            )}
             {d.key === "delivery" && delivery && (
               <>
                 <h4 className="feedback-list-title">Your take {take.number}, measured</h4>

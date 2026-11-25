@@ -4645,3 +4645,9 @@ button.rl-path-btn:hover {
 .share-question-link {
   margin: -4px 0 20px;
 }
+
+/* Speak's "5 → 7" step badges (story/TakeResult.tsx) stay on one line. */
+.score-step-points {
+  white-space: nowrap;
+  flex-shrink: 0;
+}

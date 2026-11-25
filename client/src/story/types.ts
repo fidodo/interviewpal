@@ -112,6 +112,9 @@ export interface StoryTake {
   delivery: { lengthPercent: number; length: "short" | "on" | "long"; fillersPer100: number; fillersOk: boolean } | null;
   // Why each dimension got its score, from the marker. Null for takes marked before this was added.
   reasons: Partial<Record<Dimension, string>> | null;
+  // "How to score higher": a step per weak dimension, aiming at the next band (server story.rubric.ts speakSteps).
+  // Missing on takes marked before this was added.
+  toImprove?: { dimension: Dimension; from: number; to: number; step: string }[];
   createdAt: string;
 }
 

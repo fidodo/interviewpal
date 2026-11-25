@@ -55,6 +55,12 @@ export const storyGradeSchema = z.object({
   outline: z.array(z.string().trim().min(2).max(200)).min(3).max(5),
   // Why each dimension got its score. Optional so a model that leaves it out doesn't force a retry.
   reasons: z.object({ structure: reason, clarity: reason, specifics: reason, presence: reason, delivery: reason }).optional().catch(undefined),
+  // "How to score higher": a step per weak dimension (story.rubric.ts speakSteps). Optional for the same reason.
+  toImprove: z
+    .array(z.object({ dimension: z.string(), step: z.string().trim().min(3).max(400) }))
+    .max(5)
+    .optional()
+    .catch(undefined),
 });
 export type StoryGrade = z.infer<typeof storyGradeSchema>;
 
@@ -119,6 +125,7 @@ export function storyGradePrompt(p: {
       : `Delivery: this take was typed, so nothing was heard. Mark it on length and on fillers and hedges in the wording only, and no higher than 6.`,
     `"score" is the overall mark 0-10. ${OVERALL_NOTE}`,
     `"reasons": one sentence per dimension, addressed to the speaker as "you", saying why it got that score: what held it back, or what earned it.`,
+    `"toImprove": for up to 3 of the lowest-scoring dimensions below 9, one concrete step for THIS story that would move it into the next band of the guide, addressed to the speaker as "you" (e.g. for structure: "Open with the result: '…', then say how you got there"). Use only what they said; where a detail is missing, say what to add, never invent it.`,
     `"strengths": what worked, quoting their words where possible. "improvements": the 1-3 changes that would help most, each concrete ("open with the outcome: '…'"), not generic advice.`,
     `"cameAcross": 2-3 sentences, addressed to the speaker as "you", on how they came across to this audience.`,
     `"strongerVersion": their answer retold better, in the first person, as they could say it aloud in about ${p.targetSeconds} seconds. Rules for it:
@@ -130,7 +137,7 @@ export function storyGradePrompt(p: {
       ? `For this conversation, "strongerVersion" is the speaker's side retold better: one line per turn, each starting "You:", answering the same "Them:" lines (don't repeat those). The same rules apply, strictly: when the other person asked something the speaker didn't answer (which model, which tool, how many, what result), put a bracketed question for them to fill in, e.g. "[which embedding model?]". Never name a product, tool, company or number the speaker didn't say.`
       : ``,
     `"outline": 3-5 short bullets of the stronger version, to retell from.`,
-    `Respond ONLY with JSON: { "score": number, "breakdown": { "structure": number, "clarity": number, "specifics": number, "presence": number, "delivery": number }, "strengths": string[], "improvements": string[], "cameAcross": string, "strongerVersion": string, "outline": string[], "reasons": { "structure": string, "clarity": string, "specifics": string, "presence": string, "delivery": string } }`,
+    `Respond ONLY with JSON: { "score": number, "breakdown": { "structure": number, "clarity": number, "specifics": number, "presence": number, "delivery": number }, "strengths": string[], "improvements": string[], "cameAcross": string, "strongerVersion": string, "outline": string[], "reasons": { "structure": string, "clarity": string, "specifics": string, "presence": string, "delivery": string }, "toImprove": [{ "dimension": "structure" | "clarity" | "specifics" | "presence" | "delivery", "step": string }] }`,
   ]
     .filter(Boolean)
     .join("\n\n");

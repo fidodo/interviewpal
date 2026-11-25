@@ -94,3 +94,27 @@ export function rubricForPrompt() {
     (key) => `- ${key}:\n${BANDS.map((b, i) => `  ${b.min}-${b.max}: ${RUBRIC[key].bands[i]}`).join("\n")}`
   ).join("\n");
 }
+
+export interface SpeakStep {
+  dimension: DimensionKey;
+  // The take's score for it, and the bottom of the next band (what the step aims for).
+  from: number;
+  to: number;
+  step: string;
+}
+
+// "How to score higher": the marker's steps, kept only for real dimensions that aren't already in the top band, one
+// per dimension, lowest score first, at most 3. The target is the next band's lower bound, worked out here.
+export function speakSteps(breakdown: Record<DimensionKey, number>, raw: { dimension: string; step: string }[] | undefined): SpeakStep[] {
+  const seen = new Set<string>();
+  return (raw ?? [])
+    .filter((s): s is { dimension: DimensionKey; step: string } => (DIMENSION_KEYS as readonly string[]).includes(s.dimension))
+    .filter((s) => breakdown[s.dimension] < BANDS[BANDS.length - 1].min && !seen.has(s.dimension) && seen.add(s.dimension))
+    .map((s) => {
+      const from = breakdown[s.dimension];
+      const next = BANDS.find((b) => b.min > from)!;
+      return { dimension: s.dimension, from, to: next.min, step: s.step.trim().slice(0, 300) };
+    })
+    .sort((a, b) => a.from - b.from)
+    .slice(0, 3);
+}

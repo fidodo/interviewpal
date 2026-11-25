@@ -1,3 +1,4 @@
+import { speakSteps } from "./story.rubric";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { aiProvider } from "../ai/provider.factory";
@@ -194,6 +195,8 @@ export async function submitTake(
           outline: grade.outline,
           // Why each dimension got its score (takes marked before this was added have none).
           reasons: grade.reasons ?? null,
+          // Steps to the next band for the weakest dimensions (none on takes marked before this was added).
+          toImprove: speakSteps(grade.breakdown, grade.toImprove),
         }),
       },
     });
