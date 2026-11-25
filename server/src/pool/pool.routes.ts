@@ -4,6 +4,7 @@ import { asyncHandler } from "../middleware/errorHandler";
 import { AuthedRequest, requireAdmin, requireAuth } from "../middleware/auth.middleware";
 import { SERVE_POOL, setSetting } from "./settings";
 import { cancelRun, DEFAULT_AI_CAP, poolStatus, startRun, step } from "./update.service";
+import { approve, forReview, reject, submissionSchema } from "./submissions";
 
 // The question pool's admin page (/admin/questions). Everyone else gets a 404 from requireAdmin.
 export const poolAdminRouter = Router();
@@ -60,5 +61,42 @@ poolAdminRouter.post(
       return;
     }
     res.json({ status: run.status });
+  })
+);
+
+// Submitted questions waiting for review.
+poolAdminRouter.get(
+  "/submissions",
+  asyncHandler(async (_req: AuthedRequest, res: Response) => {
+    res.json(await forReview());
+  })
+);
+
+// Approve, with any corrections to the wording, topic, level or company.
+poolAdminRouter.post(
+  "/submissions/:id/approve",
+  asyncHandler(async (req: AuthedRequest, res: Response) => {
+    const parsed = submissionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Check the question and try again." });
+      return;
+    }
+    const result = await approve(String(req.params.id), parsed.data);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json({ added: result.added, ...(await forReview()) });
+  })
+);
+
+poolAdminRouter.post(
+  "/submissions/:id/reject",
+  asyncHandler(async (req: AuthedRequest, res: Response) => {
+    if (!(await reject(String(req.params.id)))) {
+      res.status(409).json({ error: "This question has already been reviewed." });
+      return;
+    }
+    res.json(await forReview());
   })
 );

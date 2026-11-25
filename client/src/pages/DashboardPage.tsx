@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { rolesApi } from "../api/roles";
 import { TopicPicker } from "../components/TopicPicker";
@@ -291,6 +291,10 @@ export function DashboardPage() {
           )}
         </button>
       </section>
+
+      <p className="helper-text share-question-link">
+        Asked something in a real interview? <Link to="/questions/submit">Share the question</Link> so others can practise it.
+      </p>
 
       {recentSessions.length > 0 && (
         <section className="card" aria-labelledby="recent-title">

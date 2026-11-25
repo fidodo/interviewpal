@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { PoolStatus, poolApi, StepResult } from "../api/pool";
 import { useAuth } from "../hooks/useAuth";
+import { SubmissionReview } from "./SubmissionReview";
 
 const KIND_LABEL = { INTERVIEW: "Interview questions", DEBUG: "Debug exercises", DESIGN: "System design" } as const;
 const LEVELS = ["JUNIOR", "INTERMEDIATE", "SENIOR"] as const;
@@ -277,6 +278,8 @@ function AdminQuestions() {
           </div>
         )}
       </section>
+
+      <SubmissionReview />
 
       <section className="card" aria-labelledby="pool-sources-title">
         <h2 id="pool-sources-title" className="card-title">

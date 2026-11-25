@@ -4610,3 +4610,38 @@ button.rl-path-btn:hover {
     white-space: nowrap;
   }
 }
+
+/* "Share a question you were asked" (pages/SubmitQuestionPage.tsx) and its admin review (pages/SubmissionReview.tsx). */
+.success-text {
+  color: var(--success);
+  font-weight: 600;
+}
+.success-text:empty {
+  display: none;
+}
+.question-draft-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 0 12px;
+}
+.submission-list,
+.submission-review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+.submission-list li + li,
+.submission-review + .submission-review {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.submission-text {
+  margin: 0 0 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.share-question-link {
+  margin: -4px 0 20px;
+}

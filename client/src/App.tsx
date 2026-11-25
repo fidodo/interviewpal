@@ -29,6 +29,7 @@ const TermReviewPage = lazyWithReload(() => import("./terms/TermsPages").then((m
 const SpeakHomePage = lazyWithReload(() => import("./story/StoryPages").then((m) => ({ default: m.SpeakHomePage })));
 const StoryPage = lazyWithReload(() => import("./story/StoryPages").then((m) => ({ default: m.StoryPage })));
 const ProgressPage = lazyWithReload(() => import("./progress/ProgressPage").then((m) => ({ default: m.ProgressPage })));
+const SubmitQuestionPage = lazyWithReload(() => import("./pages/SubmitQuestionPage").then((m) => ({ default: m.SubmitQuestionPage })));
 const AdminQuestionsPage = lazyWithReload(() => import("./pages/AdminQuestionsPage").then((m) => ({ default: m.AdminQuestionsPage })));
 const StoryBankPage = lazyWithReload(() => import("./story/BankPages").then((m) => ({ default: m.StoryBankPage })));
 const StoryDrillPage = lazyWithReload(() => import("./story/BankPages").then((m) => ({ default: m.StoryDrillPage })));
@@ -194,6 +195,16 @@ function InterviewRoutes() {
             <ProtectedRoute>
               <Suspense fallback={<Loading />}>
                 <ProgressPage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/questions/submit"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<Loading />}>
+                <SubmitQuestionPage />
               </Suspense>
             </ProtectedRoute>
           }

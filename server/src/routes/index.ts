@@ -15,6 +15,7 @@ import { termsRouter } from "../terms/terms.routes";
 import { cronRouter, remindersRouter, todayRouter } from "../today/today.routes";
 import { poolAdminRouter } from "../pool/pool.routes";
 import { poolVoteRouter } from "../pool/vote.routes";
+import { submitRouter } from "../pool/submit.routes";
 
 export const apiRouter = Router();
 
@@ -39,3 +40,4 @@ apiRouter.use("/reminders", remindersRouter);
 apiRouter.use("/cron", cronRouter);
 apiRouter.use("/admin/pool", poolAdminRouter);
 apiRouter.use("/pool", poolVoteRouter);
+apiRouter.use("/question-submissions", submitRouter);

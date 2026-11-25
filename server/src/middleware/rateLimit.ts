@@ -189,3 +189,9 @@ export const poolVoteLimiter = limiter("pool-vote", 60_000, 30, "That's a lot of
   keyGenerator: byUserOrIp,
   skip: isAdmin,
 });
+
+// "Submit a question you were asked": sending or withdrawing (the pending cap is checked in the service too).
+export const submissionLimiter = limiter("pool-submit", 60 * 60_000, 20, "That's a lot of questions in an hour. Try again later.", {
+  keyGenerator: byUserOrIp,
+  skip: isAdmin,
+});

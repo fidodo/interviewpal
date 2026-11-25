@@ -8,40 +8,41 @@ generator client {
 }
 
 model User {
-  id             String             @id @default(cuid())
-  email          String             @unique
-  passwordHash   String?
-  googleId       String?            @unique
-  createdAt      DateTime           @default(now())
-  sessions       InterviewSession[]
-  kidsPinHash    String?
-  children       ChildProfile[]
+  id              String             @id @default(cuid())
+  email           String             @unique
+  passwordHash    String?
+  googleId        String?            @unique
+  createdAt       DateTime           @default(now())
+  sessions        InterviewSession[]
+  kidsPinHash     String?
+  children        ChildProfile[]
   // Set by email-link verification or a Google sign-in. Unverified password accounts lose their password if
   // Google later proves someone else owns the email (stops pre-registration account takeover).
-  emailVerified  Boolean            @default(false)
+  emailVerified   Boolean            @default(false)
   // Bumped on logout / password reset; tokens carrying an older version are rejected.
-  tokenVersion   Int                @default(0)
+  tokenVersion    Int                @default(0)
   // Exempt from the daily AI allowance.
-  isAdmin        Boolean            @default(false)
-  topics         Topic[]
-  authTokens     AuthToken[]
-  roles          TargetRole[]
-  courses        LearnCourse[]
-  reviewItems    ReviewItem[]
-  debugs         DebugChallenge[]
-  designs        DesignChallenge[]
-  ragProjects    RagProject[]
-  stories        StoryPractice[]
-  storyBank      StoryBankEntry[]
-  terms          Term[]
-  termProgress   TermProgress[]
-  practiceDays   PracticeDay[]
-  achievements   Achievement[]
-  bests          PersonalBest[]
-  poolVotes      PoolVote[]
+  isAdmin         Boolean            @default(false)
+  topics          Topic[]
+  authTokens      AuthToken[]
+  roles           TargetRole[]
+  courses         LearnCourse[]
+  reviewItems     ReviewItem[]
+  debugs          DebugChallenge[]
+  designs         DesignChallenge[]
+  ragProjects     RagProject[]
+  stories         StoryPractice[]
+  storyBank       StoryBankEntry[]
+  terms           Term[]
+  termProgress    TermProgress[]
+  practiceDays    PracticeDay[]
+  achievements    Achievement[]
+  bests           PersonalBest[]
+  poolVotes       PoolVote[]
+  poolSubmissions PoolSubmission[]
   // Daily reminder email (Phase D): opt-in, sent at most once a UTC day on days with no practice.
-  dailyReminder  Boolean            @default(false)
-  reminderSentOn DateTime?          @db.Date
+  dailyReminder   Boolean            @default(false)
+  reminderSentOn  DateTime?          @db.Date
 }
 
 // Preset topics have no owner and are visible to everyone; custom topics belong to the user who created them.
@@ -690,31 +691,32 @@ model PersonalBest {
 // One question or exercise everyone can be given. Filled only by the admin's "Update questions" run, from prompts
 // with no user data, or imported from licensed GitHub sources. Retired, never deleted, so past answers keep theirs.
 model PoolItem {
-  id        String            @id @default(cuid())
+  id          String            @id @default(cuid())
   // INTERVIEW | DEBUG | DESIGN
-  kind      String
+  kind        String
   // INTERVIEW: the preset track and topic name. DEBUG: the language. Null where not used.
-  track     String?
-  topic     String?
-  language  String?
+  track       String?
+  topic       String?
+  language    String?
   // JUNIOR | INTERMEDIATE | SENIOR
-  level     String
+  level       String
   // JSON, by kind. INTERVIEW: { text, type, codeSpec }. DEBUG: the challenge fields. DESIGN: the design fields.
-  payload   String
+  payload     String
   // "ai:<model>" or "github:<owner/repo>"; with the page and licence for credit.
-  source    String
-  sourceUrl String?
-  licence   String?
-  credit    String?
+  source      String
+  sourceUrl   String?
+  licence     String?
+  credit      String?
   // Normalised question text, hashed: stops the same question being added twice.
-  checksum  String            @unique
-  served    Int               @default(0)
-  addedAt   DateTime          @default(now())
-  retiredAt DateTime?
-  votes     PoolVote[]
-  questions Question[]
-  debugs    DebugChallenge[]
-  designs   DesignChallenge[]
+  checksum    String            @unique
+  served      Int               @default(0)
+  addedAt     DateTime          @default(now())
+  retiredAt   DateTime?
+  votes       PoolVote[]
+  submissions PoolSubmission[]
+  questions   Question[]
+  debugs      DebugChallenge[]
+  designs     DesignChallenge[]
 
   @@index([kind, level, retiredAt])
 }
@@ -763,4 +765,29 @@ model AppSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// "Submit a question you were asked": a user reports a real interview question. It waits for the admin's review on
+// /admin/questions; approving adds it to the pool (credited to "an InterviewPal user", never by name). Submissions
+// are removed with the account; the pool item they became stays.
+model PoolSubmission {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text       String
+  // A preset track and topic, and the level the user thinks it was; the admin can change them when approving.
+  track      String
+  topic      String
+  level      String
+  // Where they were asked, if they want to say ("Google"). Optional.
+  company    String?
+  // PENDING | APPROVED | REJECTED
+  status     String    @default("PENDING")
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  poolItemId String?
+  poolItem   PoolItem? @relation(fields: [poolItemId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }
